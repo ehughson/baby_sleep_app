@@ -29,6 +29,92 @@ def init_db():
         )
     ''')
     
+    # Create forum channels table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS forum_channels (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            icon TEXT,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create forum posts table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS forum_posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id INTEGER NOT NULL,
+            author_name TEXT NOT NULL,
+            content TEXT NOT NULL,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (channel_id) REFERENCES forum_channels (id)
+        )
+    ''')
+    
+    # Create users table (for friends feature)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS forum_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            display_name TEXT,
+            last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create friendships table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS friendships (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user1_name TEXT NOT NULL,
+            user2_name TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user1_name, user2_name),
+            CHECK(status IN ('pending', 'accepted', 'blocked'))
+        )
+    ''')
+    
+    # Create authenticated users table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS auth_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            email TEXT,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create sessions table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            session_token TEXT NOT NULL UNIQUE,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES auth_users (id)
+        )
+    ''')
+    
+    # Insert default channels if they don't exist
+    default_channels = [
+        ('general', '💬', 'General sleep training discussions'),
+        ('night-wakings', '🌙', 'Dealing with night wakings'),
+        ('bedtime-routines', '🛌', 'Bedtime routine ideas'),
+        ('nap-schedules', '😴', 'Nap schedule discussions'),
+        ('gentle-methods', '💤', 'Gentle sleep training methods'),
+        ('support', '💙', 'Support and encouragement')
+    ]
+    
+    for name, icon, description in default_channels:
+        cursor.execute('''
+            INSERT OR IGNORE INTO forum_channels (name, icon, description)
+            VALUES (?, ?, ?)
+        ''', (name, icon, description))
+    
     conn.commit()
     conn.close()
 

@@ -39,9 +39,12 @@ A beautiful, AI-powered sleep training assistant designed specifically for exhau
 
 3. **Configure environment variables**
    ```bash
+   cd backend
    cp .env.example .env
-   # Edit .env and add your Gemini API key
+   # Edit .env and add your Gemini API key (see below for instructions)
    ```
+   
+   **Important**: The `.env` file is already in `.gitignore` and will NOT be uploaded to GitHub. Your API key is safe and will be saved locally on your machine.
 
 4. **Set up the frontend**
    ```bash
