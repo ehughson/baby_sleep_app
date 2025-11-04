@@ -13,7 +13,9 @@ from models import Conversation, Message
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+# CORS configuration - allows all origins in production
+# For production, you might want to restrict this to your frontend domain
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Initialize database
 init_db()
@@ -652,4 +654,6 @@ def logout():
         return jsonify({'error': f'Failed to logout: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    port = int(os.getenv('PORT', 5001))
+    debug = os.getenv('FLASK_ENV') == 'development'
+    app.run(debug=debug, host='0.0.0.0', port=port)
