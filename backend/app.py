@@ -15,7 +15,7 @@ load_dotenv()
 app = Flask(__name__)
 # CORS configuration - allows all origins in production
 # For production, you might want to restrict this to your frontend domain
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
 
 # Initialize database
 init_db()
