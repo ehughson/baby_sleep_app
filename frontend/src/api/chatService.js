@@ -6,13 +6,33 @@ export const chatService = {
   // Send message and get response
   sendMessage: async (message, conversationId = null) => {
     try {
+      console.log('Sending message to:', `${API_BASE_URL}/chat`);
       const response = await axios.post(`${API_BASE_URL}/chat`, {
         message,
         conversation_id: conversationId
       });
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Failed to send message');
+      console.error('API Error:', error);
+      console.error('API URL:', API_BASE_URL);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      });
+      
+      // More detailed error messages
+      if (error.response) {
+        // Server responded with error
+        throw new Error(error.response?.data?.error || `Server error: ${error.response.status} ${error.response.statusText}`);
+      } else if (error.request) {
+        // Request made but no response (network error)
+        throw new Error(`Cannot connect to backend. Check if ${API_BASE_URL} is correct and backend is running.`);
+      } else {
+        // Something else happened
+        throw new Error(error.message || 'Failed to send message');
+      }
     }
   },
 
