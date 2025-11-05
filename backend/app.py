@@ -38,7 +38,8 @@ def get_gemini_response(message, conversation_history=None, stream=False):
     
     genai.configure(api_key=gemini_api_key)
     # Use faster model for quicker responses
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Use gemini-flash-latest (the correct alias for the fastest model)
+    model = genai.GenerativeModel('gemini-flash-latest')
     
     # Sleep training specialist prompt
     sleep_specialist_prompt = """You are a gentle sleep training specialist and baby sleep consultant with expertise in helping exhausted parents establish healthy sleep habits for their children. Your approach is:
