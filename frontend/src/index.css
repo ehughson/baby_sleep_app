@@ -255,6 +255,7 @@ body {
   height: 120px;
   max-width: 100%;
   object-fit: contain;
+  display: block;
 }
 
 .welcome-section h2 {

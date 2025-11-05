@@ -305,7 +305,22 @@ function App() {
             <div className="welcome-section">
               <div className="welcome-content">
                 <div className="welcome-icon">
-                  <img src="/images/baby-icon.svg" alt="Baby" className="baby-icon-image" />
+                  <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" className="baby-icon-image">
+                    <circle cx="60" cy="60" r="55" fill="#FFF8F0" stroke="#8B6F5E" strokeWidth="2.5"/>
+                    <path d="M 45 25 Q 50 20 55 22 Q 60 20 65 22 Q 70 20 75 25" stroke="#8B6F5E" strokeWidth="2" fill="none" strokeLinecap="round"/>
+                    <path d="M 50 22 Q 52 18 55 20" stroke="#8B6F5E" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+                    <path d="M 65 22 Q 67 18 70 20" stroke="#8B6F5E" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+                    <ellipse cx="30" cy="55" rx="8" ry="12" fill="#FFF8F0" stroke="#8B6F5E" strokeWidth="2"/>
+                    <path d="M 26 52 Q 28 50 30 52 Q 32 50 34 52" stroke="#8B6F5E" strokeWidth="1.5" fill="none"/>
+                    <ellipse cx="90" cy="55" rx="8" ry="12" fill="#FFF8F0" stroke="#8B6F5E" strokeWidth="2"/>
+                    <path d="M 86 52 Q 88 50 90 52 Q 92 50 94 52" stroke="#8B6F5E" strokeWidth="1.5" fill="none"/>
+                    <path d="M 45 50 Q 50 48 55 50" stroke="#8B6F5E" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+                    <path d="M 65 50 Q 70 48 75 50" stroke="#8B6F5E" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+                    <path d="M 58 60 Q 60 58 62 60" stroke="#8B6F5E" strokeWidth="2" fill="none" strokeLinecap="round"/>
+                    <path d="M 48 72 Q 55 78 60 78 Q 65 78 72 72" stroke="#8B6F5E" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+                    <ellipse cx="35" cy="65" rx="8" ry="6" fill="#FFB6C1" opacity="0.4"/>
+                    <ellipse cx="85" cy="65" rx="8" ry="6" fill="#FFB6C1" opacity="0.4"/>
+                  </svg>
                 </div>
                 <h2>{user?.username ? `Hi there ${user.username}!` : 'Hi there!'}</h2>
                 <p>what sleep hurdle are we tackling?</p>
