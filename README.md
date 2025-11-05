@@ -55,12 +55,28 @@ A beautiful, AI-powered sleep training assistant designed specifically for exhau
 ### Running the Application
 
 1. **Start the backend server**
+   
+   **Option 1: Using the script (recommended)**
+   ```bash
+   cd backend
+   ./start_server.sh
+   ```
+   
+   **Option 2: Manual start**
    ```bash
    cd backend
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    python app.py
    ```
+   
    Backend will run on `http://localhost:5001`
+   
+   **Important**: Make sure the backend is running before trying to sign up or login!
+   
+   You should see output like:
+   ```
+   * Running on http://0.0.0.0:5001
+   ```
 
 2. **Start the frontend development server**
    ```bash

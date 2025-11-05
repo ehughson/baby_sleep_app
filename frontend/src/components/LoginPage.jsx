@@ -51,7 +51,16 @@ const LoginPage = ({ onLoginSuccess }) => {
       }
     } catch (err) {
       console.error('Auth error:', err);
-      setError(err.message || 'An error occurred. Please try again.');
+      const errorMessage = err.message || 'An error occurred. Please try again.';
+      setError(errorMessage);
+      
+      // If it's a connection error, provide more helpful guidance
+      if (errorMessage.includes('Unable to connect') || errorMessage.includes('timed out')) {
+        console.error('Backend connection issue. Make sure:');
+        console.error('1. Backend server is running (cd backend && python app.py)');
+        console.error('2. Backend is running on port 5001');
+        console.error('3. Check browser console for the API Base URL');
+      }
     } finally {
       setIsLoading(false);
     }

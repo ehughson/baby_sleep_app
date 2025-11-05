@@ -527,7 +527,7 @@ def get_file(filename):
 
 # Direct Messages endpoints
 @app.route('/api/dm/conversations', methods=['GET'])
-def get_conversations():
+def get_dm_conversations():
     """Get all conversations for a user"""
     from database import get_db_connection
     username = request.args.get('username', '')
