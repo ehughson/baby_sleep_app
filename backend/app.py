@@ -342,7 +342,9 @@ def delete_channel(channel_id):
             conn.close()
             return jsonify({'error': 'Channel not found'}), 404
         
-        if channel['owner_name'] != username:
+        # Allow deletion if user is owner OR if channel has no owner (for backward compatibility)
+        owner_name = channel['owner_name'] if channel['owner_name'] else ''
+        if owner_name and owner_name != username:
             conn.close()
             return jsonify({'error': 'Only channel owner can delete the channel'}), 403
         

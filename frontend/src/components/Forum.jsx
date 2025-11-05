@@ -42,15 +42,7 @@ const Forum = ({ user }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  useEffect(() => {
-    // Select first channel by default when channels are loaded
-    if (channels.length > 0 && !selectedChannel && !isLoadingChannels) {
-      setSelectedChannel(channels[0]);
-      const username = user?.username || authorName || '';
-      loadPosts(channels[0].id, username);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channels, isLoadingChannels]);
+  // Removed auto-selection of first channel - start on channel list instead
 
   useEffect(() => {
     if (selectedChannel && !isLoadingChannels) {
@@ -123,7 +115,11 @@ const Forum = ({ user }) => {
     }
 
     try {
-      const username = user?.username || authorName;
+      const username = user?.username || authorName || '';
+      if (!username) {
+        alert('You must be logged in to delete a channel');
+        return;
+      }
       await forumService.deleteChannel(selectedChannel.id, username);
       setSelectedChannel(null);
       loadChannels();
@@ -364,7 +360,7 @@ const Forum = ({ user }) => {
                 </div>
 
                 <div className="form-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', justifyContent: 'flex-start' }}>
                     <input
                       type="checkbox"
                       checked={newChannelPrivate}
@@ -372,7 +368,7 @@ const Forum = ({ user }) => {
                     />
                     <span>Make this topic private</span>
                   </label>
-                  <small>Private topics are only visible to invited members</small>
+                  <small style={{ display: 'block', marginTop: '0.25rem', textAlign: 'left' }}>Private topics are only visible to invited members</small>
                 </div>
                 
                 <div className="modal-buttons">
@@ -419,7 +415,7 @@ const Forum = ({ user }) => {
           )}
         </div>
         <div className="topic-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
-          {(selectedChannel.owner_name === (user?.username || authorName)) && (
+          {(!selectedChannel.owner_name || selectedChannel.owner_name === (user?.username || authorName)) && (
             <>
               <button
                 className="topic-action-btn"
