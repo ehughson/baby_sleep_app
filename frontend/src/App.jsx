@@ -304,7 +304,9 @@ function App() {
           {messages.length === 0 ? (
             <div className="welcome-section">
               <div className="welcome-content">
-                <div className="welcome-icon">👶</div>
+                <div className="welcome-icon">
+                  <img src="/images/baby-icon.svg" alt="Baby" className="baby-icon-image" />
+                </div>
                 <h2>{user?.username ? `Hi there ${user.username}!` : 'Hi there!'}</h2>
                 <p>what sleep hurdle are we tackling?</p>
                 <div className="suggestion-chips">

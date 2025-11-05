@@ -256,7 +256,7 @@ const Forum = ({ user }) => {
     }
   };
 
-  const iconOptions = ['💬', '🌙', '🛌', '😴', '💤', '💙', '👶', '⭐', '🎯', '📚', '💡', '🤗'];
+  const iconOptions = ['💬', '🌙', '🛌', '😴', '💤', '💙', '⭐', '🎯', '📚', '💡', '🤗'];
 
   // Show topic selection view (grid of topics)
   if (!selectedChannel) {
