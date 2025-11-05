@@ -305,7 +305,15 @@ function App() {
             <div className="welcome-section">
               <div className="welcome-content">
                 <div className="welcome-icon">
-                  <img src="/images/baby-icon.png" alt="Baby" className="baby-icon-image" />
+                  <img 
+                    src="/images/baby-icon.png" 
+                    alt="Baby" 
+                    className="baby-icon-image"
+                    onError={(e) => {
+                      console.error('Image failed to load from:', e.target.src);
+                      console.error('Current location:', window.location.href);
+                    }}
+                  />
                 </div>
                 <h2>{user?.username ? `Hi there ${user.username}!` : 'Hi there!'}</h2>
                 <p>what sleep hurdle are we tackling?</p>
