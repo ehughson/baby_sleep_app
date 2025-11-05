@@ -305,40 +305,7 @@ function App() {
             <div className="welcome-section">
               <div className="welcome-content">
                 <div className="welcome-icon">
-                  <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" className="baby-icon-image">
-                    {/* Head - perfectly round */}
-                    <circle cx="60" cy="60" r="50" fill="#FFF8F0" stroke="#8B6F5E" strokeWidth="2.5"/>
-                    
-                    {/* Small tuft of hair on top - several short curved lines swirling to the left */}
-                    <path d="M 52 20 Q 54 18 56 22" stroke="#8B6F5E" strokeWidth="2" fill="none" strokeLinecap="round"/>
-                    <path d="M 56 22 Q 58 20 60 24" stroke="#8B6F5E" strokeWidth="2" fill="none" strokeLinecap="round"/>
-                    <path d="M 60 24 Q 62 22 64 26" stroke="#8B6F5E" strokeWidth="2" fill="none" strokeLinecap="round"/>
-                    <path d="M 56 22 Q 58 26 60 24" stroke="#8B6F5E" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-                    
-                    {/* Left ear - small rounded */}
-                    <ellipse cx="25" cy="58" rx="7" ry="10" fill="#FFF8F0" stroke="#8B6F5E" strokeWidth="2"/>
-                    <path d="M 22 56 Q 24 54 26 56 Q 28 54 30 56" stroke="#8B6F5E" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-                    
-                    {/* Right ear - small rounded */}
-                    <ellipse cx="95" cy="58" rx="7" ry="10" fill="#FFF8F0" stroke="#8B6F5E" strokeWidth="2"/>
-                    <path d="M 92 56 Q 94 54 96 56 Q 98 54 100 56" stroke="#8B6F5E" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-                    
-                    {/* Closed eyes - two short upward-curving lines */}
-                    <path d="M 48 52 Q 52 50 56 52" stroke="#8B6F5E" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
-                    <path d="M 64 52 Q 68 50 72 52" stroke="#8B6F5E" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
-                    
-                    {/* Very small upward-curving nose */}
-                    <path d="M 58 62 Q 60 60 62 62" stroke="#8B6F5E" strokeWidth="2" fill="none" strokeLinecap="round"/>
-                    
-                    {/* Gentle upward-curving smile */}
-                    <path d="M 50 75 Q 55 82 60 82 Q 65 82 70 75" stroke="#8B6F5E" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
-                    
-                    {/* Left cheek blush - soft circular */}
-                    <ellipse cx="32" cy="68" rx="9" ry="7" fill="#FFB6C1" opacity="0.5"/>
-                    
-                    {/* Right cheek blush - soft circular */}
-                    <ellipse cx="88" cy="68" rx="9" ry="7" fill="#FFB6C1" opacity="0.5"/>
-                  </svg>
+                  <img src="/images/baby-icon.png" alt="Baby" className="baby-icon-image" />
                 </div>
                 <h2>{user?.username ? `Hi there ${user.username}!` : 'Hi there!'}</h2>
                 <p>what sleep hurdle are we tackling?</p>
