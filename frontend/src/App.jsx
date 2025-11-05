@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import Forum from './components/Forum';
+import Friends from './components/Friends';
 import AuthModal from './components/AuthModal';
 import { chatService } from './api/chatService';
 import { authService } from './api/authService';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('chat'); // 'chat' or 'forum'
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat', 'forum', or 'friends'
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -271,6 +272,13 @@ function App() {
           <span className="tab-icon">💭</span>
           Village
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'friends' ? 'active' : ''}`}
+          onClick={() => setActiveTab('friends')}
+        >
+          <span className="tab-icon">👥</span>
+          Friends
+        </button>
       </div>
 
       {activeTab === 'chat' ? (
@@ -327,8 +335,10 @@ function App() {
           isLoading={isLoading}
         />
       </div>
-      ) : (
+      ) : activeTab === 'forum' ? (
         <Forum user={user} />
+      ) : (
+        <Friends user={user} />
       )}
 
       {/* Authentication Modal */}
