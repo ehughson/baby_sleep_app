@@ -248,7 +248,7 @@ function App() {
           <p className="header-subtitle">Shaping sleep, one night at a time</p>
         </div>
         <div className="header-actions">
-          {user ? (
+          {user && (
             <div className="user-menu">
               <span className="user-name">{user.username}</span>
               <button
