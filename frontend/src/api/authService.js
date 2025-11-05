@@ -40,7 +40,11 @@ export const authService = {
         throw new Error(error.response.data?.error || 'Failed to create account');
       }
       if (error.request) {
-        throw new Error(`Unable to connect to server at ${url}. Please check if the backend is running on port 5001.`);
+        const isRailway = url.includes('railway.app');
+        const message = isRailway 
+          ? `Unable to connect to Railway backend at ${url}. Please check Railway logs and ensure the service is deployed and running.`
+          : `Unable to connect to server at ${url}. Please check if the backend is running on port 5001.`;
+        throw new Error(message);
       }
       throw new Error('An unexpected error occurred. Please try again.');
     }

@@ -15,6 +15,9 @@ const LoginPage = ({ onLoginSuccess }) => {
     setError('');
     setIsLoading(true);
 
+    // Skip health check for now - let the actual request handle errors
+    // This prevents double error messages
+
     try {
       if (isSignup) {
         const response = await authService.signup(username, email, password, rememberMe);
