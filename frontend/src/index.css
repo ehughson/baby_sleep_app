@@ -1336,6 +1336,12 @@ body {
   font-family: 'Nunito', sans-serif;
 }
 
+.form-group label.checkbox-label {
+  display: flex !important;
+  margin-bottom: 0;
+  font-weight: 400;
+}
+
 .form-group input,
 .form-group textarea {
   width: 100%;
@@ -1361,14 +1367,29 @@ body {
   font-size: 0.85rem;
 }
 
-.form-group label[style*="flex"] {
+.form-group label[style*="flex"],
+.form-group .checkbox-label {
   display: flex !important;
-  width: 100%;
+  width: 100% !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  margin-bottom: 0 !important;
 }
 
-.form-group label[style*="flex"] span {
+.form-group label[style*="flex"] span,
+.form-group .checkbox-label span {
   text-align: left !important;
-  flex: 1 1 auto;
+  white-space: nowrap !important;
+  flex: 0 0 auto !important;
+  margin-left: 0 !important;
+}
+
+.form-group .checkbox-label input[type="checkbox"] {
+  width: auto !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+  padding: 0 !important;
+  height: auto !important;
 }
 
 .icon-selector {

@@ -359,15 +359,15 @@ const Forum = ({ user }) => {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', justifyContent: 'flex-start', width: '100%' }}>
+                <div className="form-group" style={{ width: '100%' }}>
+                  <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', width: '100%', justifyContent: 'flex-start' }}>
                     <input
                       type="checkbox"
                       checked={newChannelPrivate}
                       onChange={(e) => setNewChannelPrivate(e.target.checked)}
-                      style={{ flexShrink: 0 }}
+                      style={{ flexShrink: 0, width: 'auto', margin: 0 }}
                     />
-                    <span style={{ flex: '1 1 auto', textAlign: 'left' }}>Make this topic private</span>
+                    <span style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>Make this topic private</span>
                   </label>
                   <small style={{ display: 'block', marginTop: '0.25rem', textAlign: 'left', width: '100%' }}>Private topics are only visible to invited members</small>
                 </div>
