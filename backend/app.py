@@ -930,6 +930,7 @@ def signup():
             'user_id': user_id
         })
     except Exception as e:
+        print(f'Signup error: {str(e)}')  # Debug logging
         return jsonify({'error': f'Failed to create account: {str(e)}'}), 500
 
 @app.route('/api/auth/login', methods=['POST'])

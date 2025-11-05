@@ -18,31 +18,40 @@ const LoginPage = ({ onLoginSuccess }) => {
     try {
       if (isSignup) {
         const response = await authService.signup(username, email, password, rememberMe);
-        // Store session info
-        localStorage.setItem('session_token', response.session_token);
-        localStorage.setItem('username', response.username);
-        localStorage.setItem('user_id', response.user_id);
-        if (rememberMe) {
-          localStorage.setItem('remember_me', 'true');
+        if (response && response.session_token) {
+          // Store session info
+          localStorage.setItem('session_token', response.session_token);
+          localStorage.setItem('username', response.username);
+          localStorage.setItem('user_id', response.user_id);
+          if (rememberMe) {
+            localStorage.setItem('remember_me', 'true');
+          } else {
+            localStorage.removeItem('remember_me');
+          }
+          onLoginSuccess(response);
         } else {
-          localStorage.removeItem('remember_me');
+          setError('Invalid response from server');
         }
-        onLoginSuccess(response);
       } else {
         const response = await authService.login(username, password, rememberMe);
-        // Store session info
-        localStorage.setItem('session_token', response.session_token);
-        localStorage.setItem('username', response.username);
-        localStorage.setItem('user_id', response.user_id);
-        if (rememberMe) {
-          localStorage.setItem('remember_me', 'true');
+        if (response && response.session_token) {
+          // Store session info
+          localStorage.setItem('session_token', response.session_token);
+          localStorage.setItem('username', response.username);
+          localStorage.setItem('user_id', response.user_id);
+          if (rememberMe) {
+            localStorage.setItem('remember_me', 'true');
+          } else {
+            localStorage.removeItem('remember_me');
+          }
+          onLoginSuccess(response);
         } else {
-          localStorage.removeItem('remember_me');
+          setError('Invalid response from server');
         }
-        onLoginSuccess(response);
       }
     } catch (err) {
-      setError(err.message);
+      console.error('Auth error:', err);
+      setError(err.message || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }

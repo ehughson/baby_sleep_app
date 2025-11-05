@@ -11,10 +11,21 @@ export const authService = {
         email,
         password,
         remember_me: rememberMe
+      }, {
+        timeout: 10000 // 10 second timeout
       });
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Failed to create account');
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Request timed out. Please check your connection and try again.');
+      }
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to create account');
+      }
+      if (error.request) {
+        throw new Error('Unable to connect to server. Please check if the backend is running.');
+      }
+      throw new Error('An unexpected error occurred. Please try again.');
     }
   },
 
@@ -25,10 +36,21 @@ export const authService = {
         username,
         password,
         remember_me: rememberMe
+      }, {
+        timeout: 10000 // 10 second timeout
       });
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Failed to login');
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Request timed out. Please check your connection and try again.');
+      }
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to login');
+      }
+      if (error.request) {
+        throw new Error('Unable to connect to server. Please check if the backend is running.');
+      }
+      throw new Error('An unexpected error occurred. Please try again.');
     }
   },
 
