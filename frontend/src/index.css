@@ -652,6 +652,73 @@ body {
   cursor: not-allowed;
 }
 
+.topic-action-btn {
+  background: #f0f0f0;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.topic-action-btn:hover {
+  background: #e0e0e0;
+}
+
+.topic-action-btn.delete-btn:hover {
+  background: #fee;
+}
+
+.file-upload-btn {
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.file-upload-btn:hover {
+  background: #e0e0e0 !important;
+}
+
+.file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f8f8f8;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  color: #333;
+  text-decoration: none;
+  margin-top: 1rem;
+  transition: all 0.3s ease;
+}
+
+.file-link:hover {
+  background: #f0f0f0;
+  border-color: #a68cab;
+}
+
+.post-attachment {
+  margin-top: 1rem;
+}
+
+.empty-forum {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #999;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.forum-loading {
+  text-align: center;
+  padding: 2rem;
+  color: #999;
+}
+
 /* Friends Component Styles */
 .friends-container {
   flex: 1;

@@ -3,8 +3,10 @@ from flask_cors import CORS
 import google.generativeai as genai
 import os
 import secrets
+import uuid
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from database import init_db
 from models import Conversation, Message
@@ -155,21 +157,56 @@ def health_check():
 # Forum endpoints
 @app.route('/api/forum/channels', methods=['GET'])
 def get_channels():
-    """Get all forum channels"""
+    """Get all forum channels (public + user's private channels)"""
     from database import get_db_connection
+    username = request.args.get('username', '')
+    
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM forum_channels ORDER BY name ASC')
+    
+    if username:
+        # Get public channels + private channels user is member of
+        cursor.execute('''
+            SELECT DISTINCT c.*
+            FROM forum_channels c
+            LEFT JOIN channel_members cm ON c.id = cm.channel_id AND cm.username = ?
+            WHERE c.is_private = 0 OR (c.is_private = 1 AND cm.username = ?)
+            ORDER BY c.name ASC
+        ''', (username, username))
+    else:
+        # Only public channels if no username
+        cursor.execute('SELECT * FROM forum_channels WHERE is_private = 0 ORDER BY name ASC')
+    
     channels = cursor.fetchall()
     conn.close()
     return jsonify([dict(channel) for channel in channels])
 
 @app.route('/api/forum/channels/<int:channel_id>/posts', methods=['GET'])
 def get_posts(channel_id):
-    """Get all posts for a channel"""
+    """Get all posts for a channel (check access for private channels)"""
     from database import get_db_connection
+    username = request.args.get('username', '')
+    
     conn = get_db_connection()
     cursor = conn.cursor()
+    
+    # Check if channel is private and user has access
+    cursor.execute('SELECT is_private, owner_name FROM forum_channels WHERE id = ?', (channel_id,))
+    channel = cursor.fetchone()
+    
+    if channel and channel['is_private']:
+        if not username:
+            conn.close()
+            return jsonify({'error': 'Authentication required for private channel'}), 403
+        
+        # Check if user is owner or member
+        if channel['owner_name'] != username:
+            cursor.execute('SELECT * FROM channel_members WHERE channel_id = ? AND username = ?', (channel_id, username))
+            member = cursor.fetchone()
+            if not member:
+                conn.close()
+                return jsonify({'error': 'You do not have access to this channel'}), 403
+    
     cursor.execute('''
         SELECT * FROM forum_posts 
         WHERE channel_id = ? 
@@ -211,10 +248,14 @@ def create_post():
             ''', (author_name,))
         
         # Create the post
+        file_path = data.get('file_path')
+        file_type = data.get('file_type')
+        file_name = data.get('file_name')
+        
         cursor.execute('''
-            INSERT INTO forum_posts (channel_id, author_name, content)
-            VALUES (?, ?, ?)
-        ''', (channel_id, author_name, content))
+            INSERT INTO forum_posts (channel_id, author_name, content, file_path, file_type, file_name)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (channel_id, author_name, content, file_path, file_type, file_name))
         post_id = cursor.lastrowid
         conn.commit()
         
@@ -236,6 +277,8 @@ def create_channel():
         name = data.get('name')
         icon = data.get('icon', '💬')
         description = data.get('description', '')
+        is_private = data.get('is_private', False)
+        owner_name = data.get('owner_name', '')
         
         if not name:
             return jsonify({'error': 'Channel name is required'}), 400
@@ -256,10 +299,18 @@ def create_channel():
             return jsonify({'error': 'Channel name already exists'}), 400
         
         cursor.execute('''
-            INSERT INTO forum_channels (name, icon, description)
-            VALUES (?, ?, ?)
-        ''', (name.lower(), icon, description))
+            INSERT INTO forum_channels (name, icon, description, is_private, owner_name)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (name.lower(), icon, description, 1 if is_private else 0, owner_name))
         channel_id = cursor.lastrowid
+        
+        # Add owner as member if private
+        if is_private and owner_name:
+            cursor.execute('''
+                INSERT INTO channel_members (channel_id, username, role)
+                VALUES (?, ?, 'owner')
+            ''', (channel_id, owner_name))
+        
         conn.commit()
         
         # Get the created channel
@@ -270,6 +321,207 @@ def create_channel():
         return jsonify(dict(channel))
     except Exception as e:
         return jsonify({'error': f'Failed to create channel: {str(e)}'}), 500
+
+@app.route('/api/forum/channels/<int:channel_id>', methods=['DELETE'])
+def delete_channel(channel_id):
+    """Delete a channel (only by owner)"""
+    from database import get_db_connection
+    try:
+        username = request.args.get('username', '')
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if user is owner
+        cursor.execute('SELECT owner_name FROM forum_channels WHERE id = ?', (channel_id,))
+        channel = cursor.fetchone()
+        
+        if not channel:
+            conn.close()
+            return jsonify({'error': 'Channel not found'}), 404
+        
+        if channel['owner_name'] != username:
+            conn.close()
+            return jsonify({'error': 'Only channel owner can delete the channel'}), 403
+        
+        # Delete channel members
+        cursor.execute('DELETE FROM channel_members WHERE channel_id = ?', (channel_id,))
+        # Delete channel invites
+        cursor.execute('DELETE FROM channel_invites WHERE channel_id = ?', (channel_id,))
+        # Delete posts
+        cursor.execute('DELETE FROM forum_posts WHERE channel_id = ?', (channel_id,))
+        # Delete channel
+        cursor.execute('DELETE FROM forum_channels WHERE id = ?', (channel_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': 'Channel deleted successfully'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to delete channel: {str(e)}'}), 500
+
+@app.route('/api/forum/channels/<int:channel_id>/privacy', methods=['PUT'])
+def update_channel_privacy(channel_id):
+    """Update channel privacy (only by owner)"""
+    from database import get_db_connection
+    try:
+        data = request.get_json()
+        is_private = data.get('is_private', False)
+        username = data.get('username', '')
+        
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if user is owner
+        cursor.execute('SELECT owner_name FROM forum_channels WHERE id = ?', (channel_id,))
+        channel = cursor.fetchone()
+        
+        if not channel:
+            conn.close()
+            return jsonify({'error': 'Channel not found'}), 404
+        
+        if channel['owner_name'] != username:
+            conn.close()
+            return jsonify({'error': 'Only channel owner can change privacy'}), 403
+        
+        cursor.execute('''
+            UPDATE forum_channels 
+            SET is_private = ?
+            WHERE id = ?
+        ''', (1 if is_private else 0, channel_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': 'Channel privacy updated'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to update privacy: {str(e)}'}), 500
+
+@app.route('/api/forum/channels/<int:channel_id>/invite', methods=['POST'])
+def invite_to_channel(channel_id):
+    """Invite a user to a private channel"""
+    from database import get_db_connection
+    try:
+        data = request.get_json()
+        invited_by = data.get('invited_by', '')
+        invitee_username = data.get('invitee_username', '')
+        
+        if not invited_by or not invitee_username:
+            return jsonify({'error': 'Both inviter and invitee usernames are required'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if channel exists and is private
+        cursor.execute('SELECT is_private, owner_name FROM forum_channels WHERE id = ?', (channel_id,))
+        channel = cursor.fetchone()
+        
+        if not channel:
+            conn.close()
+            return jsonify({'error': 'Channel not found'}), 404
+        
+        # Check if user has permission (owner or member)
+        if channel['owner_name'] != invited_by:
+            cursor.execute('SELECT * FROM channel_members WHERE channel_id = ? AND username = ?', (channel_id, invited_by))
+            member = cursor.fetchone()
+            if not member:
+                conn.close()
+                return jsonify({'error': 'You do not have permission to invite to this channel'}), 403
+        
+        # Add user as member
+        cursor.execute('''
+            INSERT OR IGNORE INTO channel_members (channel_id, username, role, invited_by)
+            VALUES (?, ?, 'member', ?)
+        ''', (channel_id, invitee_username, invited_by))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': f'User {invitee_username} added to channel'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to invite user: {str(e)}'}), 500
+
+@app.route('/api/forum/channels/<int:channel_id>/members', methods=['GET'])
+def get_channel_members(channel_id):
+    """Get all members of a channel"""
+    from database import get_db_connection
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT username, role, joined_at
+            FROM channel_members
+            WHERE channel_id = ?
+            ORDER BY joined_at ASC
+        ''', (channel_id,))
+        
+        members = cursor.fetchall()
+        conn.close()
+        return jsonify([dict(member) for member in members])
+    except Exception as e:
+        return jsonify({'error': f'Failed to get members: {str(e)}'}), 500
+
+# File upload configuration
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'txt'}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/api/forum/upload', methods=['POST'])
+def upload_file():
+    """Upload a file (photo or document)"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            # Add unique prefix to avoid conflicts
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+            file.save(filepath)
+            
+            # Determine file type
+            file_ext = filename.rsplit('.', 1)[1].lower()
+            file_type = 'image' if file_ext in ['png', 'jpg', 'jpeg', 'gif'] else 'document'
+            
+            return jsonify({
+                'file_path': unique_filename,
+                'file_name': filename,
+                'file_type': file_type,
+                'url': f'/api/forum/files/{unique_filename}'
+            })
+        else:
+            return jsonify({'error': 'File type not allowed'}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to upload file: {str(e)}'}), 500
+
+@app.route('/api/forum/files/<filename>', methods=['GET'])
+def get_file(filename):
+    """Serve uploaded files"""
+    from flask import send_from_directory
+    try:
+        # Security: Only allow files in uploads folder
+        if '..' in filename or '/' in filename or '\\' in filename:
+            return jsonify({'error': 'Invalid filename'}), 400
+        return send_from_directory(UPLOAD_FOLDER, filename)
+    except Exception as e:
+        return jsonify({'error': 'File not found'}), 404
 
 # Friends endpoints
 @app.route('/api/forum/users/<username>', methods=['POST'])

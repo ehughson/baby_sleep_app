@@ -36,7 +36,36 @@ def init_db():
             name TEXT NOT NULL UNIQUE,
             icon TEXT,
             description TEXT,
+            is_private INTEGER DEFAULT 0,
+            owner_name TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create channel members table (for private channels and invites)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS channel_members (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            role TEXT DEFAULT 'member',
+            invited_by TEXT,
+            joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (channel_id) REFERENCES forum_channels (id),
+            UNIQUE(channel_id, username)
+        )
+    ''')
+    
+    # Create channel invites table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS channel_invites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id INTEGER NOT NULL,
+            invited_by TEXT NOT NULL,
+            invite_token TEXT NOT NULL UNIQUE,
+            expires_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (channel_id) REFERENCES forum_channels (id)
         )
     ''')
     
@@ -47,6 +76,9 @@ def init_db():
             channel_id INTEGER NOT NULL,
             author_name TEXT NOT NULL,
             content TEXT NOT NULL,
+            file_path TEXT,
+            file_type TEXT,
+            file_name TEXT,
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (channel_id) REFERENCES forum_channels (id)
         )

@@ -5,6 +5,10 @@
 .env.test.local
 .env.production.local
 
+# Uploaded files
+backend/uploads/
+uploads/
+
 # API Keys and sensitive data
 **/api_keys.txt
 **/secrets.json

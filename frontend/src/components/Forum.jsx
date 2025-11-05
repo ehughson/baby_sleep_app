@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { forumService } from '../api/forumService';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
 const Forum = ({ user }) => {
   const [channels, setChannels] = useState([]);
@@ -13,19 +16,13 @@ const Forum = ({ user }) => {
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelIcon, setNewChannelIcon] = useState('💬');
   const [newChannelDescription, setNewChannelDescription] = useState('');
+  const [newChannelPrivate, setNewChannelPrivate] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteUsername, setInviteUsername] = useState('');
+  const [channelMembers, setChannelMembers] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
-  const loadPosts = async (channelId) => {
-    setIsLoading(true);
-    try {
-      const data = await forumService.getPosts(channelId);
-      setPosts(data);
-    } catch (error) {
-      console.error('Error loading posts:', error);
-      setPosts([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   useEffect(() => {
     // Load channels from backend
@@ -49,40 +46,141 @@ const Forum = ({ user }) => {
     // Select first channel by default when channels are loaded
     if (channels.length > 0 && !selectedChannel && !isLoadingChannels) {
       setSelectedChannel(channels[0]);
-      loadPosts(channels[0].id);
+      const username = user?.username || authorName || '';
+      loadPosts(channels[0].id, username);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channels, isLoadingChannels]);
 
   useEffect(() => {
     if (selectedChannel && !isLoadingChannels) {
-      loadPosts(selectedChannel.id);
+      const username = user?.username || authorName || '';
+      loadPosts(selectedChannel.id, username);
+      loadChannelMembers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChannel, isLoadingChannels]);
+
+  const loadPosts = async (channelId, username = '') => {
+    setIsLoading(true);
+    try {
+      const url = username 
+        ? `${API_BASE_URL}/forum/channels/${channelId}/posts?username=${encodeURIComponent(username)}`
+        : `${API_BASE_URL}/forum/channels/${channelId}/posts`;
+      const response = await axios.get(url);
+      setPosts(response.data);
+    } catch (error) {
+      console.error('Error loading posts:', error);
+      if (error.response?.status === 403) {
+        alert('You do not have access to this private channel');
+        setSelectedChannel(null);
+      }
+      setPosts([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
     if (!newPostContent.trim() || !authorName.trim()) return;
 
     try {
+      let fileData = null;
+      if (selectedFile) {
+        setUploadingFile(true);
+        try {
+          fileData = await forumService.uploadFile(selectedFile);
+        } catch (uploadError) {
+          alert('Failed to upload file: ' + uploadError.message);
+          setUploadingFile(false);
+          return;
+        }
+        setUploadingFile(false);
+      }
+
       const post = await forumService.createPost({
         channel_id: selectedChannel.id,
         author_name: authorName,
-        content: newPostContent
+        content: newPostContent,
+        file_path: fileData?.file_path,
+        file_type: fileData?.file_type,
+        file_name: fileData?.file_name
       });
       setPosts([...posts, post]);
       setNewPostContent('');
+      setSelectedFile(null);
     } catch (error) {
       console.error('Error creating post:', error);
       alert(error.message || 'Failed to create post');
     }
   };
 
+  const handleDeleteChannel = async () => {
+    if (!selectedChannel) return;
+    if (!confirm(`Are you sure you want to delete "${selectedChannel.name}"? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const username = user?.username || authorName;
+      await forumService.deleteChannel(selectedChannel.id, username);
+      setSelectedChannel(null);
+      loadChannels();
+      alert('Channel deleted successfully');
+    } catch (error) {
+      alert(error.message || 'Failed to delete channel');
+    }
+  };
+
+  const handleTogglePrivacy = async () => {
+    if (!selectedChannel) return;
+    try {
+      const username = user?.username || authorName;
+      const newPrivacy = !selectedChannel.is_private;
+      await forumService.updateChannelPrivacy(selectedChannel.id, newPrivacy, username);
+      // Update local channel state
+      setSelectedChannel({ ...selectedChannel, is_private: newPrivacy ? 1 : 0 });
+      loadChannels();
+      alert(`Channel is now ${newPrivacy ? 'private' : 'public'}`);
+    } catch (error) {
+      alert(error.message || 'Failed to update privacy');
+    }
+  };
+
+  const handleInvite = async (e) => {
+    e.preventDefault();
+    if (!inviteUsername.trim()) return;
+
+    try {
+      const username = user?.username || authorName;
+      await forumService.inviteToChannel(selectedChannel.id, username, inviteUsername);
+      setInviteUsername('');
+      setShowInviteModal(false);
+      loadChannelMembers();
+      alert(`Invited ${inviteUsername} to the channel!`);
+    } catch (error) {
+      alert(error.message || 'Failed to invite user');
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Check file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
   const loadChannels = async () => {
     setIsLoadingChannels(true);
     try {
-      const data = await forumService.getChannels();
+      const username = user?.username || authorName || '';
+      const data = await forumService.getChannels(username);
       setChannels(data);
     } catch (error) {
       console.error('Error loading channels:', error);
@@ -92,15 +190,28 @@ const Forum = ({ user }) => {
     }
   };
 
+  const loadChannelMembers = async () => {
+    if (!selectedChannel) return;
+    try {
+      const data = await forumService.getChannelMembers(selectedChannel.id);
+      setChannelMembers(data);
+    } catch (error) {
+      console.error('Error loading members:', error);
+    }
+  };
+
   const handleCreateChannel = async (e) => {
     e.preventDefault();
     if (!newChannelName.trim()) return;
 
     try {
+      const username = user?.username || authorName;
       const newChannel = await forumService.createChannel({
         name: newChannelName,
         icon: newChannelIcon,
-        description: newChannelDescription
+        description: newChannelDescription,
+        is_private: newChannelPrivate,
+        owner_name: username
       });
       
       // Add new channel to list
@@ -111,12 +222,14 @@ const Forum = ({ user }) => {
       
       // Select the new channel
       setSelectedChannel(newChannel);
-      loadPosts(newChannel.id);
+      const username = user?.username || authorName || '';
+      loadPosts(newChannel.id, username);
       
       // Reset form
       setNewChannelName('');
       setNewChannelIcon('💬');
       setNewChannelDescription('');
+      setNewChannelPrivate(false);
       setShowCreateChannel(false);
     } catch (error) {
       console.error('Error creating channel:', error);
@@ -186,7 +299,9 @@ const Forum = ({ user }) => {
                 </div>
                 <p className="topic-description">{channel.description || 'Join the conversation'}</p>
                 <div className="topic-stats">
-                  <span className="topic-stat">💬 {posts.length} posts</span>
+                  {channel.is_private === 1 && (
+                    <span className="topic-stat" style={{ color: '#a68cab' }}>🔒 Private</span>
+                  )}
                 </div>
               </div>
             ))
@@ -248,6 +363,18 @@ const Forum = ({ user }) => {
                     placeholder="Brief description of this topic..."
                   />
                 </div>
+
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={newChannelPrivate}
+                      onChange={(e) => setNewChannelPrivate(e.target.checked)}
+                    />
+                    <span>Make this topic private</span>
+                  </label>
+                  <small>Private topics are only visible to invited members</small>
+                </div>
                 
                 <div className="modal-buttons">
                   <button
@@ -276,15 +403,56 @@ const Forum = ({ user }) => {
         <button
           className="back-to-topics-btn"
           onClick={() => setSelectedChannel(null)}
-          style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', padding: '0.5rem' }}
+          style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', padding: '0.5rem', color: '#333' }}
         >
           ←
         </button>
         <span className="topic-view-icon">{selectedChannel.icon}</span>
         <div className="topic-view-title">
-          <h2>{selectedChannel.name}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2>{selectedChannel.name}</h2>
+            {selectedChannel.is_private === 1 && (
+              <span style={{ fontSize: '0.85rem', color: '#a68cab', fontWeight: 600 }}>🔒 Private</span>
+            )}
+          </div>
           {selectedChannel.description && (
             <p className="topic-view-description">{selectedChannel.description}</p>
+          )}
+        </div>
+        <div className="topic-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+          {(selectedChannel.owner_name === (user?.username || authorName)) && (
+            <>
+              <button
+                className="topic-action-btn"
+                onClick={handleTogglePrivacy}
+                title={selectedChannel.is_private ? 'Make Public' : 'Make Private'}
+              >
+                {selectedChannel.is_private ? '🌐' : '🔒'}
+              </button>
+              <button
+                className="topic-action-btn"
+                onClick={() => setShowInviteModal(true)}
+                title="Invite Members"
+              >
+                👥
+              </button>
+              <button
+                className="topic-action-btn delete-btn"
+                onClick={handleDeleteChannel}
+                title="Delete Topic"
+              >
+                🗑️
+              </button>
+            </>
+          )}
+          {selectedChannel.is_private === 1 && selectedChannel.owner_name !== (user?.username || authorName) && (
+            <button
+              className="topic-action-btn"
+              onClick={() => setShowInviteModal(true)}
+              title="Invite Members"
+            >
+              👥
+            </button>
           )}
         </div>
       </div>
@@ -299,7 +467,7 @@ const Forum = ({ user }) => {
             <p>Be the first to start a conversation!</p>
           </div>
         ) : (
-          posts.map((post) => (
+                posts.map((post) => (
             <div key={post.id} className="post-card">
               <div className="post-header">
                 <div className="post-avatar">
@@ -309,6 +477,26 @@ const Forum = ({ user }) => {
                 <span className="post-time">{formatTime(post.timestamp)}</span>
               </div>
               <div className="post-message">{post.content}</div>
+              {post.file_path && (
+                <div className="post-attachment">
+                  {post.file_type === 'image' ? (
+                    <img 
+                      src={forumService.getFileUrl(post.file_path)} 
+                      alt={post.file_name}
+                      style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', marginTop: '1rem' }}
+                    />
+                  ) : (
+                    <a 
+                      href={forumService.getFileUrl(post.file_path)} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="file-link"
+                    >
+                      📎 {post.file_name}
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           ))
         )}
@@ -332,6 +520,20 @@ const Forum = ({ user }) => {
       {/* Post input */}
       {authorName && (
         <div className="post-input-section">
+          {selectedFile && (
+            <div className="file-preview" style={{ padding: '0.5rem 1rem', background: '#f8f8f8', borderTop: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.9rem', color: '#666' }}>
+                📎 {selectedFile.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedFile(null)}
+                style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '1.2rem' }}
+              >
+                ×
+              </button>
+            </div>
+          )}
           <form className="post-input-form" onSubmit={handleCreatePost}>
             <textarea
               className="post-input"
@@ -340,14 +542,89 @@ const Forum = ({ user }) => {
               onChange={(e) => setNewPostContent(e.target.value)}
               rows={3}
             />
-            <button
-              type="submit"
-              className="post-send-btn"
-              disabled={!newPostContent.trim()}
-            >
-              Post
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <label className="file-upload-btn" style={{ cursor: 'pointer', padding: '0.5rem 1rem', background: '#f0f0f0', borderRadius: '8px', fontSize: '0.9rem' }}>
+                📎 Attach
+                <input
+                  type="file"
+                  accept="image/*,.pdf,.doc,.docx,.txt"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              <button
+                type="submit"
+                className="post-send-btn"
+                disabled={(!newPostContent.trim() && !selectedFile) || uploadingFile}
+              >
+                {uploadingFile ? 'Uploading...' : 'Post'}
+              </button>
+            </div>
           </form>
+        </div>
+      )}
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <div className="modal-overlay" onClick={() => {
+          setShowInviteModal(false);
+          setInviteUsername('');
+        }}>
+          <div className="modal-content-forum" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Invite to Topic</h2>
+              <button
+                className="modal-close-btn"
+                onClick={() => {
+                  setShowInviteModal(false);
+                  setInviteUsername('');
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleInvite} className="add-friend-form">
+              <div className="form-group">
+                <label htmlFor="invite-username">Username</label>
+                <input
+                  id="invite-username"
+                  type="text"
+                  value={inviteUsername}
+                  onChange={(e) => setInviteUsername(e.target.value)}
+                  placeholder="Enter username to invite..."
+                  autoFocus
+                  required
+                />
+              </div>
+              {channelMembers.length > 0 && (
+                <div style={{ marginTop: '1rem' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.5rem' }}>Current Members:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {channelMembers.map((member, idx) => (
+                      <span key={idx} style={{ padding: '0.25rem 0.75rem', background: '#f0f0f0', borderRadius: '12px', fontSize: '0.85rem' }}>
+                        {member.username} {member.role === 'owner' && '👑'}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="modal-buttons">
+                <button
+                  type="button"
+                  className="modal-btn-cancel"
+                  onClick={() => {
+                    setShowInviteModal(false);
+                    setInviteUsername('');
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="modal-btn-create">
+                  Invite
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

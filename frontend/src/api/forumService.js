@@ -4,9 +4,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001
 
 export const forumService = {
   // Get all channels
-  getChannels: async () => {
+  getChannels: async (username = '') => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/forum/channels`);
+      const url = username 
+        ? `${API_BASE_URL}/forum/channels?username=${encodeURIComponent(username)}`
+        : `${API_BASE_URL}/forum/channels`;
+      const response = await axios.get(url);
       return response.data;
     } catch (error) {
       throw new Error('Failed to fetch channels');
@@ -108,6 +111,69 @@ export const forumService = {
     } catch (error) {
       throw new Error('Failed to search users');
     }
+  },
+
+  // Channel management
+  deleteChannel: async (channelId, username) => {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/forum/channels/${channelId}?username=${encodeURIComponent(username)}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to delete channel');
+    }
+  },
+
+  updateChannelPrivacy: async (channelId, isPrivate, username) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/forum/channels/${channelId}/privacy`, {
+        is_private: isPrivate,
+        username: username
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to update privacy');
+    }
+  },
+
+  inviteToChannel: async (channelId, invitedBy, inviteeUsername) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/forum/channels/${channelId}/invite`, {
+        invited_by: invitedBy,
+        invitee_username: inviteeUsername
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to invite user');
+    }
+  },
+
+  getChannelMembers: async (channelId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/forum/channels/${channelId}/members`);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to get channel members');
+    }
+  },
+
+  // File upload
+  uploadFile: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await axios.post(`${API_BASE_URL}/forum/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to upload file');
+    }
+  },
+
+  getFileUrl: (filename) => {
+    return `${API_BASE_URL.replace('/api', '')}/forum/files/${filename}`;
   }
 };
 
