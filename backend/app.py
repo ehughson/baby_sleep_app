@@ -18,7 +18,12 @@ load_dotenv()
 app = Flask(__name__)
 # CORS configuration - allows all origins in production
 # For production, you might want to restrict this to your frontend domain
-CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
+CORS(app, resources={r"/api/*": {
+    "origins": "*", 
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], 
+    "allow_headers": ["Content-Type", "Authorization"],
+    "expose_headers": ["Cache-Control", "X-Accel-Buffering"]
+}})
 
 # Initialize database
 init_db()
@@ -148,10 +153,20 @@ def chat():
                     response_stream = get_gemini_response(message, conversation_history, stream=True)
                     
                     for chunk in response_stream:
-                        if chunk.text:
-                            full_response += chunk.text
+                        # Extract text from chunk - Gemini API structure
+                        chunk_text = None
+                        if hasattr(chunk, 'text'):
+                            chunk_text = chunk.text
+                        elif hasattr(chunk, 'candidates') and chunk.candidates:
+                            if hasattr(chunk.candidates[0], 'content') and chunk.candidates[0].content:
+                                if hasattr(chunk.candidates[0].content, 'parts') and chunk.candidates[0].content.parts:
+                                    if hasattr(chunk.candidates[0].content.parts[0], 'text'):
+                                        chunk_text = chunk.candidates[0].content.parts[0].text
+                        
+                        if chunk_text:
+                            full_response += chunk_text
                             # Send chunk as SSE
-                            yield f"data: {json.dumps({'chunk': chunk.text, 'done': False})}\n\n"
+                            yield f"data: {json.dumps({'chunk': chunk_text, 'done': False})}\n\n"
                     
                     # Save complete assistant response
                     assistant_message = Message(
@@ -164,6 +179,9 @@ def chat():
                     # Send completion signal
                     yield f"data: {json.dumps({'chunk': '', 'done': True, 'conversation_id': conversation_id})}\n\n"
                 except Exception as e:
+                    import traceback
+                    error_trace = traceback.format_exc()
+                    print(f"Streaming error: {error_trace}")
                     yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
             
             return Response(
@@ -171,7 +189,8 @@ def chat():
                 mimetype='text/event-stream',
                 headers={
                     'Cache-Control': 'no-cache',
-                    'X-Accel-Buffering': 'no'
+                    'X-Accel-Buffering': 'no',
+                    'Connection': 'keep-alive'
                 }
             )
         else:

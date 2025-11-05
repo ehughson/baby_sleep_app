@@ -38,32 +38,48 @@ export const chatService = {
       let fullResponse = '';
       let conversationIdResult = conversationId;
 
+      console.log('Starting to read stream...');
+
       while (true) {
         const { done, value } = await reader.read();
         
-        if (done) break;
+        if (done) {
+          console.log('Stream done, final response length:', fullResponse.length);
+          break;
+        }
 
-        buffer += decoder.decode(value, { stream: true });
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+        console.log('Received chunk:', chunk.substring(0, 100));
+        
         const lines = buffer.split('\n');
         buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
         for (const line of lines) {
+          if (line.trim() === '') continue;
+          
           if (line.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr) continue;
+              
+              const data = JSON.parse(jsonStr);
               
               if (data.error) {
+                console.error('Stream error:', data.error);
                 throw new Error(data.error);
               }
               
               if (data.chunk) {
                 fullResponse += data.chunk;
+                console.log('Calling onChunk with:', data.chunk.substring(0, 50));
                 if (onChunk) {
                   onChunk(data.chunk, fullResponse);
                 }
               }
               
               if (data.done) {
+                console.log('Stream complete');
                 if (data.conversation_id) {
                   conversationIdResult = data.conversation_id;
                 }
@@ -73,8 +89,10 @@ export const chatService = {
                 };
               }
             } catch (e) {
-              console.error('Error parsing SSE data:', e);
+              console.error('Error parsing SSE data:', e, 'Line:', line);
             }
+          } else if (line.trim()) {
+            console.log('Unexpected line format:', line.substring(0, 100));
           }
         }
       }
