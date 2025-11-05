@@ -160,17 +160,37 @@ function App() {
     };
     setMessages(prev => [...prev, userMessage]);
 
+    // Create placeholder for assistant message that will be updated via streaming
+    const assistantMessageId = Date.now() + 1;
+    const assistantMessage = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, assistantMessage]);
+
     try {
-      const response = await chatService.sendMessage(message, conversationId);
-      
-      // Add assistant response
-      const assistantMessage = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: response.response,
-        timestamp: new Date().toISOString()
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+      // Handle streaming response
+      const response = await chatService.sendMessage(
+        message, 
+        conversationId,
+        (chunk, fullResponse) => {
+          // Update the assistant message as chunks arrive
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, content: fullResponse }
+              : msg
+          ));
+        }
+      );
+
+      // Update the final message with complete response
+      setMessages(prev => prev.map(msg => 
+        msg.id === assistantMessageId 
+          ? { ...msg, content: response.response }
+          : msg
+      ));
 
       // Set conversation ID if this is the first message
       if (!conversationId) {
@@ -178,9 +198,9 @@ function App() {
       }
     } catch (err) {
       setError(err.message);
-      // Remove the user message if sending failed
+      // Remove both user and assistant messages if sending failed
       setMessages(prev => {
-        const newMessages = prev.slice(0, -1);
+        const newMessages = prev.filter(msg => msg.id !== userMessage.id && msg.id !== assistantMessageId);
         // If this was the first message and it failed, restore welcome state
         if (isFirstMessage && newMessages.length === 0) {
           window.history.replaceState({ view: 'welcome', hasMessages: false }, '', window.location.pathname + '#welcome');

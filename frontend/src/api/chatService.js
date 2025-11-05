@@ -2,38 +2,97 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
+// Note: axios is still used for non-streaming endpoints (conversations, health check)
+
 // Log API URL on load for debugging
 console.log('API Base URL:', API_BASE_URL);
 
 export const chatService = {
-  // Send message and get response
-  sendMessage: async (message, conversationId = null) => {
+  // Send message and get streaming response
+  sendMessage: async (message, conversationId = null, onChunk = null) => {
     try {
       console.log('Sending message to:', `${API_BASE_URL}/chat`);
-      const response = await axios.post(`${API_BASE_URL}/chat`, {
-        message,
-        conversation_id: conversationId
+      
+      // Use streaming by default
+      const response = await fetch(`${API_BASE_URL}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message,
+          conversation_id: conversationId,
+          stream: true
+        })
       });
-      return response.data;
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
+
+      // Handle streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullResponse = '';
+      let conversationIdResult = conversationId;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.error) {
+                throw new Error(data.error);
+              }
+              
+              if (data.chunk) {
+                fullResponse += data.chunk;
+                if (onChunk) {
+                  onChunk(data.chunk, fullResponse);
+                }
+              }
+              
+              if (data.done) {
+                if (data.conversation_id) {
+                  conversationIdResult = data.conversation_id;
+                }
+                return {
+                  response: fullResponse,
+                  conversation_id: conversationIdResult
+                };
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+            }
+          }
+        }
+      }
+
+      return {
+        response: fullResponse,
+        conversation_id: conversationIdResult
+      };
     } catch (error) {
       console.error('API Error:', error);
       console.error('API URL:', API_BASE_URL);
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        statusText: error.response?.statusText
-      });
       
       // More detailed error messages
-      if (error.response) {
-        // Server responded with error
-        throw new Error(error.response?.data?.error || `Server error: ${error.response.status} ${error.response.statusText}`);
-      } else if (error.request) {
-        // Request made but no response (network error)
+      if (error.message) {
+        throw error;
+      } else if (error.request || error.message?.includes('fetch')) {
         throw new Error(`Cannot connect to backend. Check if ${API_BASE_URL} is correct and backend is running.`);
       } else {
-        // Something else happened
         throw new Error(error.message || 'Failed to send message');
       }
     }

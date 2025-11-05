@@ -8,11 +8,42 @@ const ChatMessage = ({ message }) => {
     });
   };
 
+  const stripMarkdown = (text) => {
+    if (!text) return '';
+    
+    // Remove markdown formatting while preserving structure
+    let cleaned = text
+      // Remove bold markers (but preserve content)
+      .replace(/\*\*([^*]+)\*\*/g, '$1')  // **bold**
+      .replace(/__([^_]+)__/g, '$1')      // __bold__
+      // Remove italic markers (but preserve content)
+      .replace(/\*([^*\n]+?)\*/g, '$1')   // *italic* (but not list markers)
+      .replace(/_([^_\n]+?)_/g, '$1')     // _italic_ (but not list markers)
+      // Remove code blocks (keep content)
+      .replace(/```[\s\S]*?```/g, '')     // ```code blocks```
+      .replace(/`([^`]+)`/g, '$1')        // `inline code`
+      // Remove links but keep text
+      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')  // [text](url)
+      // Remove header markers but keep the text
+      .replace(/^#{1,6}\s+/gm, '')        // # headers
+      // Remove strikethrough
+      .replace(/~~([^~]+)~~/g, '$1');     // ~~strikethrough~~
+    
+    // Clean up multiple spaces (but preserve line breaks)
+    cleaned = cleaned.replace(/[ \t]+/g, ' ');  // Multiple spaces to single space
+    cleaned = cleaned.replace(/[ \t]*\n[ \t]*/g, '\n');  // Clean up around line breaks
+    
+    return cleaned;
+  };
+
   const formatMessage = (content) => {
     if (!content) return '';
     
+    // First strip markdown
+    const cleanedContent = stripMarkdown(content);
+    
     // Split by double newlines to create paragraphs
-    const paragraphs = content.split(/\n\n+/);
+    const paragraphs = cleanedContent.split(/\n\n+/);
     
     return paragraphs.map((paragraph, index) => {
       // Check if it's a list item (starts with -, *, or number)

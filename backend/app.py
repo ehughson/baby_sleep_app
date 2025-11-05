@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 import google.generativeai as genai
 import os
 import secrets
 import uuid
+import json
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -25,26 +26,27 @@ init_db()
 # Load API key from environment variable
 gemini_api_key = os.getenv('GEMINI_API_KEY')
 
-def get_gemini_response(message, conversation_history=None):
+def get_gemini_response(message, conversation_history=None, stream=False):
     """Get response from Gemini API with sleep training specialization"""
     if not gemini_api_key:
         raise ValueError("Gemini API key not configured. Please set GEMINI_API_KEY environment variable.")
     
     genai.configure(api_key=gemini_api_key)
-    model = genai.GenerativeModel('gemini-pro-latest')
+    # Use faster model for quicker responses
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
     # Sleep training specialist prompt
     sleep_specialist_prompt = """You are a gentle sleep training specialist and baby sleep consultant with expertise in helping exhausted parents establish healthy sleep habits for their children. Your approach is:
 
-1. **Gentle and No-Cry Methods First**: Always prioritize gentle, attachment-focused sleep training methods that minimize crying and stress for both baby and parents.
+1. Gentle and No-Cry Methods First: Always prioritize gentle, attachment-focused sleep training methods that minimize crying and stress for both baby and parents.
 
-2. **Age-Appropriate Advice**: Consider the child's age, developmental stage, and individual needs when providing recommendations.
+2. Age-Appropriate Advice: Consider the child's age, developmental stage, and individual needs when providing recommendations.
 
-3. **Parent Support**: Acknowledge the challenges parents face and provide emotional support alongside practical advice.
+3. Parent Support: Acknowledge the challenges parents face and provide emotional support alongside practical advice.
 
-4. **Evidence-Based**: Base recommendations on current sleep science and pediatric sleep research.
+4. Evidence-Based: Base recommendations on current sleep science and pediatric sleep research.
 
-5. **Comprehensive Approach**: Address bedtime routines, nap schedules, night wakings, sleep associations, and environmental factors.
+5. Comprehensive Approach: Address bedtime routines, nap schedules, night wakings, sleep associations, and environmental factors.
 
 Key areas of expertise:
 - Gentle sleep training methods (Fading, Chair Method, Pick Up/Put Down)
@@ -56,6 +58,12 @@ Key areas of expertise:
 - Sleep environment setup
 - Feeding and sleep relationships
 - Sleep training for different temperaments
+
+IMPORTANT: 
+- Respond in plain text only. Do NOT use markdown formatting (no asterisks, bold, italics, code blocks, etc.)
+- Keep responses concise and direct to minimize response time
+- Use clear, simple language that's easy to read
+- Break up long responses with line breaks for readability
 
 Always be encouraging, understanding, and provide step-by-step guidance. Remember that every family and child is unique, so offer multiple options when possible.
 
@@ -70,11 +78,19 @@ Always be encouraging, understanding, and provide step-by-step guidance. Remembe
             context += f"{role}: {msg['content']}\n"
         context += f"Parent: {message}\n\nSleep Specialist:"
         
-        response = model.generate_content(context)
+        if stream:
+            response = model.generate_content(context, stream=True)
+        else:
+            response = model.generate_content(context)
     else:
         full_prompt = sleep_specialist_prompt + f"\nParent's question: {message}\n\nSleep Specialist:"
-        response = model.generate_content(full_prompt)
+        if stream:
+            response = model.generate_content(full_prompt, stream=True)
+        else:
+            response = model.generate_content(full_prompt)
     
+    if stream:
+        return response
     return response.text
 
 @app.route('/api/conversations', methods=['GET'])
@@ -100,11 +116,12 @@ def get_messages(conversation_id):
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """Send a message and get response"""
+    """Send a message and get response (streaming)"""
     try:
         data = request.get_json()
         message = data.get('message')
         conversation_id = data.get('conversation_id')
+        stream = data.get('stream', True)  # Default to streaming
         
         if not message:
             return jsonify({'error': 'Message is required'}), 400
@@ -123,21 +140,56 @@ def chat():
             messages = Message.get_by_conversation(conversation_id)
             conversation_history = [dict(msg) for msg in messages[:-1]]  # Exclude the message we just added
         
-        # Get response from Gemini
-        response_text = get_gemini_response(message, conversation_history)
-        
-        # Save assistant response
-        assistant_message = Message(
-            conversation_id=conversation_id,
-            role='assistant',
-            content=response_text
-        )
-        assistant_message.save()
-        
-        return jsonify({
-            'response': response_text,
-            'conversation_id': conversation_id
-        })
+        if stream:
+            # Streaming response
+            def generate():
+                full_response = ""
+                try:
+                    response_stream = get_gemini_response(message, conversation_history, stream=True)
+                    
+                    for chunk in response_stream:
+                        if chunk.text:
+                            full_response += chunk.text
+                            # Send chunk as SSE
+                            yield f"data: {json.dumps({'chunk': chunk.text, 'done': False})}\n\n"
+                    
+                    # Save complete assistant response
+                    assistant_message = Message(
+                        conversation_id=conversation_id,
+                        role='assistant',
+                        content=full_response
+                    )
+                    assistant_message.save()
+                    
+                    # Send completion signal
+                    yield f"data: {json.dumps({'chunk': '', 'done': True, 'conversation_id': conversation_id})}\n\n"
+                except Exception as e:
+                    yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
+            
+            return Response(
+                stream_with_context(generate()),
+                mimetype='text/event-stream',
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'X-Accel-Buffering': 'no'
+                }
+            )
+        else:
+            # Non-streaming response (backward compatibility)
+            response_text = get_gemini_response(message, conversation_history, stream=False)
+            
+            # Save assistant response
+            assistant_message = Message(
+                conversation_id=conversation_id,
+                role='assistant',
+                content=response_text
+            )
+            assistant_message.save()
+            
+            return jsonify({
+                'response': response_text,
+                'conversation_id': conversation_id
+            })
         
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
