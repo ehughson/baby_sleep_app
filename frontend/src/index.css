@@ -12,7 +12,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #E0D186;
+  background: #D9D2AE;
   color: #333;
   line-height: 1.6;
   min-height: 100vh;
@@ -39,7 +39,7 @@ body {
 
 .header {
   padding: 2rem 2rem 1.5rem;
-  background: #E0D186;
+  background: #D9D2AE;
   color: white;
   display: flex;
   justify-content: space-between;
@@ -221,13 +221,13 @@ body {
 }
 
 .tab-btn:hover {
-  color: #E0D186;
+  color: #D9D2AE;
   background: rgba(102, 126, 234, 0.05);
 }
 
 .tab-btn.active {
-  color: #E0D186;
-  border-bottom-color: #E0D186;
+  color: #D9D2AE;
+  border-bottom-color: #D9D2AE;
   background: rgba(102, 126, 234, 0.05);
 }
 
@@ -276,7 +276,7 @@ body {
   font-weight: 700;
   color: #2c3e50;
   margin-bottom: 1rem;
-  background: #E0D186;
+  background: #D9D2AE;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -298,7 +298,7 @@ body {
 }
 
 .chip {
-  background: #E0D186;
+  background: #D9D2AE;
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 20px;
@@ -314,7 +314,7 @@ body {
 .chip:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-  background: #E0D186;
+  background: #D9D2AE;
 }
 
 .chip:active {
@@ -354,7 +354,7 @@ body {
 }
 
 .message.user .message-content {
-  background: #E0D186;
+  background: #D9D2AE;
   color: white;
   border-bottom-right-radius: 8px;
 }
@@ -412,7 +412,7 @@ body {
 }
 
 .message-input:focus {
-  border-color: #E0D186;
+  border-color: #D9D2AE;
   background: white;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
@@ -424,7 +424,7 @@ body {
 
 .send-btn {
   padding: 1rem 2rem;
-  background: #E0D186;
+  background: #D9D2AE;
   color: white;
   border: none;
   border-radius: 25px;
@@ -515,13 +515,13 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  color: #E0D186;
+  color: #D9D2AE;
   font-style: italic;
   padding: 1rem;
   background: rgba(102, 126, 234, 0.1);
   border-radius: 15px;
   margin: 1rem 0;
-  border-left: 4px solid #E0D186;
+  border-left: 4px solid #D9D2AE;
 }
 
 .loading::before {
@@ -562,7 +562,7 @@ body {
 
 @media (max-width: 768px) {
   body {
-    background: #E0D186;
+    background: #D9D2AE;
   }
   
   .app {
@@ -674,7 +674,7 @@ body {
 
 .forum-sidebar {
   width: 240px;
-  background: #E0D186;
+  background: #D9D2AE;
   color: white;
   display: flex;
   flex-direction: column;
@@ -820,7 +820,7 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #E0D186;
+  background: #D9D2AE;
   color: white;
   display: flex;
   align-items: center;
@@ -909,12 +909,12 @@ body {
 }
 
 .forum-input:focus {
-  border-color: #E0D186;
+  border-color: #D9D2AE;
 }
 
 .forum-send-btn {
   padding: 0.75rem 2rem;
-  background: #E0D186;
+  background: #D9D2AE;
   color: white;
   border: none;
   border-radius: 8px;
@@ -925,7 +925,7 @@ body {
 }
 
 .forum-send-btn:hover:not(:disabled) {
-  background: #C4B866;
+  background: #B8B08A;
 }
 
 .forum-send-btn:disabled {
@@ -942,7 +942,7 @@ body {
 .author-input {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 2px solid #E0D186;
+  border: 2px solid #D9D2AE;
   border-radius: 8px;
   font-size: 1rem;
   outline: none;
@@ -1064,7 +1064,7 @@ body {
 }
 
 .form-group input[type="text"]:focus {
-  border-color: #E0D186;
+  border-color: #D9D2AE;
 }
 
 .form-group small {
@@ -1096,13 +1096,13 @@ body {
 }
 
 .icon-option:hover {
-  border-color: #E0D186;
+  border-color: #D9D2AE;
   background: #f5f7ff;
 }
 
 .icon-option.selected {
-  border-color: #E0D186;
-  background: #E0D186;
+  border-color: #D9D2AE;
+  background: #D9D2AE;
   color: white;
 }
 
@@ -1133,7 +1133,7 @@ body {
 .modal-btn-create {
   padding: 0.75rem 1.5rem;
   border: none;
-  background: #E0D186;
+  background: #D9D2AE;
   color: white;
   border-radius: 8px;
   font-size: 1rem;
@@ -1143,7 +1143,7 @@ body {
 }
 
 .modal-btn-create:hover {
-  background: #C4B866;
+  background: #B8B08A;
 }
 
 /* Friends Section */
@@ -1297,7 +1297,7 @@ body {
 
 .add-friend-btn-small {
   padding: 0.5rem 1rem;
-  background: #E0D186;
+  background: #D9D2AE;
   color: white;
   border: none;
   border-radius: 6px;
@@ -1308,7 +1308,7 @@ body {
 }
 
 .add-friend-btn-small:hover {
-  background: #C4B866;
+  background: #B8B08A;
 }
 
 .no-results {
@@ -1350,7 +1350,7 @@ body {
 .auth-link-btn {
   background: none;
   border: none;
-  color: #E0D186;
+  color: #D9D2AE;
   cursor: pointer;
   font-weight: 600;
   text-decoration: underline;
@@ -1358,13 +1358,13 @@ body {
 }
 
 .auth-link-btn:hover {
-  color: #C4B866;
+  color: #B8B08A;
 }
 
 .auth-submit-btn {
   width: 100%;
   padding: 0.75rem;
-  background: #E0D186;
+  background: #D9D2AE;
   color: white;
   border: none;
   border-radius: 8px;
@@ -1375,7 +1375,7 @@ body {
 }
 
 .auth-submit-btn:hover:not(:disabled) {
-  background: #C4B866;
+  background: #B8B08A;
 }
 
 .auth-submit-btn:disabled {

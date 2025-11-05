@@ -269,7 +269,7 @@ function App() {
           onClick={() => setActiveTab('forum')}
         >
           <span className="tab-icon">💭</span>
-          Community Forum
+          Village
         </button>
       </div>
 
