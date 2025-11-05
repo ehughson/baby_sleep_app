@@ -562,7 +562,7 @@ def get_dm_conversations():
         return jsonify({'error': f'Failed to get conversations: {str(e)}'}), 500
 
 @app.route('/api/dm/messages', methods=['GET'])
-def get_messages():
+def get_dm_messages():
     """Get messages between two users"""
     from database import get_db_connection
     username = request.args.get('username', '')
