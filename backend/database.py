@@ -131,6 +131,24 @@ def init_db():
         )
     ''')
     
+    # Create direct messages table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS direct_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_name TEXT NOT NULL,
+            receiver_name TEXT NOT NULL,
+            content TEXT NOT NULL,
+            is_read INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create index for faster message queries
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_dm_conversation 
+        ON direct_messages(sender_name, receiver_name, created_at)
+    ''')
+    
     # Insert default channels if they don't exist
     default_channels = [
         ('general', '💬', 'General sleep training discussions'),

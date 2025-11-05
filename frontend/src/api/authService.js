@@ -4,12 +4,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001
 
 export const authService = {
   // Sign up new user
-  signup: async (username, email, password) => {
+  signup: async (username, email, password, rememberMe = false) => {
     try {
       const response = await axios.post(`${API_BASE_URL}/auth/signup`, {
         username,
         email,
-        password
+        password,
+        remember_me: rememberMe
       });
       return response.data;
     } catch (error) {
@@ -18,11 +19,12 @@ export const authService = {
   },
 
   // Login
-  login: async (username, password) => {
+  login: async (username, password, rememberMe = false) => {
     try {
       const response = await axios.post(`${API_BASE_URL}/auth/login`, {
         username,
-        password
+        password,
+        remember_me: rememberMe
       });
       return response.data;
     } catch (error) {

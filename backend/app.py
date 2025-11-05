@@ -525,6 +525,139 @@ def get_file(filename):
     except Exception as e:
         return jsonify({'error': 'File not found'}), 404
 
+# Direct Messages endpoints
+@app.route('/api/dm/conversations', methods=['GET'])
+def get_conversations():
+    """Get all conversations for a user"""
+    from database import get_db_connection
+    username = request.args.get('username', '')
+    
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get all unique conversations (people who have sent or received messages)
+        cursor.execute('''
+            SELECT DISTINCT 
+                CASE 
+                    WHEN sender_name = ? THEN receiver_name
+                    ELSE sender_name
+                END as other_user,
+                MAX(created_at) as last_message_time,
+                SUM(CASE WHEN receiver_name = ? AND is_read = 0 THEN 1 ELSE 0 END) as unread_count
+            FROM direct_messages
+            WHERE sender_name = ? OR receiver_name = ?
+            GROUP BY other_user
+            ORDER BY last_message_time DESC
+        ''', (username, username, username, username))
+        
+        conversations = cursor.fetchall()
+        conn.close()
+        
+        return jsonify([dict(conv) for conv in conversations])
+    except Exception as e:
+        return jsonify({'error': f'Failed to get conversations: {str(e)}'}), 500
+
+@app.route('/api/dm/messages', methods=['GET'])
+def get_messages():
+    """Get messages between two users"""
+    from database import get_db_connection
+    username = request.args.get('username', '')
+    friend_username = request.args.get('friend', '')
+    
+    if not username or not friend_username:
+        return jsonify({'error': 'Both username and friend are required'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get all messages between the two users
+        cursor.execute('''
+            SELECT * FROM direct_messages
+            WHERE (sender_name = ? AND receiver_name = ?)
+               OR (sender_name = ? AND receiver_name = ?)
+            ORDER BY created_at ASC
+        ''', (username, friend_username, friend_username, username))
+        
+        messages = cursor.fetchall()
+        
+        # Mark messages as read
+        cursor.execute('''
+            UPDATE direct_messages
+            SET is_read = 1
+            WHERE receiver_name = ? AND sender_name = ? AND is_read = 0
+        ''', (username, friend_username))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify([dict(msg) for msg in messages])
+    except Exception as e:
+        return jsonify({'error': f'Failed to get messages: {str(e)}'}), 500
+
+@app.route('/api/dm/send', methods=['POST'])
+def send_message():
+    """Send a direct message"""
+    from database import get_db_connection
+    try:
+        data = request.get_json()
+        sender_name = data.get('sender_name', '')
+        receiver_name = data.get('receiver_name', '')
+        content = data.get('content', '')
+        
+        if not sender_name or not receiver_name or not content:
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO direct_messages (sender_name, receiver_name, content)
+            VALUES (?, ?, ?)
+        ''', (sender_name, receiver_name, content))
+        
+        message_id = cursor.lastrowid
+        conn.commit()
+        
+        # Get the created message
+        cursor.execute('SELECT * FROM direct_messages WHERE id = ?', (message_id,))
+        message = cursor.fetchone()
+        conn.close()
+        
+        return jsonify(dict(message))
+    except Exception as e:
+        return jsonify({'error': f'Failed to send message: {str(e)}'}), 500
+
+@app.route('/api/dm/unread-count', methods=['GET'])
+def get_unread_count():
+    """Get unread message count for a user"""
+    from database import get_db_connection
+    username = request.args.get('username', '')
+    
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT COUNT(*) as count
+            FROM direct_messages
+            WHERE receiver_name = ? AND is_read = 0
+        ''', (username,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        return jsonify({'count': result['count'] if result else 0})
+    except Exception as e:
+        return jsonify({'error': f'Failed to get unread count: {str(e)}'}), 500
+
 # Friends endpoints
 @app.route('/api/forum/users/<username>', methods=['POST'])
 def create_or_get_user(username):
@@ -778,7 +911,7 @@ def signup():
             VALUES (?, ?)
         ''', (username, username))
         
-        # Create session
+        # Create session (signup defaults to remember me behavior)
         session_token = secrets.token_urlsafe(32)
         expires_at = datetime.now() + timedelta(days=30)
         
@@ -807,6 +940,7 @@ def login():
         data = request.get_json()
         username = data.get('username', '').strip()
         password = data.get('password', '')
+        remember_me = data.get('remember_me', False)
         
         if not username or not password:
             return jsonify({'error': 'Username and password are required'}), 400
@@ -827,9 +961,11 @@ def login():
             conn.close()
             return jsonify({'error': 'Invalid username or password'}), 401
         
-        # Create session
+        # Create session with different expiration based on remember_me
         session_token = secrets.token_urlsafe(32)
-        expires_at = datetime.now() + timedelta(days=30)
+        # 30 days for remember me, 7 days for regular login
+        expiration_days = 30 if remember_me else 7
+        expires_at = datetime.now() + timedelta(days=expiration_days)
         
         cursor.execute('''
             INSERT INTO sessions (user_id, session_token, expires_at)

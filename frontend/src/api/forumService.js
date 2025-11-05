@@ -174,6 +174,47 @@ export const forumService = {
 
   getFileUrl: (filename) => {
     return `${API_BASE_URL.replace('/api', '')}/forum/files/${filename}`;
+  },
+
+  // Direct Messages
+  getConversations: async (username) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/dm/conversations?username=${encodeURIComponent(username)}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to get conversations');
+    }
+  },
+
+  getMessages: async (username, friendUsername) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/dm/messages?username=${encodeURIComponent(username)}&friend=${encodeURIComponent(friendUsername)}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to get messages');
+    }
+  },
+
+  sendMessage: async (senderName, receiverName, content) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/dm/send`, {
+        sender_name: senderName,
+        receiver_name: receiverName,
+        content: content
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to send message');
+    }
+  },
+
+  getUnreadCount: async (username) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/dm/unread-count?username=${encodeURIComponent(username)}`);
+      return response.data.count || 0;
+    } catch (error) {
+      return 0;
+    }
   }
 };
 

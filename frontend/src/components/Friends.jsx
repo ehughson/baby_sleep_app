@@ -8,6 +8,12 @@ const Friends = ({ user }) => {
   const [friendSearchQuery, setFriendSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [authorName, setAuthorName] = useState('');
+  const [selectedFriend, setSelectedFriend] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState({});
+  const messagesEndRef = React.useRef(null);
 
   useEffect(() => {
     // Use logged-in user or saved name
@@ -34,10 +40,88 @@ const Friends = ({ user }) => {
       loadFriends(username);
       // Load friend requests
       loadFriendRequests(username);
+      // Load unread counts
+      loadUnreadCounts(username);
     } catch (error) {
       console.error('Error initializing user:', error);
     }
   };
+
+  const loadUnreadCounts = async (username) => {
+    try {
+      const conversations = await forumService.getConversations(username);
+      const counts = {};
+      conversations.forEach(conv => {
+        counts[conv.other_user] = conv.unread_count || 0;
+      });
+      setUnreadCounts(counts);
+    } catch (error) {
+      console.error('Error loading unread counts:', error);
+    }
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const loadMessages = async (friendUsername) => {
+    if (!authorName || !friendUsername) return;
+    
+    setIsLoadingMessages(true);
+    try {
+      const data = await forumService.getMessages(authorName, friendUsername);
+      setMessages(data);
+      // Reload unread counts after loading messages
+      loadUnreadCounts(authorName);
+      // Scroll to bottom after messages load
+      setTimeout(scrollToBottom, 100);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      setMessages([]);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
+  const handleSelectFriend = (friend) => {
+    const friendUsername = friend.display_name || friend.friend_name;
+    setSelectedFriend(friendUsername);
+    loadMessages(friendUsername);
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedFriend || !authorName) return;
+
+    try {
+      const message = await forumService.sendMessage(authorName, selectedFriend, newMessage.trim());
+      setMessages([...messages, message]);
+      setNewMessage('');
+      // Reload unread counts
+      loadUnreadCounts(authorName);
+      // Scroll to bottom after sending
+      setTimeout(scrollToBottom, 100);
+    } catch (error) {
+      alert(error.message || 'Failed to send message');
+    }
+  };
+
+  // Auto-scroll when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Poll for new messages when a friend is selected
+  useEffect(() => {
+    if (!selectedFriend || !authorName) return;
+
+    const interval = setInterval(() => {
+      loadMessages(selectedFriend);
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFriend, authorName]);
 
   const loadFriends = async (username) => {
     try {
@@ -140,6 +224,75 @@ const Friends = ({ user }) => {
     );
   }
 
+  // Show chat view if friend is selected
+  if (selectedFriend) {
+    return (
+      <div className="friends-container">
+        <div className="dm-header">
+          <button
+            className="back-to-friends-btn"
+            onClick={() => {
+              setSelectedFriend(null);
+              setMessages([]);
+            }}
+          >
+            ← Back
+          </button>
+          <div className="dm-friend-info">
+            <div className="friend-avatar">
+              {selectedFriend.charAt(0).toUpperCase()}
+            </div>
+            <span className="dm-friend-name">{selectedFriend}</span>
+          </div>
+        </div>
+
+        <div className="dm-messages-container">
+          {isLoadingMessages ? (
+            <div className="dm-loading">Loading messages...</div>
+          ) : messages.length === 0 ? (
+            <div className="dm-empty">
+              <p>No messages yet. Start the conversation!</p>
+            </div>
+          ) : (
+            <div className="dm-messages-list">
+              {messages.map((msg) => {
+                const isOwn = msg.sender_name === authorName;
+                return (
+                  <div key={msg.id} className={`dm-message ${isOwn ? 'own' : 'other'}`}>
+                    <div className="dm-message-content">{msg.content}</div>
+                    <div className="dm-message-time">
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+
+        <div className="dm-input-section">
+          <form className="dm-input-form" onSubmit={handleSendMessage}>
+            <input
+              type="text"
+              className="dm-input"
+              placeholder="Type a message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="dm-send-btn"
+              disabled={!newMessage.trim()}
+            >
+              Send
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="friends-container">
       <div className="friends-header-section">
@@ -186,20 +339,31 @@ const Friends = ({ user }) => {
             </div>
           ) : (
             <div className="friends-grid">
-              {friends.map((friend, idx) => (
-                <div key={idx} className="friend-card">
-                  <div className="friend-avatar">
-                    {(friend.display_name || friend.friend_name).charAt(0).toUpperCase()}
-                  </div>
-                  <div className="friend-info">
-                    <span className="friend-name">{friend.display_name || friend.friend_name}</span>
-                    <div className="friend-status">
-                      <span className="status-dot online"></span>
-                      <span>Online</span>
+              {friends.map((friend, idx) => {
+                const friendUsername = friend.display_name || friend.friend_name;
+                const unreadCount = unreadCounts[friendUsername] || 0;
+                return (
+                  <div 
+                    key={idx} 
+                    className="friend-card clickable"
+                    onClick={() => handleSelectFriend(friend)}
+                  >
+                    <div className="friend-avatar">
+                      {friendUsername.charAt(0).toUpperCase()}
                     </div>
+                    <div className="friend-info">
+                      <span className="friend-name">{friendUsername}</span>
+                      <div className="friend-status">
+                        <span className="status-dot online"></span>
+                        <span>Online</span>
+                      </div>
+                    </div>
+                    {unreadCount > 0 && (
+                      <div className="unread-badge">{unreadCount}</div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

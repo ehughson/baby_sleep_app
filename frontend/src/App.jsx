@@ -3,7 +3,7 @@ import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import Forum from './components/Forum';
 import Friends from './components/Friends';
-import AuthModal from './components/AuthModal';
+import LoginPage from './components/LoginPage';
 import { chatService } from './api/chatService';
 import { authService } from './api/authService';
 
@@ -18,8 +18,7 @@ function App() {
   
   // Authentication state
   const [user, setUser] = useState(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -32,10 +31,11 @@ function App() {
   // Check authentication on mount
   useEffect(() => {
     const checkAuth = async () => {
+      setIsCheckingAuth(true);
       const token = localStorage.getItem('session_token');
       const username = localStorage.getItem('username');
       
-      if (token) {
+      if (token && username) {
         try {
           const session = await authService.checkSession(token);
           if (session.authenticated) {
@@ -44,14 +44,23 @@ function App() {
             // Invalid session, clear it
             localStorage.removeItem('session_token');
             localStorage.removeItem('username');
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('remember_me');
+            setUser(null);
           }
         } catch (error) {
           console.error('Auth check error:', error);
+          // Clear invalid session
+          localStorage.removeItem('session_token');
+          localStorage.removeItem('username');
+          localStorage.removeItem('user_id');
+          localStorage.removeItem('remember_me');
+          setUser(null);
         }
-      } else if (username) {
-        // Legacy: user entered name but not logged in
-        setUser({ username, isGuest: true });
+      } else {
+        setUser(null);
       }
+      setIsCheckingAuth(false);
     };
     
     checkAuth();
@@ -68,9 +77,8 @@ function App() {
     }
   }, []);
 
-  const handleAuthSuccess = (authData) => {
+  const handleLoginSuccess = (authData) => {
     setUser({ username: authData.username, user_id: authData.user_id });
-    setShowAuthModal(false);
   };
 
   const handleLogout = async () => {
@@ -80,6 +88,8 @@ function App() {
     }
     localStorage.removeItem('session_token');
     localStorage.removeItem('username');
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('remember_me');
     localStorage.removeItem('forum_author_name'); // Clear forum name too
     setUser(null);
   };
@@ -201,6 +211,23 @@ function App() {
     }
   };
 
+  // Show login page if not authenticated
+  if (isCheckingAuth) {
+    return (
+      <div className="app">
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <div>Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <LoginPage onLoginSuccess={handleLoginSuccess} />
+    );
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -232,16 +259,6 @@ function App() {
                 Logout
               </button>
             </div>
-          ) : (
-            <button
-              className="login-btn"
-              onClick={() => {
-                setAuthMode('login');
-                setShowAuthModal(true);
-              }}
-            >
-              Login
-            </button>
           )}
           {activeTab === 'chat' && conversationId && (
             <button
@@ -341,14 +358,6 @@ function App() {
         <Friends user={user} />
       )}
 
-      {/* Authentication Modal */}
-      {showAuthModal && (
-        <AuthModal
-          mode={authMode}
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={handleAuthSuccess}
-        />
-      )}
     </div>
   );
 }
