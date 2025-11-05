@@ -334,7 +334,39 @@ body {
   padding: 1rem 1.25rem;
   border-radius: 18px;
   font-size: 0.95rem;
-  line-height: 1.6;
+  line-height: 1.8;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.message-content .message-paragraph {
+  margin: 0 0 0.75rem 0;
+  line-height: 1.7;
+}
+
+.message-content .message-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.message-content .message-heading {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.message-content .message-list {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  line-height: 1.7;
+}
+
+.message-content .message-list li {
+  margin-bottom: 0.5rem;
+}
+
+.message-content .message-list li:last-child {
+  margin-bottom: 0;
   word-wrap: break-word;
 }
 
