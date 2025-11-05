@@ -222,8 +222,7 @@ const Forum = ({ user }) => {
       
       // Select the new channel
       setSelectedChannel(newChannel);
-      const username = user?.username || authorName || '';
-      loadPosts(newChannel.id, username);
+      loadPosts(newChannel.id, username || '');
       
       // Reset form
       setNewChannelName('');
