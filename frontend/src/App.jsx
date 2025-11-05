@@ -215,9 +215,9 @@ function App() {
           )}
           <div className="header-title">
             <span className="sleep-icon">🌙</span>
-            <h1>Baby Sleep Helper</h1>
+            <h1>REMi</h1>
           </div>
-          <p className="header-subtitle">Expert sleep training guidance for tired parents</p>
+          <p className="header-subtitle">Shaping sleep, one night at a time</p>
         </div>
         <div className="header-actions">
           {user ? (
@@ -280,41 +280,28 @@ function App() {
             <div className="welcome-section">
               <div className="welcome-content">
                 <div className="welcome-icon">👶</div>
-                <h2>Welcome to Baby Sleep Helper</h2>
-                <p>Get personalized sleep training advice for your little one. Ask about:</p>
+                <h2>{user?.username ? `Hi there ${user.username}!` : 'Hi there!'}</h2>
+                <p>what sleep hurdle are we tackling?</p>
                 <div className="suggestion-chips">
                   <button 
                     className="chip" 
-                    onClick={() => handleSendMessage("Tell me about gentle sleep training methods")}
+                    onClick={() => handleSendMessage("Tell me about night wakings")}
                   >
-                    Gentle sleep training methods
+                    night wakings
                   </button>
                   <button 
                     className="chip" 
-                    onClick={() => handleSendMessage("What are some no-cry sleep solutions?")}
+                    onClick={() => handleSendMessage("Tell me about bedtime resistance")}
                   >
-                    No-cry sleep solutions
+                    bedtime resistance
                   </button>
                   <button 
                     className="chip" 
-                    onClick={() => handleSendMessage("Help me create a good bedtime routine")}
+                    onClick={() => handleSendMessage("Tell me about short naps")}
                   >
-                    Bedtime routines
-                  </button>
-                  <button 
-                    className="chip" 
-                    onClick={() => handleSendMessage("My baby wakes up frequently at night, what should I do?")}
-                  >
-                    Night wakings
-                  </button>
-                  <button 
-                    className="chip" 
-                    onClick={() => handleSendMessage("What's a good nap schedule for my baby?")}
-                  >
-                    Nap schedules
+                    short naps
                   </button>
                 </div>
-                <p className="welcome-subtext">Start by describing your baby's sleep challenges below</p>
               </div>
             </div>
           ) : (

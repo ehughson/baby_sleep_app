@@ -24,7 +24,7 @@ const ChatInput = ({ onSendMessage, isLoading }) => {
         <input
           type="text"
           className="message-input"
-          placeholder="Ask about sleep training, bedtime routines, or sleep challenges..."
+          placeholder="what sleep hurdle are we tackling?"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyPress={handleKeyPress}
