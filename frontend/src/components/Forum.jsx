@@ -536,21 +536,28 @@ const Forum = ({ user, navigationOptions }) => {
               key={post.id}
               data-post-id={post.id}
               className={`post-card ${isReply ? 'post-reply' : ''}`} 
-              onClick={(e) => {
+              onMouseDown={(e) => {
                 // Don't show picker if clicking on buttons, links, or the emoji picker itself
-                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.emoji-picker') || e.target.closest('.original-message-preview')) {
+                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.emoji-picker')) {
                   return;
                 }
                 // Don't show picker if one is already open
                 if (emojiPickerPostId) {
                   return;
                 }
+                e.preventDefault();
                 const rect = e.currentTarget.getBoundingClientRect();
                 setEmojiPickerPostId(post.id);
                 setEmojiPickerPosition({
                   x: rect.left + rect.width / 2,
                   y: rect.top - 10
                 });
+              }}
+              onClick={(e) => {
+                // Prevent default click behavior when picker is open
+                if (emojiPickerPostId === post.id) {
+                  e.stopPropagation();
+                }
               }}
               style={{
                 ...(isReply ? { 
@@ -645,57 +652,46 @@ const Forum = ({ user, navigationOptions }) => {
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
-                    e.preventDefault();
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
                   }}
                 >
                   {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        handleAddReaction(post.id, emoji);
-                        setEmojiPickerPostId(null);
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        handleAddReaction(post.id, emoji);
-                        setEmojiPickerPostId(null);
-                      }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        fontSize: '1.8rem',
-                        cursor: 'pointer',
-                        padding: '0.5rem',
-                        borderRadius: '12px',
-                        transition: 'all 0.15s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '44px',
-                        height: '44px',
-                        pointerEvents: 'auto',
-                        userSelect: 'none'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#f0f0f0';
-                        e.currentTarget.style.transform = 'scale(1.3)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'none';
-                        e.currentTarget.style.transform = 'scale(1)';
-                      }}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
+                  <button
+                    key={emoji}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      handleAddReaction(post.id, emoji);
+                      setEmojiPickerPostId(null);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '1.8rem',
+                      cursor: 'pointer',
+                      padding: '0.5rem',
+                      borderRadius: '12px',
+                      transition: 'all 0.15s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '44px',
+                      height: '44px',
+                      pointerEvents: 'auto',
+                      userSelect: 'none',
+                      WebkitUserSelect: 'none'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f0f0f0';
+                      e.currentTarget.style.transform = 'scale(1.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'none';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
                 </div>
               )}
 
@@ -748,61 +744,30 @@ const Forum = ({ user, navigationOptions }) => {
                         }}
                       />
                       
-                      {/* Original message preview (compact) */}
-                      <div 
-                        className="original-message-preview"
-                        style={{
-                          background: '#f8f8f8',
-                          borderRadius: '8px',
-                          padding: '0.5rem 0.75rem',
-                          marginBottom: '0.5rem',
-                          borderLeft: '3px solid #a68cab',
-                          fontSize: '0.85rem',
-                          color: '#666'
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Scroll to original post
-                          const originalPost = document.querySelector(`[data-post-id="${post.id}"]`);
-                          if (originalPost) {
-                            originalPost.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            originalPost.style.background = '#fff3d1';
-                            setTimeout(() => {
-                              originalPost.style.background = '';
-                            }, 2000);
-                          }
-                        }}
-                      >
-                        <div style={{ fontWeight: 600, color: '#a68cab', marginBottom: '0.25rem', fontSize: '0.8rem' }}>
-                          {post.author_name}
-                        </div>
-                        <div style={{ 
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          maxWidth: '100%'
-                        }}>
-                          {post.content.length > 100 ? post.content.substring(0, 100) + '...' : post.content}
-                        </div>
-                      </div>
-                      
                       {/* Reply content */}
                       <div 
                         className="post-card post-reply"
                         data-post-id={reply.id}
-                        onClick={(e) => {
+                        onMouseDown={(e) => {
                           if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.emoji-picker')) {
                             return;
                           }
                           if (emojiPickerPostId) {
                             return;
                           }
+                          e.preventDefault();
                           const rect = e.currentTarget.getBoundingClientRect();
                           setEmojiPickerPostId(reply.id);
                           setEmojiPickerPosition({
                             x: rect.left + rect.width / 2,
                             y: rect.top - 10
                           });
+                        }}
+                        onClick={(e) => {
+                          // Prevent default click behavior when picker is open
+                          if (emojiPickerPostId === reply.id) {
+                            e.stopPropagation();
+                          }
                         }}
                         style={{
                           padding: '0.75rem',
@@ -889,11 +854,6 @@ const Forum = ({ user, navigationOptions }) => {
                             }}
                             onMouseDown={(e) => {
                               e.stopPropagation();
-                              e.preventDefault();
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
                             }}
                           >
                             {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
@@ -902,13 +862,6 @@ const Forum = ({ user, navigationOptions }) => {
                                 type="button"
                                 onMouseDown={(e) => {
                                   e.stopPropagation();
-                                  e.preventDefault();
-                                  handleAddReaction(reply.id, emoji);
-                                  setEmojiPickerPostId(null);
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  e.preventDefault();
                                   handleAddReaction(reply.id, emoji);
                                   setEmojiPickerPostId(null);
                                 }}
@@ -926,7 +879,8 @@ const Forum = ({ user, navigationOptions }) => {
                                   width: '44px',
                                   height: '44px',
                                   pointerEvents: 'auto',
-                                  userSelect: 'none'
+                                  userSelect: 'none',
+                                  WebkitUserSelect: 'none'
                                 }}
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.background = '#f0f0f0';
@@ -962,19 +916,11 @@ const Forum = ({ user, navigationOptions }) => {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  zIndex: 1000,
+                  zIndex: 1001,
                   background: 'transparent',
                   pointerEvents: 'auto'
                 }}
                 onMouseDown={(e) => {
-                  // Don't close if clicking on the picker itself or any button inside it
-                  if (e.target.closest('.emoji-picker')) {
-                    e.stopPropagation();
-                    return;
-                  }
-                  setEmojiPickerPostId(null);
-                }}
-                onClick={(e) => {
                   // Don't close if clicking on the picker itself or any button inside it
                   if (e.target.closest('.emoji-picker')) {
                     e.stopPropagation();
