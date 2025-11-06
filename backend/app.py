@@ -1529,6 +1529,46 @@ def search_users():
         traceback.print_exc()
         return jsonify({'error': f'Failed to search users: {str(e)}'}), 500
 
+@app.route('/api/debug/friendships/<username>', methods=['GET'])
+def debug_friendships(username):
+    """Debug endpoint to check friendships for a user"""
+    from database import get_db_connection
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get all friendships for this user
+        cursor.execute('''
+            SELECT * FROM friendships 
+            WHERE user1_name = ? OR user2_name = ?
+        ''', (username, username))
+        all_friendships = cursor.fetchall()
+        
+        # Get total friendships count
+        cursor.execute('SELECT COUNT(*) as count FROM friendships')
+        total_friendships = cursor.fetchone()['count']
+        
+        # Get sample friendships
+        cursor.execute('SELECT * FROM friendships LIMIT 20')
+        sample_friendships = cursor.fetchall()
+        
+        # Check if user exists
+        cursor.execute('SELECT username FROM auth_users WHERE username = ?', (username,))
+        user_exists = cursor.fetchone() is not None
+        
+        conn.close()
+        
+        return jsonify({
+            'username': username,
+            'user_exists': user_exists,
+            'total_friendships_in_db': total_friendships,
+            'friendships_for_user': len(all_friendships),
+            'all_friendships_for_user': [dict(f) for f in all_friendships],
+            'sample_friendships': [dict(f) for f in sample_friendships]
+        })
+    except Exception as e:
+        return jsonify({'error': f'Failed to debug: {str(e)}'}), 500
+
 # Authentication endpoints
 def generate_random_username():
     """Generate a random username"""
