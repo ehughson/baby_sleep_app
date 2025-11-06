@@ -37,12 +37,17 @@ body {
   min-height: 0;
 }
 
+.app:has(.update-banner) .header {
+  padding-top: calc(2rem + 60px); /* Add space for banner */
+}
+
 .header {
   padding: 2rem 2rem 1.5rem;
   background: #a68cab;
   color: white;
   display: flex;
   justify-content: space-between;
+  transition: padding-top 0.3s ease;
   align-items: flex-start;
 }
 
