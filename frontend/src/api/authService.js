@@ -68,6 +68,7 @@ export const authService = {
   // Login
   login: async (username, password, rememberMe = false) => {
     try {
+      console.log('Login attempt:', { username, url: `${API_BASE_URL}/auth/login` });
       const response = await axios.post(`${API_BASE_URL}/auth/login`, {
         username,
         password,
@@ -75,13 +76,17 @@ export const authService = {
       }, {
         timeout: 10000 // 10 second timeout
       });
+      console.log('Login response:', response.data);
       return response.data;
     } catch (error) {
+      console.error('Login error:', error);
       if (error.code === 'ECONNABORTED') {
         throw new Error('Request timed out. Please check your connection and try again.');
       }
       if (error.response) {
-        throw new Error(error.response.data?.error || 'Failed to login');
+        const errorMessage = error.response.data?.error || 'Failed to login';
+        console.error('Login error response:', error.response.data);
+        throw new Error(errorMessage);
       }
       if (error.request) {
         throw new Error('Unable to connect to server. Please check if the backend is running.');

@@ -1695,17 +1695,24 @@ def login():
         cursor.execute('SELECT * FROM auth_users WHERE username = ?', (username,))
         user = cursor.fetchone()
         
+        print(f"Login attempt for username: '{username}'")
+        
         if not user:
+            print(f"User not found: '{username}'")
             conn.close()
             return jsonify({'error': 'Invalid username or password'}), 401
         
         # Check if account is active
-        if user.get('is_active', 1) == 0:
+        is_active = user.get('is_active', 1)
+        print(f"User found, is_active: {is_active}")
+        if is_active == 0:
             conn.close()
             return jsonify({'error': 'This account has been deactivated'}), 403
         
         # Check password
-        if not check_password_hash(user['password_hash'], password):
+        password_valid = check_password_hash(user['password_hash'], password)
+        print(f"Password valid: {password_valid}")
+        if not password_valid:
             conn.close()
             return jsonify({'error': 'Invalid username or password'}), 401
         
