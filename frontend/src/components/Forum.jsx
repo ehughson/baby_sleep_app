@@ -478,17 +478,24 @@ const Forum = ({ user }) => {
                   {post.file_type === 'image' ? (
                     <img 
                       src={forumService.getFileUrl(post.file_path)} 
-                      alt={post.file_name}
-                      style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', marginTop: '1rem' }}
+                      alt={post.file_name || 'Uploaded image'}
+                      style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', marginTop: '1rem', display: 'block' }}
+                      onError={(e) => {
+                        console.error('Failed to load image:', forumService.getFileUrl(post.file_path));
+                        console.error('File path:', post.file_path);
+                        console.error('File type:', post.file_type);
+                        e.target.style.display = 'none';
+                        e.target.parentElement.innerHTML = `<p style="color: #999; font-style: italic;">Image failed to load: ${post.file_name || post.file_path}</p>`;
+                      }}
                     />
                   ) : (
                     <a 
                       href={forumService.getFileUrl(post.file_path)} 
-                      target="_blank" 
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="file-link"
                     >
-                      📎 {post.file_name}
+                      📎 {post.file_name || post.file_path}
                     </a>
                   )}
                 </div>

@@ -173,7 +173,11 @@ export const forumService = {
   },
 
   getFileUrl: (filename) => {
-    return `${API_BASE_URL.replace('/api', '')}/forum/files/${filename}`;
+    // The backend serves files at /api/forum/files/<filename>
+    // Extract just the filename if a full path is provided
+    const cleanFilename = filename.split('/').pop();
+    // API_BASE_URL already includes /api, so we can use it directly
+    return `${API_BASE_URL}/forum/files/${cleanFilename}`;
   },
 
   // Direct Messages

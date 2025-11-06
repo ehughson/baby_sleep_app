@@ -113,8 +113,12 @@ def init_db():
         CREATE TABLE IF NOT EXISTS auth_users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
-            email TEXT,
+            first_name TEXT,
+            last_name TEXT,
+            email TEXT NOT NULL,
             password_hash TEXT NOT NULL,
+            reset_token TEXT,
+            reset_token_expires TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')

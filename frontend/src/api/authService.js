@@ -8,16 +8,19 @@ console.log('Environment:', import.meta.env.MODE);
 
 export const authService = {
   // Sign up new user
-  signup: async (username, email, password, rememberMe = false) => {
+  signup: async (firstName, lastName, email, password, username, useRandomUsername, rememberMe = false) => {
     const url = `${API_BASE_URL}/auth/signup`;
     console.log('Signup request URL:', url);
-    console.log('Signup payload:', { username, email, password: '***', remember_me: rememberMe });
+    console.log('Signup payload:', { firstName, lastName, email, password: '***', username, useRandomUsername, remember_me: rememberMe });
     
     try {
       const response = await axios.post(url, {
-        username,
+        first_name: firstName,
+        last_name: lastName,
         email,
         password,
+        username: useRandomUsername ? '' : username,
+        use_random_username: useRandomUsername,
         remember_me: rememberMe
       }, {
         timeout: 10000 // 10 second timeout
@@ -95,6 +98,41 @@ export const authService = {
       });
     } catch (error) {
       console.error('Logout error:', error);
+    }
+  },
+
+  // Forgot password
+  forgotPassword: async (email) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/forgot-password`, {
+        email
+      }, {
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to process password reset request');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
+  },
+
+  // Reset password
+  resetPassword: async (token, newPassword) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/reset-password`, {
+        token,
+        password: newPassword
+      }, {
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to reset password');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
     }
   }
 };

@@ -1017,6 +1017,37 @@ body {
   text-align: center;
 }
 
+.login-success {
+  background: #c6f6d5;
+  color: #22543d;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.login-link-btn {
+  background: none;
+  color: #a68cab;
+  border: none;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: all 0.3s ease;
+  font-family: 'Nunito', sans-serif;
+  margin-top: 0.5rem;
+}
+
+.login-link-btn:hover:not(:disabled) {
+  color: #8d6f91;
+}
+
+.login-link-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .login-submit-btn {
   background: #a68cab;
   color: white;

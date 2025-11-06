@@ -969,21 +969,37 @@ def search_users():
         return jsonify({'error': f'Failed to search users: {str(e)}'}), 500
 
 # Authentication endpoints
+def generate_random_username():
+    """Generate a random username"""
+    import random
+    adjectives = ['sleepy', 'cozy', 'dreamy', 'calm', 'gentle', 'peaceful', 'serene', 'tranquil', 'restful', 'quiet']
+    nouns = ['baby', 'star', 'moon', 'cloud', 'angel', 'bear', 'bunny', 'bird', 'butterfly', 'flower']
+    number = secrets.randbelow(1000)
+    return f"{random.choice(adjectives)}_{random.choice(nouns)}_{number}"
+
 @app.route('/api/auth/signup', methods=['POST'])
 def signup():
     """Create a new user account"""
     from database import get_db_connection
     try:
         data = request.get_json()
-        username = data.get('username', '').strip()
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
         email = data.get('email', '').strip()
         password = data.get('password', '')
+        username = data.get('username', '').strip()
+        use_random_username = data.get('use_random_username', False)
+        remember_me = data.get('remember_me', False)
         
-        if not username or not password:
-            return jsonify({'error': 'Username and password are required'}), 400
+        # Validate required fields
+        if not first_name or not last_name:
+            return jsonify({'error': 'First name and last name are required'}), 400
         
-        if len(username) < 3:
-            return jsonify({'error': 'Username must be at least 3 characters'}), 400
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+        
+        if not password:
+            return jsonify({'error': 'Password is required'}), 400
         
         if len(password) < 6:
             return jsonify({'error': 'Password must be at least 6 characters'}), 400
@@ -991,32 +1007,62 @@ def signup():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Check if username already exists
-        cursor.execute('SELECT * FROM auth_users WHERE username = ?', (username,))
-        existing = cursor.fetchone()
-        if existing:
+        # Generate or validate username
+        if use_random_username:
+            # Generate a unique random username
+            max_attempts = 10
+            for _ in range(max_attempts):
+                username = generate_random_username()
+                cursor.execute('SELECT * FROM auth_users WHERE username = ?', (username,))
+                if not cursor.fetchone():
+                    break
+            else:
+                conn.close()
+                return jsonify({'error': 'Could not generate a unique username. Please try again.'}), 500
+        else:
+            # User provided username
+            if not username:
+                return jsonify({'error': 'Username is required'}), 400
+            
+            if len(username) < 3:
+                return jsonify({'error': 'Username must be at least 3 characters'}), 400
+            
+            # Check if username already exists
+            cursor.execute('SELECT * FROM auth_users WHERE username = ?', (username,))
+            existing = cursor.fetchone()
+            if existing:
+                conn.close()
+                return jsonify({'error': 'Username already exists. Please choose a different username.'}), 400
+        
+        # Check if email already exists
+        cursor.execute('SELECT * FROM auth_users WHERE email = ?', (email,))
+        existing_email = cursor.fetchone()
+        if existing_email:
             conn.close()
-            return jsonify({'error': 'Username already exists'}), 400
+            return jsonify({'error': 'Email already registered. Please use a different email or login.'}), 400
         
         # Hash password
         password_hash = generate_password_hash(password)
         
         # Create user
         cursor.execute('''
-            INSERT INTO auth_users (username, email, password_hash)
-            VALUES (?, ?, ?)
-        ''', (username, email, password_hash))
+            INSERT INTO auth_users (username, first_name, last_name, email, password_hash)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (username, first_name, last_name, email, password_hash))
         user_id = cursor.lastrowid
         
         # Create forum user entry
         cursor.execute('''
             INSERT OR IGNORE INTO forum_users (username, display_name)
             VALUES (?, ?)
-        ''', (username, username))
+        ''', (username, f"{first_name} {last_name}"))
         
-        # Create session (signup defaults to remember me behavior)
+        # Create session
         session_token = secrets.token_urlsafe(32)
-        expires_at = datetime.now() + timedelta(days=30)
+        if remember_me:
+            expires_at = datetime.now() + timedelta(days=30)
+        else:
+            expires_at = datetime.now() + timedelta(days=1)
         
         cursor.execute('''
             INSERT INTO sessions (user_id, session_token, expires_at)
@@ -1128,6 +1174,99 @@ def check_session():
         })
     except Exception as e:
         return jsonify({'authenticated': False, 'error': str(e)}), 500
+
+@app.route('/api/auth/forgot-password', methods=['POST'])
+def forgot_password():
+    """Request password reset"""
+    from database import get_db_connection
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip()
+        
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user by email
+        cursor.execute('SELECT * FROM auth_users WHERE email = ?', (email,))
+        user = cursor.fetchone()
+        
+        if not user:
+            # Don't reveal if email exists for security
+            conn.close()
+            return jsonify({'message': 'If an account with that email exists, a password reset link has been sent.'}), 200
+        
+        # Generate reset token
+        reset_token = secrets.token_urlsafe(32)
+        expires_at = datetime.now() + timedelta(hours=1)  # Token expires in 1 hour
+        
+        # Store reset token
+        cursor.execute('''
+            UPDATE auth_users 
+            SET reset_token = ?, reset_token_expires = ?
+            WHERE id = ?
+        ''', (reset_token, expires_at, user['id']))
+        
+        conn.commit()
+        conn.close()
+        
+        # In a real app, you would send an email here with the reset link
+        # For now, we'll return the token (in production, remove this!)
+        # TODO: Send email with reset link: /reset-password?token={reset_token}
+        print(f"Password reset token for {email}: {reset_token}")
+        
+        return jsonify({
+            'message': 'If an account with that email exists, a password reset link has been sent.',
+            'reset_token': reset_token  # Remove this in production - only for testing
+        })
+    except Exception as e:
+        return jsonify({'error': f'Failed to process password reset request: {str(e)}'}), 500
+
+@app.route('/api/auth/reset-password', methods=['POST'])
+def reset_password():
+    """Reset password using token"""
+    from database import get_db_connection
+    try:
+        data = request.get_json()
+        token = data.get('token', '').strip()
+        new_password = data.get('password', '')
+        
+        if not token or not new_password:
+            return jsonify({'error': 'Token and new password are required'}), 400
+        
+        if len(new_password) < 6:
+            return jsonify({'error': 'Password must be at least 6 characters'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user with valid reset token
+        cursor.execute('''
+            SELECT * FROM auth_users 
+            WHERE reset_token = ? AND reset_token_expires > ?
+        ''', (token, datetime.now()))
+        user = cursor.fetchone()
+        
+        if not user:
+            conn.close()
+            return jsonify({'error': 'Invalid or expired reset token'}), 400
+        
+        # Update password and clear reset token
+        password_hash = generate_password_hash(new_password)
+        cursor.execute('''
+            UPDATE auth_users 
+            SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL
+            WHERE id = ?
+        ''', (password_hash, user['id']))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': 'Password has been reset successfully'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to reset password: {str(e)}'}), 500
 
 @app.route('/api/auth/logout', methods=['POST'])
 def logout():
