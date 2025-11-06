@@ -21,8 +21,12 @@ const Friends = ({ user, navigationOptions }) => {
 
   useEffect(() => {
     // Use logged-in user or saved name
+    console.log('Friends component - user object:', user);
+    console.log('Friends component - localStorage username:', localStorage.getItem('username'));
+    
     if (user && user.username && !user.isGuest) {
       const username = user.username;
+      console.log('Setting authorName from user.username:', username);
       if (authorName !== username) {
         setAuthorName(username);
         localStorage.setItem('forum_author_name', username);
@@ -32,13 +36,25 @@ const Friends = ({ user, navigationOptions }) => {
         }, 100);
       }
     } else if (!authorName) {
-      // Get saved author name from localStorage (guest mode)
-      const savedName = localStorage.getItem('forum_author_name');
-      if (savedName) {
-        setAuthorName(savedName);
+      // Try localStorage username first (from login)
+      const localStorageUsername = localStorage.getItem('username');
+      if (localStorageUsername) {
+        console.log('Setting authorName from localStorage username:', localStorageUsername);
+        setAuthorName(localStorageUsername);
+        localStorage.setItem('forum_author_name', localStorageUsername);
         setTimeout(() => {
-          initializeUserAndFriends(savedName);
+          initializeUserAndFriends(localStorageUsername);
         }, 100);
+      } else {
+        // Get saved author name from localStorage (guest mode)
+        const savedName = localStorage.getItem('forum_author_name');
+        if (savedName) {
+          console.log('Setting authorName from forum_author_name:', savedName);
+          setAuthorName(savedName);
+          setTimeout(() => {
+            initializeUserAndFriends(savedName);
+          }, 100);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
