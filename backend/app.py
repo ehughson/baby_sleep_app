@@ -1164,8 +1164,8 @@ def signup():
             'session_token': session_token,
             'username': username,
             'user_id': user_id,
-            'profile_picture': user_data.get('profile_picture') if user_data else None,
-            'bio': user_data.get('bio') if user_data else None
+            'profile_picture': user_data['profile_picture'] if user_data else None,
+            'bio': user_data['bio'] if user_data else None
         })
     except Exception as e:
         print(f'Signup error: {str(e)}')  # Debug logging
@@ -1225,8 +1225,8 @@ def login():
             'session_token': session_token,
             'username': username,
             'user_id': user['id'],
-            'profile_picture': user.get('profile_picture'),
-            'bio': user.get('bio')
+            'profile_picture': user['profile_picture'],
+            'bio': user['bio']
         })
     except Exception as e:
         return jsonify({'error': f'Failed to login: {str(e)}'}), 500
@@ -1262,8 +1262,8 @@ def check_session():
             'authenticated': True,
             'username': session['username'],
             'user_id': session['user_id'],
-            'profile_picture': session.get('profile_picture'),
-            'bio': session.get('bio')
+            'profile_picture': session['profile_picture'],
+            'bio': session['bio']
         })
     except Exception as e:
         return jsonify({'authenticated': False, 'error': str(e)}), 500
