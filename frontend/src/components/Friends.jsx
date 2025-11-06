@@ -275,7 +275,14 @@ const Friends = ({ user, navigationOptions }) => {
       if (Array.isArray(data)) {
         setFriends(data);
         if (data.length === 0) {
-          console.log('No friends found in database for user:', username);
+          console.warn('No friends found in database for user:', username);
+          console.warn('This could mean:');
+          console.warn('1. You have no friends yet');
+          console.warn('2. Your username might have changed');
+          console.warn('3. Friends might be stored with a different username format');
+          // Don't show alert for empty friends - it's normal if user has no friends
+        } else {
+          console.log('Successfully loaded friends:', data.map(f => f.friend_name || f.display_name || f.username));
         }
       } else {
         console.error('Invalid friends data format:', data);

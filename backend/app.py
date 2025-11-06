@@ -1296,10 +1296,25 @@ def get_friends(username):
         friends = cursor.fetchall()
         friend_list = [dict(friend) for friend in friends]
         
-        # Debug logging
-        print(f"Found {len(friend_list)} friends for user: {username}")
+        # Debug logging - check all friendships for this user
+        cursor.execute('''
+            SELECT * FROM friendships 
+            WHERE user1_name = ? OR user2_name = ?
+        ''', (username, username))
+        all_friendships = cursor.fetchall()
+        print(f"DEBUG: All friendships for '{username}': {len(all_friendships)}")
+        for f in all_friendships:
+            print(f"  - {dict(f)}")
+        
+        print(f"Found {len(friend_list)} accepted friends for user: {username}")
         if friend_list:
             print(f"Friend names: {[f.get('friend_name') for f in friend_list]}")
+        else:
+            print(f"WARNING: No friends found for user '{username}'")
+            # Check if user exists
+            cursor.execute('SELECT username FROM auth_users WHERE username = ?', (username,))
+            user_check = cursor.fetchone()
+            print(f"User exists in auth_users: {user_check is not None}")
         
         conn.close()
         return jsonify(friend_list)
