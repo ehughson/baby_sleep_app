@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { forumService } from '../api/forumService';
 
@@ -26,6 +26,8 @@ const Forum = ({ user, navigationOptions }) => {
   const [replyContent, setReplyContent] = useState('');
   const [emojiPickerPostId, setEmojiPickerPostId] = useState(null);
   const [emojiPickerPosition, setEmojiPickerPosition] = useState({ x: 0, y: 0 });
+  const emojiPickerRef = useRef(null);
+  const isSelectingEmoji = useRef(false);
 
 
   useEffect(() => {
@@ -652,6 +654,7 @@ const Forum = ({ user, navigationOptions }) => {
               {/* Emoji Picker */}
               {emojiPickerPostId === post.id && (
                 <div 
+                  ref={emojiPickerRef}
                   className="emoji-picker"
                   style={{
                     position: 'fixed',
@@ -668,10 +671,10 @@ const Forum = ({ user, navigationOptions }) => {
                     marginBottom: '0.5rem',
                     pointerEvents: 'auto'
                   }}
-                  onClick={(e) => {
+                  onMouseDown={(e) => {
                     e.stopPropagation();
                   }}
-                  onPointerDown={(e) => {
+                  onClick={(e) => {
                     e.stopPropagation();
                   }}
                 >
@@ -679,13 +682,18 @@ const Forum = ({ user, navigationOptions }) => {
                   <button
                     key={emoji}
                     type="button"
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      isSelectingEmoji.current = true;
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
+                      isSelectingEmoji.current = false;
                       handleAddReaction(post.id, emoji);
                       setEmojiPickerPostId(null);
                     }}
-                    onPointerDown={(e) => {
+                    onMouseUp={(e) => {
                       e.stopPropagation();
                     }}
                     style={{
@@ -904,13 +912,18 @@ const Forum = ({ user, navigationOptions }) => {
                               <button
                                 key={emoji}
                                 type="button"
+                                onMouseDown={(e) => {
+                                  e.stopPropagation();
+                                  isSelectingEmoji.current = true;
+                                }}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   e.preventDefault();
+                                  isSelectingEmoji.current = false;
                                   handleAddReaction(reply.id, emoji);
                                   setEmojiPickerPostId(null);
                                 }}
-                                onPointerDown={(e) => {
+                                onMouseUp={(e) => {
                                   e.stopPropagation();
                                 }}
                                 style={{
@@ -969,9 +982,17 @@ const Forum = ({ user, navigationOptions }) => {
                   background: 'transparent',
                   pointerEvents: 'auto'
                 }}
+                onMouseDown={(e) => {
+                  // Don't close if clicking on the picker itself or if we're selecting an emoji
+                  if (isSelectingEmoji.current || e.target.closest('.emoji-picker')) {
+                    return;
+                  }
+                  setEmojiPickerPostId(null);
+                }}
                 onClick={(e) => {
-                  // Don't close if clicking on the picker itself
-                  if (e.target.closest('.emoji-picker')) {
+                  // Don't close if clicking on the picker itself or if we just selected an emoji
+                  if (isSelectingEmoji.current || e.target.closest('.emoji-picker')) {
+                    isSelectingEmoji.current = false;
                     return;
                   }
                   setEmojiPickerPostId(null);
