@@ -130,15 +130,21 @@ const Friends = ({ user, navigationOptions }) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedFriend || !authorName) return;
 
+    const messageContent = newMessage.trim();
+    setNewMessage(''); // Clear input immediately for better UX
+
     try {
-      const message = await forumService.sendMessage(authorName, selectedFriend, newMessage.trim());
-      setMessages([...messages, message]);
-      setNewMessage('');
+      await forumService.sendMessage(authorName, selectedFriend, messageContent);
+      // Reload messages from backend to ensure we have the latest
+      // This ensures the message appears even if there's a timing issue
+      await loadMessages(selectedFriend);
       // Reload unread counts
       loadUnreadCounts(authorName);
       // Scroll to bottom after sending
       setTimeout(scrollToBottom, 100);
     } catch (error) {
+      // Restore message if send failed
+      setNewMessage(messageContent);
       alert(error.message || 'Failed to send message');
     }
   };
