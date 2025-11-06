@@ -16,6 +16,8 @@ const Friends = ({ user, navigationOptions }) => {
   const [unreadCounts, setUnreadCounts] = useState({});
   const messagesEndRef = React.useRef(null);
   const [viewingProfile, setViewingProfile] = useState(null);
+  const justSentMessageRef = React.useRef(false);
+  const pollingIntervalRef = React.useRef(null);
 
   useEffect(() => {
     // Use logged-in user or saved name
@@ -101,29 +103,41 @@ const Friends = ({ user, navigationOptions }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const loadMessages = async (friendUsername) => {
+  const loadMessages = async (friendUsername, showLoading = false) => {
     if (!authorName || !friendUsername) return;
     
-    setIsLoadingMessages(true);
+    // Only show loading state if explicitly requested (not for polling)
+    if (showLoading) {
+      setIsLoadingMessages(true);
+    }
+    
     try {
       const data = await forumService.getMessages(authorName, friendUsername);
       setMessages(data);
       // Reload unread counts after loading messages
       loadUnreadCounts(authorName);
-      // Scroll to bottom after messages load
-      setTimeout(scrollToBottom, 100);
+      // Scroll to bottom after messages load (only if not just polling)
+      if (showLoading || justSentMessageRef.current) {
+        setTimeout(scrollToBottom, 100);
+        justSentMessageRef.current = false;
+      }
     } catch (error) {
       console.error('Error loading messages:', error);
-      setMessages([]);
+      // Don't clear messages on error during polling
+      if (showLoading) {
+        setMessages([]);
+      }
     } finally {
-      setIsLoadingMessages(false);
+      if (showLoading) {
+        setIsLoadingMessages(false);
+      }
     }
   };
 
   const handleSelectFriend = (friend) => {
     const friendUsername = friend.display_name || friend.friend_name;
     setSelectedFriend(friendUsername);
-    loadMessages(friendUsername);
+    loadMessages(friendUsername, true); // Show loading when selecting a friend
   };
 
   const handleSendMessage = async (e) => {
@@ -133,36 +147,69 @@ const Friends = ({ user, navigationOptions }) => {
     const messageContent = newMessage.trim();
     setNewMessage(''); // Clear input immediately for better UX
 
+    // Optimistic update - add message immediately to prevent flickering
+    const optimisticMessage = {
+      id: Date.now(), // Temporary ID
+      sender_name: authorName,
+      receiver_name: selectedFriend,
+      content: messageContent,
+      created_at: new Date().toISOString(),
+      is_read: 0
+    };
+    setMessages(prev => [...prev, optimisticMessage]);
+    justSentMessageRef.current = true;
+    
+    // Scroll immediately for optimistic update
+    setTimeout(scrollToBottom, 50);
+
     try {
-      await forumService.sendMessage(authorName, selectedFriend, messageContent);
-      // Reload messages from backend to ensure we have the latest
-      // This ensures the message appears even if there's a timing issue
-      await loadMessages(selectedFriend);
+      const sentMessage = await forumService.sendMessage(authorName, selectedFriend, messageContent);
+      // Reload messages from backend to replace optimistic message with real one
+      // Use a small delay to ensure backend has processed it
+      setTimeout(async () => {
+        await loadMessages(selectedFriend, false); // Don't show loading spinner
+      }, 200);
       // Reload unread counts
       loadUnreadCounts(authorName);
-      // Scroll to bottom after sending
-      setTimeout(scrollToBottom, 100);
     } catch (error) {
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
       // Restore message if send failed
       setNewMessage(messageContent);
       alert(error.message || 'Failed to send message');
+      justSentMessageRef.current = false;
     }
   };
 
-  // Auto-scroll when messages change
+  // Auto-scroll when messages change (but only if we didn't just send a message)
   useEffect(() => {
-    scrollToBottom();
+    if (!justSentMessageRef.current) {
+      scrollToBottom();
+    }
   }, [messages]);
 
   // Poll for new messages when a friend is selected
   useEffect(() => {
     if (!selectedFriend || !authorName) return;
 
-    const interval = setInterval(() => {
-      loadMessages(selectedFriend);
+    // Clear any existing interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+
+    pollingIntervalRef.current = setInterval(() => {
+      // Skip polling if we just sent a message (will reload manually)
+      if (!justSentMessageRef.current) {
+        loadMessages(selectedFriend, false); // Don't show loading during polling
+      }
     }, 3000); // Poll every 3 seconds
 
-    return () => clearInterval(interval);
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFriend, authorName]);
 
