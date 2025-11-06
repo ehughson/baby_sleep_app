@@ -15,6 +15,110 @@ from models import Conversation, Message
 # Load environment variables
 load_dotenv()
 
+# Email configuration
+try:
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail
+    SENDGRID_AVAILABLE = True
+except ImportError:
+    SENDGRID_AVAILABLE = False
+    print("Warning: SendGrid not installed. Email functionality will be disabled.")
+
+def send_welcome_email(email, first_name, username):
+    """Send a welcome email to new users"""
+    if not SENDGRID_AVAILABLE:
+        print(f"Email sending disabled. Would send welcome email to {email}")
+        return False
+    
+    sendgrid_api_key = os.getenv('SENDGRID_API_KEY')
+    sendgrid_from_email = os.getenv('SENDGRID_FROM_EMAIL', 'noreply@remi.app')
+    
+    if not sendgrid_api_key:
+        print("Warning: SENDGRID_API_KEY not set. Email sending disabled.")
+        return False
+    
+    try:
+        message = Mail(
+            from_email=sendgrid_from_email,
+            to_emails=email,
+            subject='Welcome to REMi! 🌙',
+            html_content=f'''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{
+                        font-family: 'Nunito', Arial, sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }}
+                    .header {{
+                        background: #a68cab;
+                        color: white;
+                        padding: 30px;
+                        text-align: center;
+                        border-radius: 10px 10px 0 0;
+                    }}
+                    .header h1 {{
+                        margin: 0;
+                        font-size: 2.5rem;
+                    }}
+                    .content {{
+                        background: #f9f9f9;
+                        padding: 30px;
+                        border-radius: 0 0 10px 10px;
+                    }}
+                    .button {{
+                        display: inline-block;
+                        background: #a68cab;
+                        color: white;
+                        padding: 12px 30px;
+                        text-decoration: none;
+                        border-radius: 5px;
+                        margin-top: 20px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1><span style="color: #fff3d1;">REM</span>i</h1>
+                    <p style="margin: 10px 0 0 0;">Shaping sleep, one night at a time</p>
+                </div>
+                <div class="content">
+                    <h2>Welcome, {first_name}! 👋</h2>
+                    <p>Thank you for joining REMi! We're so excited to help you on your sleep training journey.</p>
+                    <p>Your account has been successfully created with the username: <strong>{username}</strong></p>
+                    <p>You can now:</p>
+                    <ul>
+                        <li>💬 Chat with our AI sleep specialist for personalized advice</li>
+                        <li>🏘️ Join the Village community to connect with other parents</li>
+                        <li>👥 Add friends and share experiences</li>
+                        <li>📝 Get expert guidance on sleep training methods</li>
+                    </ul>
+                    <p>We're here to support you every step of the way. If you have any questions, don't hesitate to reach out!</p>
+                    <p>Sweet dreams! 🌙</p>
+                    <p style="margin-top: 30px; color: #666; font-size: 0.9rem;">
+                        Best regards,<br>
+                        The REMi Team
+                    </p>
+                </div>
+            </body>
+            </html>
+            '''
+        )
+        
+        sg = SendGridAPIClient(sendgrid_api_key)
+        response = sg.send(message)
+        print(f"Welcome email sent to {email}: Status {response.status_code}")
+        return True
+    except Exception as e:
+        print(f"Error sending welcome email to {email}: {str(e)}")
+        # Don't fail signup if email fails
+        return False
+
 app = Flask(__name__)
 # CORS configuration - allows all origins in production
 # For production, you might want to restrict this to your frontend domain
@@ -87,7 +191,7 @@ Always be encouraging, understanding, and provide step-by-step guidance. Remembe
         if stream:
             response = model.generate_content(context, stream=True)
         else:
-        response = model.generate_content(context)
+            response = model.generate_content(context)
     else:
         full_prompt = sleep_specialist_prompt + f"\nParent's question: {message}\n\nSleep Specialist:"
         if stream:
@@ -1314,6 +1418,13 @@ def signup():
         
         conn.commit()
         conn.close()
+        
+        # Send welcome email (non-blocking - don't fail signup if email fails)
+        try:
+            send_welcome_email(email, first_name, username)
+        except Exception as email_error:
+            print(f"Failed to send welcome email: {str(email_error)}")
+            # Continue with signup even if email fails
         
         return jsonify({
             'message': 'Account created successfully',
