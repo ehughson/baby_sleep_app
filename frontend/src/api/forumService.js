@@ -66,10 +66,16 @@ export const forumService = {
 
   getFriends: async (username) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/forum/friends/${username}`);
+      const response = await axios.get(`${API_BASE_URL}/forum/friends/${username}`, {
+        timeout: 10000
+      });
       return response.data;
     } catch (error) {
-      throw new Error('Failed to fetch friends');
+      console.error('Get friends error:', error);
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to fetch friends');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
     }
   },
 

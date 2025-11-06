@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { forumService } from '../api/forumService';
 import UserProfile from './UserProfile';
 
@@ -22,32 +22,65 @@ const Friends = ({ user, navigationOptions }) => {
   useEffect(() => {
     // Use logged-in user or saved name
     if (user && user.username && !user.isGuest) {
-      setAuthorName(user.username);
-      initializeUserAndFriends(user.username);
-      localStorage.setItem('forum_author_name', user.username);
-    } else {
+      const username = user.username;
+      if (authorName !== username) {
+        setAuthorName(username);
+        localStorage.setItem('forum_author_name', username);
+        // Initialize with a small delay to ensure state is set
+        setTimeout(() => {
+          initializeUserAndFriends(username);
+        }, 100);
+      }
+    } else if (!authorName) {
       // Get saved author name from localStorage (guest mode)
       const savedName = localStorage.getItem('forum_author_name');
       if (savedName) {
         setAuthorName(savedName);
-        initializeUserAndFriends(savedName);
+        setTimeout(() => {
+          initializeUserAndFriends(savedName);
+        }, 100);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Also reload friends when authorName changes (but only if it's a new value)
+  const prevAuthorNameRef = useRef(null);
+  useEffect(() => {
+    if (authorName && authorName.trim() && authorName !== prevAuthorNameRef.current) {
+      console.log('Author name changed, reloading friends:', authorName);
+      prevAuthorNameRef.current = authorName;
+      loadFriends(authorName);
+      loadFriendRequests(authorName);
+      loadUnreadCounts(authorName);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authorName]);
+
   const initializeUserAndFriends = async (username) => {
+    if (!username) {
+      console.error('Cannot initialize: username is missing');
+      return;
+    }
+    
     try {
       // Create/get user
       await forumService.createOrGetUser(username);
       // Load friends
-      loadFriends(username);
+      await loadFriends(username);
       // Load friend requests
-      loadFriendRequests(username);
+      await loadFriendRequests(username);
       // Load unread counts
-      loadUnreadCounts(username);
+      await loadUnreadCounts(username);
     } catch (error) {
       console.error('Error initializing user:', error);
+      // Retry after a short delay if initialization fails
+      setTimeout(() => {
+        if (authorName) {
+          console.log('Retrying initialization...');
+          initializeUserAndFriends(authorName);
+        }
+      }, 2000);
     }
   };
 
@@ -214,11 +247,23 @@ const Friends = ({ user, navigationOptions }) => {
   }, [selectedFriend, authorName]);
 
   const loadFriends = async (username) => {
+    if (!username) {
+      console.error('Cannot load friends: username is missing');
+      return;
+    }
+    
     try {
+      console.log('Loading friends for:', username);
       const data = await forumService.getFriends(username);
-      setFriends(data);
+      console.log('Friends loaded:', data);
+      setFriends(data || []);
     } catch (error) {
       console.error('Error loading friends:', error);
+      setFriends([]);
+      // Show error to user if friends fail to load
+      if (error.message && !error.message.includes('Failed to fetch')) {
+        alert(`Failed to load friends: ${error.message}`);
+      }
     }
   };
 
