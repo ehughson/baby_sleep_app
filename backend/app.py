@@ -1845,31 +1845,34 @@ def update_profile():
                         conn.close()
                         return jsonify({'error': 'Email already registered. Please use a different email.'}), 400
         
-        # Update profile
+        # Update profile - always update all fields that are provided in the request
         updates = []
         values = []
         
-        if username is not None and username:
-            updates.append('username = ?')
-            values.append(username)
+        # Always update these fields if they're in the request (even if empty)
+        if 'username' in data:
+            if username:  # Only update username if it's not empty
+                updates.append('username = ?')
+                values.append(username)
         
-        if first_name is not None:
+        if 'first_name' in data:
             updates.append('first_name = ?')
             values.append(first_name)
         
-        if last_name is not None:
+        if 'last_name' in data:
             updates.append('last_name = ?')
             values.append(last_name)
         
-        if email is not None and email:
-            updates.append('email = ?')
-            values.append(email)
+        if 'email' in data:
+            if email:  # Only update email if it's not empty
+                updates.append('email = ?')
+                values.append(email)
         
-        if bio is not None:
+        if 'bio' in data:
             updates.append('bio = ?')
             values.append(bio)
         
-        if profile_picture is not None:
+        if 'profile_picture' in data:
             updates.append('profile_picture = ?')
             values.append(profile_picture)
         
