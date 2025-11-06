@@ -186,10 +186,12 @@ const Friends = ({ user, navigationOptions }) => {
     
     try {
       const results = await forumService.searchUsers(query, authorName);
-      setSearchResults(results);
+      setSearchResults(results || []);
     } catch (error) {
       console.error('Error searching users:', error);
       setSearchResults([]);
+      // Show error to user
+      alert(`Failed to search users: ${error.message || 'Unknown error'}`);
     }
   };
 

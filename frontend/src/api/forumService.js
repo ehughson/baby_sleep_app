@@ -109,10 +109,16 @@ export const forumService = {
 
   searchUsers: async (query, currentUser) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/forum/users/search?q=${encodeURIComponent(query)}&current_user=${encodeURIComponent(currentUser)}`);
+      const response = await axios.get(`${API_BASE_URL}/forum/users/search?q=${encodeURIComponent(query)}&current_user=${encodeURIComponent(currentUser)}`, {
+        timeout: 10000
+      });
       return response.data;
     } catch (error) {
-      throw new Error('Failed to search users');
+      console.error('Search users error:', error);
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to search users');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
     }
   },
 

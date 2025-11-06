@@ -1423,6 +1423,7 @@ def search_users():
         cursor = conn.cursor()
         
         # Search in both forum_users and auth_users to find all users with profile info
+        # Only include active accounts (is_active = 1 or NULL for backward compatibility)
         cursor.execute('''
             SELECT DISTINCT 
                 COALESCE(fu.username, au.username) as username,
@@ -1434,6 +1435,7 @@ def search_users():
             LEFT JOIN forum_users fu ON au.username = fu.username
             WHERE (au.username LIKE ? OR COALESCE(fu.display_name, au.username) LIKE ?)
               AND au.username != ?
+              AND (au.is_active = 1 OR au.is_active IS NULL)
             ORDER BY username ASC
             LIMIT 20
         ''', (f'%{query}%', f'%{query}%', current_user))
