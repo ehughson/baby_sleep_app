@@ -472,30 +472,12 @@ const Friends = ({ user, navigationOptions }) => {
     <div className="friends-container">
       <div className="friends-header-section">
         <h2>Your Village Friends</h2>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            className="add-friend-header-btn"
-            onClick={() => {
-              if (authorName) {
-                console.log('Manual refresh - reloading friends for:', authorName);
-                loadFriends(authorName);
-                loadFriendRequests(authorName);
-                loadUnreadCounts(authorName);
-              } else {
-                alert('Please wait for your account to load, then try again.');
-              }
-            }}
-            title="Refresh friends list"
-          >
-            🔄 Refresh
-          </button>
-          <button
-            className="add-friend-header-btn"
-            onClick={() => setShowAddFriend(true)}
-          >
-            + Add Friend
-          </button>
-        </div>
+        <button
+          className="add-friend-header-btn"
+          onClick={() => setShowAddFriend(true)}
+        >
+          + Add Friend
+        </button>
       </div>
 
       <div className="friends-content">
