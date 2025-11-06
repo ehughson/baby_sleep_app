@@ -30,6 +30,16 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Generate random username function (matches backend logic)
+  const generateRandomUsername = () => {
+    const adjectives = ['sleepy', 'cozy', 'dreamy', 'calm', 'gentle', 'peaceful', 'serene', 'tranquil', 'restful', 'quiet'];
+    const nouns = ['baby', 'star', 'moon', 'cloud', 'angel', 'bear', 'bunny', 'bird', 'butterfly', 'flower'];
+    const number = Math.floor(Math.random() * 1000);
+    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    return `${adjective}_${noun}_${number}`;
+  };
+
   const handleSignup = async (e) => {
     e.preventDefault();
     setError('');
@@ -37,13 +47,16 @@ const LoginPage = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     try {
+      // If username was generated but user edited it, treat it as a custom username
+      const shouldUseRandom = useRandomUsername && username && username.match(/^[a-z]+_[a-z]+_\d+$/);
+      
       const response = await authService.signup(
         firstName,
         lastName,
         email,
         password,
         username,
-        useRandomUsername,
+        shouldUseRandom,
         rememberMe
       );
       
@@ -408,37 +421,91 @@ const LoginPage = ({ onLoginSuccess }) => {
                 </div>
 
                 <div className="form-group">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: useRandomUsername ? '0' : '0.5rem' }}>
+                  <label 
+                    htmlFor="random-username-checkbox" 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.5rem', 
+                      marginBottom: '0.5rem',
+                      cursor: 'pointer',
+                      fontWeight: 400,
+                      fontSize: '0.95rem'
+                    }}
+                  >
                     <input
                       type="checkbox"
                       id="random-username-checkbox"
                       checked={useRandomUsername}
                       onChange={(e) => {
-                        setUseRandomUsername(e.target.checked);
-                        if (e.target.checked) {
+                        const checked = e.target.checked;
+                        setUseRandomUsername(checked);
+                        if (checked) {
+                          // Generate a random username when checked
+                          setUsername(generateRandomUsername());
+                        } else {
+                          // Clear username when unchecked
                           setUsername('');
                         }
                       }}
                       disabled={isLoading}
-                      style={{ margin: 0 }}
+                      style={{ margin: 0, width: 'auto', flexShrink: 0 }}
                     />
-                    <label htmlFor="random-username-checkbox" style={{ margin: 0, cursor: 'pointer' }}>
-                      Generate random username
-                    </label>
-                  </div>
+                    <span style={{ whiteSpace: 'nowrap' }}>Generate random username</span>
+                  </label>
                   
-                  {!useRandomUsername && (
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <input
                       id="signup-username"
                       type="text"
                       value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Choose a username (min 3 characters)"
-                      required={!useRandomUsername}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        setUsername(newValue);
+                        // If user manually edits the generated username (doesn't match pattern), uncheck random option
+                        if (useRandomUsername && !newValue.match(/^[a-z]+_[a-z]+_\d+$/)) {
+                          setUseRandomUsername(false);
+                        }
+                      }}
+                      placeholder={useRandomUsername ? "Generated username (you can edit it)" : "Choose a username (min 3 characters)"}
+                      required
                       minLength={3}
                       disabled={isLoading}
+                      style={{ flex: 1 }}
                     />
-                  )}
+                    {useRandomUsername && (
+                      <button
+                        type="button"
+                        onClick={() => setUsername(generateRandomUsername())}
+                        disabled={isLoading}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          background: '#f0f0f0',
+                          border: '2px solid #e0e0e0',
+                          borderRadius: '8px',
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          fontFamily: 'Nunito, sans-serif',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseOver={(e) => {
+                          if (!isLoading) {
+                            e.target.style.background = '#e0e0e0';
+                            e.target.style.borderColor = '#a68cab';
+                          }
+                        }}
+                        onMouseOut={(e) => {
+                          if (!isLoading) {
+                            e.target.style.background = '#f0f0f0';
+                            e.target.style.borderColor = '#e0e0e0';
+                          }
+                        }}
+                      >
+                        Generate New
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="form-group remember-me">
