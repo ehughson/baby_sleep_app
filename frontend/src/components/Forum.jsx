@@ -668,36 +668,25 @@ const Forum = ({ user, navigationOptions }) => {
                     marginBottom: '0.5rem',
                     pointerEvents: 'auto'
                   }}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                  }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    e.preventDefault();
+                  }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
                   }}
                 >
                   {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
                   <button
                     key={emoji}
                     type="button"
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      handleAddReaction(post.id, emoji);
-                      setEmojiPickerPostId(null);
-                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
                       handleAddReaction(post.id, emoji);
                       setEmojiPickerPostId(null);
                     }}
-                    onTouchEnd={(e) => {
+                    onPointerDown={(e) => {
                       e.stopPropagation();
-                      e.preventDefault();
-                      handleAddReaction(post.id, emoji);
-                      setEmojiPickerPostId(null);
                     }}
                     style={{
                       background: 'none',
@@ -904,36 +893,25 @@ const Forum = ({ user, navigationOptions }) => {
                               marginBottom: '0.5rem',
                               pointerEvents: 'auto'
                             }}
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                            }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              e.preventDefault();
+                            }}
+                            onPointerDown={(e) => {
+                              e.stopPropagation();
                             }}
                           >
                             {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
                               <button
                                 key={emoji}
                                 type="button"
-                                onMouseDown={(e) => {
-                                  e.stopPropagation();
-                                  e.preventDefault();
-                                  handleAddReaction(reply.id, emoji);
-                                  setEmojiPickerPostId(null);
-                                }}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   e.preventDefault();
                                   handleAddReaction(reply.id, emoji);
                                   setEmojiPickerPostId(null);
                                 }}
-                                onTouchEnd={(e) => {
+                                onPointerDown={(e) => {
                                   e.stopPropagation();
-                                  e.preventDefault();
-                                  handleAddReaction(reply.id, emoji);
-                                  setEmojiPickerPostId(null);
                                 }}
                                 style={{
                                   background: 'none',
@@ -991,18 +969,12 @@ const Forum = ({ user, navigationOptions }) => {
                   background: 'transparent',
                   pointerEvents: 'auto'
                 }}
-                onMouseDown={(e) => {
-                  // Don't close if clicking on the picker itself or any button inside it
-                  const picker = e.target.closest('.emoji-picker');
-                  if (picker) {
-                    e.stopPropagation();
-                    e.preventDefault();
+                onClick={(e) => {
+                  // Don't close if clicking on the picker itself
+                  if (e.target.closest('.emoji-picker')) {
                     return;
                   }
-                  // Small delay to ensure picker clicks are processed first
-                  setTimeout(() => {
-                    setEmojiPickerPostId(null);
-                  }, 0);
+                  setEmojiPickerPostId(null);
                 }}
               />
             )}
