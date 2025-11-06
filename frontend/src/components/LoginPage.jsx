@@ -457,6 +457,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                 : handleLogin
             } 
             className="login-form"
+            autoComplete="off"
           >
             {error && <div className="login-error">{error}</div>}
             {success && <div className="login-success">{success}</div>}
@@ -490,6 +491,8 @@ const LoginPage = ({ onLoginSuccess }) => {
                 <>
                   {/* Step 1: Account Information */}
                   <h3 style={{ marginBottom: '1rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Create Your Account</h3>
+                  {/* Hidden field to prevent password autofill on name fields */}
+                  <input type="password" style={{ display: 'none' }} autoComplete="new-password" tabIndex="-1" />
                 <div className="form-group">
                   <label htmlFor="first-name">First Name</label>
                   <input
@@ -501,7 +504,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                     required
                     disabled={isLoading}
                     autoFocus
-                    autoComplete="given-name"
+                    autoComplete="off"
                   />
                 </div>
 
@@ -509,15 +512,13 @@ const LoginPage = ({ onLoginSuccess }) => {
                   <label htmlFor="last-name">Last Name</label>
                   <input
                     id="last-name"
-                    name="last-name"
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Enter last name"
                     required
                     disabled={isLoading}
-                    autoComplete="family-name"
-                    data-form-type="other"
+                    autoComplete="off"
                   />
                 </div>
 
