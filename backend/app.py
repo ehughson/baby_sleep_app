@@ -1510,6 +1510,16 @@ def search_users():
             ''')
             all_users = cursor.fetchall()
             print(f"Sample of all users in database: {[u['username'] for u in all_users]}")
+            
+            # Also check if the search query matches any username exactly (case-insensitive)
+            cursor.execute('''
+                SELECT username FROM auth_users 
+                WHERE LOWER(username) = LOWER(?)
+                AND (is_active = 1 OR is_active IS NULL)
+            ''', (query,))
+            exact_match = cursor.fetchone()
+            if exact_match:
+                print(f"DEBUG: Found exact match (case-insensitive): {exact_match['username']}")
         
         conn.close()
         return jsonify(user_list)
