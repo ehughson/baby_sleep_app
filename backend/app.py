@@ -179,25 +179,32 @@ Always be encouraging, understanding, and provide step-by-step guidance. Remembe
 
 """
     
-    # Add user context (baby profile and sleep goals) to prompt if available
+    # Add user context (baby profiles and sleep goals) to prompt if available
     if user_context:
         context_section = "\n\n=== PARENT AND BABY INFORMATION ===\n"
         
-        if user_context.get('baby_profile'):
-            bp = user_context['baby_profile']
-            context_section += "Baby Information:\n"
-            if bp.get('name'):
-                context_section += f"- Baby's name: {bp['name']}\n"
-            if bp.get('age_months'):
-                context_section += f"- Age: {bp['age_months']} months\n"
-            elif bp.get('birth_date'):
-                context_section += f"- Birth date: {bp['birth_date']}\n"
-            if bp.get('sleep_issues'):
-                context_section += f"- Sleep issues: {bp['sleep_issues']}\n"
-            if bp.get('current_schedule'):
-                context_section += f"- Current sleep schedule: {bp['current_schedule']}\n"
-            if bp.get('notes'):
-                context_section += f"- Additional notes: {bp['notes']}\n"
+        if user_context.get('baby_profiles') and len(user_context['baby_profiles']) > 0:
+            baby_profiles = user_context['baby_profiles']
+            if len(baby_profiles) == 1:
+                context_section += "Baby Information:\n"
+            else:
+                context_section += f"Baby Information ({len(baby_profiles)} babies):\n"
+            
+            for idx, bp in enumerate(baby_profiles, 1):
+                if len(baby_profiles) > 1:
+                    context_section += f"\nBaby {idx}:\n"
+                if bp.get('name'):
+                    context_section += f"- Baby's name: {bp['name']}\n"
+                if bp.get('age_months'):
+                    context_section += f"- Age: {bp['age_months']} months\n"
+                elif bp.get('birth_date'):
+                    context_section += f"- Birth date: {bp['birth_date']}\n"
+                if bp.get('sleep_issues'):
+                    context_section += f"- Sleep issues: {bp['sleep_issues']}\n"
+                if bp.get('current_schedule'):
+                    context_section += f"- Current sleep schedule: {bp['current_schedule']}\n"
+                if bp.get('notes'):
+                    context_section += f"- Additional notes: {bp['notes']}\n"
             context_section += "\n"
         
         if user_context.get('sleep_goals'):
@@ -300,17 +307,17 @@ def chat():
                 if session:
                     user_id = session['id']
                     
-                    # Get baby profile
-                    cursor.execute('SELECT * FROM baby_profiles WHERE user_id = ?', (user_id,))
-                    baby_profile = cursor.fetchone()
+                    # Get all baby profiles
+                    cursor.execute('SELECT * FROM baby_profiles WHERE user_id = ? ORDER BY created_at ASC', (user_id,))
+                    baby_profiles = cursor.fetchall()
                     
                     # Get sleep goals
                     cursor.execute('SELECT * FROM sleep_goals WHERE user_id = ?', (user_id,))
                     sleep_goals = cursor.fetchone()
                     
-                    if baby_profile or sleep_goals:
+                    if baby_profiles or sleep_goals:
                         user_context = {
-                            'baby_profile': dict(baby_profile) if baby_profile else None,
+                            'baby_profiles': [dict(bp) for bp in baby_profiles] if baby_profiles else [],
                             'sleep_goals': dict(sleep_goals) if sleep_goals else None
                         }
                 
@@ -1515,22 +1522,23 @@ def signup():
         cursor.execute('SELECT profile_picture, bio FROM auth_users WHERE id = ?', (user_id,))
         user_data = cursor.fetchone()
         
-        # Create baby profile if provided
-        baby_profile = data.get('baby_profile')
-        if baby_profile:
-            baby_name = baby_profile.get('name', '').strip()
-            birth_date = baby_profile.get('birth_date', '').strip() or None
-            age_months = baby_profile.get('age_months')
-            sleep_issues = baby_profile.get('sleep_issues', '').strip() or None
-            current_schedule = baby_profile.get('current_schedule', '').strip() or None
-            notes = baby_profile.get('notes', '').strip() or None
-            
-            # Only create if at least name is provided
-            if baby_name:
-                cursor.execute('''
-                    INSERT INTO baby_profiles (user_id, name, birth_date, age_months, sleep_issues, current_schedule, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (user_id, baby_name, birth_date, age_months, sleep_issues, current_schedule, notes))
+        # Create baby profiles if provided (supports multiple babies)
+        baby_profiles = data.get('baby_profiles', [])
+        if baby_profiles and isinstance(baby_profiles, list):
+            for baby_profile in baby_profiles:
+                baby_name = baby_profile.get('name', '').strip()
+                birth_date = baby_profile.get('birth_date', '').strip() or None
+                age_months = baby_profile.get('age_months')
+                sleep_issues = baby_profile.get('sleep_issues', '').strip() or None
+                current_schedule = baby_profile.get('current_schedule', '').strip() or None
+                notes = baby_profile.get('notes', '').strip() or None
+                
+                # Create if at least name is provided or if any other field has data
+                if baby_name or birth_date or age_months or sleep_issues or current_schedule or notes:
+                    cursor.execute('''
+                        INSERT INTO baby_profiles (user_id, name, birth_date, age_months, sleep_issues, current_schedule, notes)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (user_id, baby_name or None, birth_date, age_months, sleep_issues, current_schedule, notes))
         
         # Create sleep goals if provided
         sleep_goals = data.get('sleep_goals')
@@ -1885,8 +1893,8 @@ def upload_profile_picture():
 
 # Baby Profile endpoints
 @app.route('/api/auth/baby-profile', methods=['GET'])
-def get_baby_profile():
-    """Get baby profile for the authenticated user"""
+def get_baby_profiles():
+    """Get all baby profiles for the authenticated user"""
     from database import get_db_connection
     try:
         session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
@@ -1912,25 +1920,26 @@ def get_baby_profile():
         
         user_id = session['id']
         
-        # Get baby profile
+        # Get all baby profiles
         cursor.execute('''
             SELECT * FROM baby_profiles
             WHERE user_id = ?
+            ORDER BY created_at ASC
         ''', (user_id,))
-        baby_profile = cursor.fetchone()
+        baby_profiles = cursor.fetchall()
         
         conn.close()
         
-        if baby_profile:
-            return jsonify(dict(baby_profile))
+        if baby_profiles:
+            return jsonify([dict(bp) for bp in baby_profiles])
         else:
-            return jsonify(None)  # No baby profile yet
+            return jsonify([])  # No baby profiles yet
     except Exception as e:
-        return jsonify({'error': f'Failed to get baby profile: {str(e)}'}), 500
+        return jsonify({'error': f'Failed to get baby profiles: {str(e)}'}), 500
 
-@app.route('/api/auth/baby-profile', methods=['PUT'])
-def update_baby_profile():
-    """Create or update baby profile"""
+@app.route('/api/auth/baby-profile', methods=['POST'])
+def create_baby_profile():
+    """Create a new baby profile"""
     from database import get_db_connection
     try:
         session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
@@ -1968,35 +1977,135 @@ def update_baby_profile():
             conn.close()
             return jsonify({'error': 'Baby name is required'}), 400
         
-        # Check if baby profile exists
-        cursor.execute('SELECT * FROM baby_profiles WHERE user_id = ?', (user_id,))
+        # Create new profile
+        cursor.execute('''
+            INSERT INTO baby_profiles (user_id, name, birth_date, age_months, sleep_issues, current_schedule, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, name, birth_date, age_months, sleep_issues, current_schedule, notes))
+        
+        baby_id = cursor.lastrowid
+        conn.commit()
+        
+        # Get created profile
+        cursor.execute('SELECT * FROM baby_profiles WHERE id = ?', (baby_id,))
+        baby_profile = cursor.fetchone()
+        
+        conn.close()
+        return jsonify(dict(baby_profile))
+    except Exception as e:
+        return jsonify({'error': f'Failed to create baby profile: {str(e)}'}), 500
+
+@app.route('/api/auth/baby-profile/<int:baby_id>', methods=['PUT'])
+def update_baby_profile(baby_id):
+    """Update a specific baby profile"""
+    from database import get_db_connection
+    try:
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not session_token:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user from session
+        cursor.execute('''
+            SELECT u.id
+            FROM sessions s
+            JOIN auth_users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
+        ''', (session_token,))
+        session = cursor.fetchone()
+        
+        if not session:
+            conn.close()
+            return jsonify({'error': 'Invalid session'}), 401
+        
+        user_id = session['id']
+        data = request.get_json()
+        
+        # Verify baby belongs to user
+        cursor.execute('SELECT * FROM baby_profiles WHERE id = ? AND user_id = ?', (baby_id, user_id))
         existing = cursor.fetchone()
         
-        if existing:
-            # Update existing profile
-            cursor.execute('''
-                UPDATE baby_profiles
-                SET name = ?, birth_date = ?, age_months = ?, sleep_issues = ?, 
-                    current_schedule = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE user_id = ?
-            ''', (name, birth_date, age_months, sleep_issues, current_schedule, notes, user_id))
-        else:
-            # Create new profile
-            cursor.execute('''
-                INSERT INTO baby_profiles (user_id, name, birth_date, age_months, sleep_issues, current_schedule, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (user_id, name, birth_date, age_months, sleep_issues, current_schedule, notes))
+        if not existing:
+            conn.close()
+            return jsonify({'error': 'Baby profile not found'}), 404
+        
+        name = data.get('name', '').strip()
+        birth_date = data.get('birth_date', '').strip() or None
+        age_months = data.get('age_months')
+        sleep_issues = data.get('sleep_issues', '').strip() or None
+        current_schedule = data.get('current_schedule', '').strip() or None
+        notes = data.get('notes', '').strip() or None
+        
+        if not name:
+            conn.close()
+            return jsonify({'error': 'Baby name is required'}), 400
+        
+        # Update profile
+        cursor.execute('''
+            UPDATE baby_profiles
+            SET name = ?, birth_date = ?, age_months = ?, sleep_issues = ?, 
+                current_schedule = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND user_id = ?
+        ''', (name, birth_date, age_months, sleep_issues, current_schedule, notes, baby_id, user_id))
         
         conn.commit()
         
         # Get updated profile
-        cursor.execute('SELECT * FROM baby_profiles WHERE user_id = ?', (user_id,))
+        cursor.execute('SELECT * FROM baby_profiles WHERE id = ?', (baby_id,))
         baby_profile = cursor.fetchone()
         
         conn.close()
         return jsonify(dict(baby_profile))
     except Exception as e:
         return jsonify({'error': f'Failed to update baby profile: {str(e)}'}), 500
+
+@app.route('/api/auth/baby-profile/<int:baby_id>', methods=['DELETE'])
+def delete_baby_profile(baby_id):
+    """Delete a specific baby profile"""
+    from database import get_db_connection
+    try:
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not session_token:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user from session
+        cursor.execute('''
+            SELECT u.id
+            FROM sessions s
+            JOIN auth_users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
+        ''', (session_token,))
+        session = cursor.fetchone()
+        
+        if not session:
+            conn.close()
+            return jsonify({'error': 'Invalid session'}), 401
+        
+        user_id = session['id']
+        
+        # Verify baby belongs to user
+        cursor.execute('SELECT * FROM baby_profiles WHERE id = ? AND user_id = ?', (baby_id, user_id))
+        existing = cursor.fetchone()
+        
+        if not existing:
+            conn.close()
+            return jsonify({'error': 'Baby profile not found'}), 404
+        
+        # Delete profile
+        cursor.execute('DELETE FROM baby_profiles WHERE id = ? AND user_id = ?', (baby_id, user_id))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Baby profile deleted successfully'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to delete baby profile: {str(e)}'}), 500
 
 # Sleep Goals endpoints
 @app.route('/api/auth/sleep-goals', methods=['GET'])

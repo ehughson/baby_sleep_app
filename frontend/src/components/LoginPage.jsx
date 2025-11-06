@@ -16,13 +16,15 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [useRandomUsername, setUseRandomUsername] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   
-  // Baby profile fields
-  const [babyName, setBabyName] = useState('');
-  const [birthDate, setBirthDate] = useState('');
-  const [ageMonths, setAgeMonths] = useState('');
-  const [sleepIssues, setSleepIssues] = useState('');
-  const [currentSchedule, setCurrentSchedule] = useState('');
-  const [babyNotes, setBabyNotes] = useState('');
+  // Baby profile fields (support multiple babies)
+  const [babies, setBabies] = useState([{
+    name: '',
+    birth_date: '',
+    age_months: '',
+    sleep_issues: '',
+    current_schedule: '',
+    notes: ''
+  }]);
   
   // Sleep goals fields
   const [goal1, setGoal1] = useState('');
@@ -101,14 +103,14 @@ const LoginPage = ({ onLoginSuccess }) => {
         username,
         shouldUseRandom,
         rememberMe,
-        {
-          name: babyName,
-          birth_date: birthDate,
-          age_months: ageMonths ? parseInt(ageMonths) : null,
-          sleep_issues: sleepIssues,
-          current_schedule: currentSchedule,
-          notes: babyNotes
-        },
+        babies.filter(baby => baby.name.trim() || baby.birth_date || baby.age_months || baby.sleep_issues || baby.current_schedule || baby.notes).map(baby => ({
+          name: baby.name.trim(),
+          birth_date: baby.birth_date || null,
+          age_months: baby.age_months ? parseInt(baby.age_months) : null,
+          sleep_issues: baby.sleep_issues.trim() || null,
+          current_schedule: baby.current_schedule.trim() || null,
+          notes: baby.notes.trim() || null
+        })),
         {
           goal_1: goal1,
           goal_2: goal2,
@@ -246,12 +248,14 @@ const LoginPage = ({ onLoginSuccess }) => {
     setUsername('');
     setUseRandomUsername(false);
     setRememberMe(false);
-    setBabyName('');
-    setBirthDate('');
-    setAgeMonths('');
-    setSleepIssues('');
-    setCurrentSchedule('');
-    setBabyNotes('');
+    setBabies([{
+      name: '',
+      birth_date: '',
+      age_months: '',
+      sleep_issues: '',
+      current_schedule: '',
+      notes: ''
+    }]);
     setGoal1('');
     setGoal2('');
     setGoal3('');
@@ -408,7 +412,17 @@ const LoginPage = ({ onLoginSuccess }) => {
     <div className="login-page">
       <div className="login-container">
           <div className="login-header">
-            <h1 className="login-app-name"><span style={{ color: '#fff3d1' }}>REM</span>i</h1>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <img 
+                src="/images/baby-icon.png" 
+                alt="REMi" 
+                style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+              <h1 className="login-app-name"><span style={{ color: '#fff3d1' }}>REM</span>i</h1>
+            </div>
             <p className="login-tagline">Shaping sleep, one night at a time</p>
           </div>
 
@@ -634,80 +648,163 @@ const LoginPage = ({ onLoginSuccess }) => {
                 <>
                   {/* Step 2: Baby Information */}
                   <h3 style={{ marginBottom: '1rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Baby Information</h3>
-                  <p style={{ marginBottom: '1.5rem', color: '#666', fontSize: '0.9rem' }}>Tell us about your little one (all fields are optional)</p>
+                  <p style={{ marginBottom: '1.5rem', color: '#666', fontSize: '0.9rem' }}>Tell us about your little one(s) (all fields are optional)</p>
                   
-                  <div className="form-group">
-                    <label htmlFor="baby-name">Baby's Name</label>
-                    <input
-                      id="baby-name"
-                      type="text"
-                      value={babyName}
-                      onChange={(e) => setBabyName(e.target.value)}
-                      placeholder="Enter baby's name"
-                      disabled={isLoading}
-                    />
-                  </div>
+                  {babies.map((baby, index) => (
+                    <div key={index} style={{ marginBottom: '2rem', padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#f9f9f9' }}>
+                      {babies.length > 1 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <h4 style={{ margin: 0, color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Baby {index + 1}</h4>
+                          {babies.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBabies(babies.filter((_, i) => i !== index));
+                              }}
+                              style={{
+                                background: '#ff4444',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0.25rem 0.5rem',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem'
+                              }}
+                              disabled={isLoading}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="form-group">
+                        <label htmlFor={`baby-name-${index}`}>Baby's Name</label>
+                        <input
+                          id={`baby-name-${index}`}
+                          type="text"
+                          value={baby.name}
+                          onChange={(e) => {
+                            const newBabies = [...babies];
+                            newBabies[index].name = e.target.value;
+                            setBabies(newBabies);
+                          }}
+                          placeholder="Enter baby's name"
+                          disabled={isLoading}
+                        />
+                      </div>
 
-                  <div className="form-group">
-                    <label htmlFor="birth-date">Birth Date</label>
-                    <input
-                      id="birth-date"
-                      type="date"
-                      value={birthDate}
-                      onChange={(e) => setBirthDate(e.target.value)}
-                      disabled={isLoading}
-                    />
-                  </div>
+                      <div className="form-group">
+                        <label htmlFor={`birth-date-${index}`}>Birth Date</label>
+                        <input
+                          id={`birth-date-${index}`}
+                          type="date"
+                          value={baby.birth_date}
+                          onChange={(e) => {
+                            const newBabies = [...babies];
+                            newBabies[index].birth_date = e.target.value;
+                            setBabies(newBabies);
+                          }}
+                          disabled={isLoading}
+                        />
+                      </div>
 
-                  <div className="form-group">
-                    <label htmlFor="age-months">Age (in months)</label>
-                    <input
-                      id="age-months"
-                      type="number"
-                      min="0"
-                      max="60"
-                      value={ageMonths}
-                      onChange={(e) => setAgeMonths(e.target.value)}
-                      placeholder="e.g., 6"
-                      disabled={isLoading}
-                    />
-                  </div>
+                      <div className="form-group">
+                        <label htmlFor={`age-months-${index}`}>Age (in months)</label>
+                        <input
+                          id={`age-months-${index}`}
+                          type="number"
+                          min="0"
+                          max="60"
+                          value={baby.age_months}
+                          onChange={(e) => {
+                            const newBabies = [...babies];
+                            newBabies[index].age_months = e.target.value;
+                            setBabies(newBabies);
+                          }}
+                          placeholder="e.g., 6"
+                          disabled={isLoading}
+                        />
+                      </div>
 
-                  <div className="form-group">
-                    <label htmlFor="sleep-issues">Sleep Issues (optional)</label>
-                    <textarea
-                      id="sleep-issues"
-                      value={sleepIssues}
-                      onChange={(e) => setSleepIssues(e.target.value)}
-                      placeholder="Describe any sleep challenges (e.g., night wakings, bedtime resistance)"
-                      rows={3}
-                      disabled={isLoading}
-                    />
-                  </div>
+                      <div className="form-group">
+                        <label htmlFor={`sleep-issues-${index}`}>Sleep Issues (optional)</label>
+                        <textarea
+                          id={`sleep-issues-${index}`}
+                          value={baby.sleep_issues}
+                          onChange={(e) => {
+                            const newBabies = [...babies];
+                            newBabies[index].sleep_issues = e.target.value;
+                            setBabies(newBabies);
+                          }}
+                          placeholder="Describe any sleep challenges (e.g., night wakings, bedtime resistance)"
+                          rows={3}
+                          disabled={isLoading}
+                        />
+                      </div>
 
-                  <div className="form-group">
-                    <label htmlFor="current-schedule">Current Sleep Schedule (optional)</label>
-                    <textarea
-                      id="current-schedule"
-                      value={currentSchedule}
-                      onChange={(e) => setCurrentSchedule(e.target.value)}
-                      placeholder="Describe current sleep schedule (e.g., naps at 9am and 2pm, bedtime at 7pm)"
-                      rows={3}
-                      disabled={isLoading}
-                    />
-                  </div>
+                      <div className="form-group">
+                        <label htmlFor={`current-schedule-${index}`}>Current Sleep Schedule (optional)</label>
+                        <textarea
+                          id={`current-schedule-${index}`}
+                          value={baby.current_schedule}
+                          onChange={(e) => {
+                            const newBabies = [...babies];
+                            newBabies[index].current_schedule = e.target.value;
+                            setBabies(newBabies);
+                          }}
+                          placeholder="Describe current sleep schedule (e.g., naps at 9am and 2pm, bedtime at 7pm)"
+                          rows={3}
+                          disabled={isLoading}
+                        />
+                      </div>
 
-                  <div className="form-group">
-                    <label htmlFor="baby-notes">Additional Notes (optional)</label>
-                    <textarea
-                      id="baby-notes"
-                      value={babyNotes}
-                      onChange={(e) => setBabyNotes(e.target.value)}
-                      placeholder="Any other information about your baby's sleep"
-                      rows={3}
-                      disabled={isLoading}
-                    />
-                  </div>
+                      <div className="form-group">
+                        <label htmlFor={`baby-notes-${index}`}>Additional Notes (optional)</label>
+                        <textarea
+                          id={`baby-notes-${index}`}
+                          value={baby.notes}
+                          onChange={(e) => {
+                            const newBabies = [...babies];
+                            newBabies[index].notes = e.target.value;
+                            setBabies(newBabies);
+                          }}
+                          placeholder="Any other information about your baby's sleep"
+                          rows={3}
+                          disabled={isLoading}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBabies([...babies, {
+                        name: '',
+                        birth_date: '',
+                        age_months: '',
+                        sleep_issues: '',
+                        current_schedule: '',
+                        notes: ''
+                      }]);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: '#f0f0f0',
+                      border: '2px dashed #a68cab',
+                      borderRadius: '8px',
+                      color: '#a68cab',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: 500,
+                      marginTop: '1rem'
+                    }}
+                    disabled={isLoading}
+                  >
+                    + Add Another Baby
+                  </button>
                 </>
               ) : (
                 <>

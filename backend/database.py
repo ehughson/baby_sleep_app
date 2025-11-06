@@ -177,7 +177,7 @@ def init_db():
         )
     ''')
     
-    # Create baby profiles table
+    # Create baby profiles table (supports multiple babies per user)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS baby_profiles (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -190,8 +190,7 @@ def init_db():
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES auth_users (id) ON DELETE CASCADE,
-            UNIQUE(user_id)
+            FOREIGN KEY (user_id) REFERENCES auth_users (id) ON DELETE CASCADE
         )
     ''')
     

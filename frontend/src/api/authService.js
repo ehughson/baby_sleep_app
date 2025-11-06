@@ -8,10 +8,10 @@ console.log('Environment:', import.meta.env.MODE);
 
 export const authService = {
   // Sign up new user
-  signup: async (firstName, lastName, email, password, username, useRandomUsername, rememberMe = false, babyProfile = null, sleepGoals = null) => {
+  signup: async (firstName, lastName, email, password, username, useRandomUsername, rememberMe = false, babyProfiles = [], sleepGoals = null) => {
     const url = `${API_BASE_URL}/auth/signup`;
     console.log('Signup request URL:', url);
-    console.log('Signup payload:', { firstName, lastName, email, password: '***', username, useRandomUsername, remember_me: rememberMe, babyProfile, sleepGoals });
+    console.log('Signup payload:', { firstName, lastName, email, password: '***', username, useRandomUsername, remember_me: rememberMe, babyProfiles, sleepGoals });
     
     try {
       const payload = {
@@ -24,9 +24,9 @@ export const authService = {
         remember_me: rememberMe
       };
       
-      // Add baby profile if provided
-      if (babyProfile) {
-        payload.baby_profile = babyProfile;
+      // Add baby profiles if provided
+      if (babyProfiles && babyProfiles.length > 0) {
+        payload.baby_profiles = babyProfiles;
       }
       
       // Add sleep goals if provided
@@ -239,8 +239,8 @@ export const authService = {
     }
   },
 
-  // Get baby profile
-  getBabyProfile: async () => {
+  // Get all baby profiles
+  getBabyProfiles: async () => {
     try {
       const token = localStorage.getItem('session_token');
       const response = await axios.get(`${API_BASE_URL}/auth/baby-profile`, {
@@ -250,17 +250,34 @@ export const authService = {
       return response.data;
     } catch (error) {
       if (error.response) {
-        throw new Error(error.response.data?.error || 'Failed to get baby profile');
+        throw new Error(error.response.data?.error || 'Failed to get baby profiles');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
+  },
+
+  // Create baby profile
+  createBabyProfile: async (babyProfileData) => {
+    try {
+      const token = localStorage.getItem('session_token');
+      const response = await axios.post(`${API_BASE_URL}/auth/baby-profile`, babyProfileData, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to create baby profile');
       }
       throw new Error('Unable to connect to server. Please check if the backend is running.');
     }
   },
 
   // Update baby profile
-  updateBabyProfile: async (babyProfileData) => {
+  updateBabyProfile: async (babyId, babyProfileData) => {
     try {
       const token = localStorage.getItem('session_token');
-      const response = await axios.put(`${API_BASE_URL}/auth/baby-profile`, babyProfileData, {
+      const response = await axios.put(`${API_BASE_URL}/auth/baby-profile/${babyId}`, babyProfileData, {
         headers: { Authorization: `Bearer ${token}` },
         timeout: 10000
       });
@@ -268,6 +285,23 @@ export const authService = {
     } catch (error) {
       if (error.response) {
         throw new Error(error.response.data?.error || 'Failed to update baby profile');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
+  },
+
+  // Delete baby profile
+  deleteBabyProfile: async (babyId) => {
+    try {
+      const token = localStorage.getItem('session_token');
+      const response = await axios.delete(`${API_BASE_URL}/auth/baby-profile/${babyId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to delete baby profile');
       }
       throw new Error('Unable to connect to server. Please check if the backend is running.');
     }
