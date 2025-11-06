@@ -75,6 +75,14 @@ const LoginPage = ({ onLoginSuccess }) => {
     
     // Move to step 2
     setSignupStep(2);
+    // Scroll to top
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      const container = document.querySelector('.login-container') || document.querySelector('.login-form-wrapper');
+      if (container) {
+        container.scrollTop = 0;
+      }
+    }, 0);
   };
 
   const handleSignupStep2 = (e) => {
@@ -83,6 +91,14 @@ const LoginPage = ({ onLoginSuccess }) => {
     
     // Move to step 3 (baby info is optional)
     setSignupStep(3);
+    // Scroll to top
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      const container = document.querySelector('.login-container') || document.querySelector('.login-form-wrapper');
+      if (container) {
+        container.scrollTop = 0;
+      }
+    }, 0);
   };
 
   const handleSignupStep3 = async (e) => {
