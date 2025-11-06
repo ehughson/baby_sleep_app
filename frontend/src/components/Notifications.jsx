@@ -8,7 +8,7 @@ const Notifications = ({ user }) => {
     new_friend_requests: []
   });
   const [showDropdown, setShowDropdown] = useState(false);
-  const [lastCheck, setLastCheck] = useState(new Date().toISOString());
+  const lastCheckRef = useRef(new Date().toISOString());
   const dropdownRef = useRef(null);
 
   // Poll for notifications every 30 seconds
@@ -17,11 +17,12 @@ const Notifications = ({ user }) => {
 
     const checkNotifications = async () => {
       try {
+        const lastCheck = lastCheckRef.current;
         const data = await notificationService.getNotifications(user.username, lastCheck);
         setNotifications(data);
         
-        // Update last check time
-        setLastCheck(new Date().toISOString());
+        // Update last check time after successfully getting notifications
+        lastCheckRef.current = new Date().toISOString();
       } catch (error) {
         console.error('Error checking notifications:', error);
       }
@@ -34,7 +35,7 @@ const Notifications = ({ user }) => {
     const interval = setInterval(checkNotifications, 30000);
 
     return () => clearInterval(interval);
-  }, [user, lastCheck]);
+  }, [user]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -94,7 +95,7 @@ const Notifications = ({ user }) => {
                     new_messages: 0,
                     new_friend_requests: []
                   });
-                  setLastCheck(new Date().toISOString());
+                  lastCheckRef.current = new Date().toISOString();
                 }}
               >
                 Clear all

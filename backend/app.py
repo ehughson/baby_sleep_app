@@ -798,13 +798,14 @@ def get_notifications():
             
             if channel_ids:
                 placeholders = ','.join(['?'] * len(channel_ids))
+                # Get new posts since last check (excluding user's own posts)
                 cursor.execute(f'''
                     SELECT p.id, p.channel_id, p.author_name, p.content, p.timestamp, c.name as channel_name
                     FROM forum_posts p
                     JOIN forum_channels c ON p.channel_id = c.id
                     WHERE p.channel_id IN ({placeholders})
                       AND p.author_name != ?
-                      AND datetime(p.timestamp) > datetime(?)
+                      AND p.timestamp > ?
                     ORDER BY p.timestamp DESC
                     LIMIT 20
                 ''', channel_ids + [username, last_check])
@@ -1030,13 +1031,19 @@ def search_users():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # Search in both forum_users and auth_users to find all users
         cursor.execute('''
-            SELECT username, display_name, last_seen
-            FROM forum_users
-            WHERE username LIKE ? AND username != ?
+            SELECT DISTINCT 
+                COALESCE(fu.username, au.username) as username,
+                COALESCE(fu.display_name, au.username) as display_name,
+                fu.last_seen
+            FROM auth_users au
+            LEFT JOIN forum_users fu ON au.username = fu.username
+            WHERE (au.username LIKE ? OR COALESCE(fu.display_name, au.username) LIKE ?)
+              AND au.username != ?
             ORDER BY username ASC
             LIMIT 20
-        ''', (f'%{query}%', current_user))
+        ''', (f'%{query}%', f'%{query}%', current_user))
         
         users = cursor.fetchall()
         conn.close()

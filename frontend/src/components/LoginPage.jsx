@@ -383,6 +383,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                   <label htmlFor="last-name">Last Name</label>
                   <input
                     id="last-name"
+                    name="last-name"
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
@@ -390,6 +391,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                     required
                     disabled={isLoading}
                     autoComplete="family-name"
+                    data-form-type="other"
                   />
                 </div>
 
