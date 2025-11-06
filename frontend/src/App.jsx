@@ -4,6 +4,7 @@ import ChatInput from './components/ChatInput';
 import Forum from './components/Forum';
 import Friends from './components/Friends';
 import LoginPage from './components/LoginPage';
+import Notifications from './components/Notifications';
 import { chatService } from './api/chatService';
 import { authService } from './api/authService';
 
@@ -269,16 +270,19 @@ function App() {
         </div>
         <div className="header-actions">
           {user && (
-            <div className="user-menu">
-              <span className="user-name">{user.username}</span>
-              <button
-                className="logout-btn"
-                onClick={handleLogout}
-                title="Logout"
-              >
-                Logout
-              </button>
-            </div>
+            <>
+              <Notifications user={user} />
+              <div className="user-menu">
+                <span className="user-name">{user.username}</span>
+                <button
+                  className="logout-btn"
+                  onClick={handleLogout}
+                  title="Logout"
+                >
+                  Logout
+                </button>
+              </div>
+            </>
           )}
           {activeTab === 'chat' && conversationId && (
             <button

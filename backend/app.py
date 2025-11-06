@@ -761,6 +761,82 @@ def get_unread_count():
     except Exception as e:
         return jsonify({'error': f'Failed to get unread count: {str(e)}'}), 500
 
+@app.route('/api/notifications', methods=['GET'])
+def get_notifications():
+    """Get all notifications for a user (new posts, messages, friend requests)"""
+    from database import get_db_connection
+    username = request.args.get('username', '')
+    last_check = request.args.get('last_check', '')  # ISO timestamp
+    
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        notifications = {
+            'new_posts': [],
+            'new_messages': 0,
+            'new_friend_requests': []
+        }
+        
+        # Check for new posts in channels user has access to
+        if last_check:
+            # Get channels user has access to (public or private where user is member/owner)
+            cursor.execute('''
+                SELECT DISTINCT c.id, c.name
+                FROM forum_channels c
+                LEFT JOIN channel_members cm ON c.id = cm.channel_id AND cm.username = ?
+                WHERE c.is_private = 0 
+                   OR c.owner_name = ?
+                   OR cm.username = ?
+            ''', (username, username, username))
+            
+            accessible_channels = cursor.fetchall()
+            channel_ids = [ch['id'] for ch in accessible_channels]
+            
+            if channel_ids:
+                placeholders = ','.join(['?'] * len(channel_ids))
+                cursor.execute(f'''
+                    SELECT p.id, p.channel_id, p.author_name, p.content, p.timestamp, c.name as channel_name
+                    FROM forum_posts p
+                    JOIN forum_channels c ON p.channel_id = c.id
+                    WHERE p.channel_id IN ({placeholders})
+                      AND p.author_name != ?
+                      AND datetime(p.timestamp) > datetime(?)
+                    ORDER BY p.timestamp DESC
+                    LIMIT 20
+                ''', channel_ids + [username, last_check])
+                
+                new_posts = cursor.fetchall()
+                notifications['new_posts'] = [dict(post) for post in new_posts]
+        
+        # Check for new unread messages
+        cursor.execute('''
+            SELECT COUNT(*) as count
+            FROM direct_messages
+            WHERE receiver_name = ? AND is_read = 0
+        ''', (username,))
+        result = cursor.fetchone()
+        notifications['new_messages'] = result['count'] if result else 0
+        
+        # Check for new friend requests
+        cursor.execute('''
+            SELECT user1_name as from_user, created_at
+            FROM friendships
+            WHERE user2_name = ? AND status = 'pending'
+            ORDER BY created_at DESC
+        ''', (username,))
+        friend_requests = cursor.fetchall()
+        notifications['new_friend_requests'] = [dict(req) for req in friend_requests]
+        
+        conn.close()
+        
+        return jsonify(notifications)
+    except Exception as e:
+        return jsonify({'error': f'Failed to get notifications: {str(e)}'}), 500
+
 # Friends endpoints
 @app.route('/api/forum/users/<username>', methods=['POST'])
 def create_or_get_user(username):
