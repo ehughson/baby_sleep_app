@@ -1301,7 +1301,7 @@ def get_profile():
 
 @app.route('/api/auth/profile', methods=['PUT'])
 def update_profile():
-    """Update user profile (bio and profile picture)"""
+    """Update user profile (username, name, email, bio, and profile picture)"""
     from database import get_db_connection
     try:
         session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
@@ -1314,7 +1314,7 @@ def update_profile():
         
         # Find user from session
         cursor.execute('''
-            SELECT u.id
+            SELECT u.id, u.username
             FROM sessions s
             JOIN auth_users u ON s.user_id = u.id
             WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
@@ -1326,13 +1326,60 @@ def update_profile():
             return jsonify({'error': 'Invalid session'}), 401
         
         user_id = session['id']
+        current_username = session['username']
         data = request.get_json()
+        
+        username = data.get('username', '').strip()
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
+        email = data.get('email', '').strip()
         bio = data.get('bio', '').strip()
         profile_picture = data.get('profile_picture', '').strip()
+        
+        # Validate username if changed
+        if username and username != current_username:
+            if len(username) < 3:
+                conn.close()
+                return jsonify({'error': 'Username must be at least 3 characters'}), 400
+            
+            # Check if username already exists
+            cursor.execute('SELECT * FROM auth_users WHERE username = ? AND id != ?', (username, user_id))
+            existing = cursor.fetchone()
+            if existing:
+                conn.close()
+                return jsonify({'error': 'Username already exists. Please choose a different username.'}), 400
+        
+        # Validate email if provided
+        if email:
+            # Check if email already exists (if changed)
+            cursor.execute('SELECT email FROM auth_users WHERE id = ?', (user_id,))
+            current_email = cursor.fetchone()['email']
+            if email != current_email:
+                cursor.execute('SELECT * FROM auth_users WHERE email = ? AND id != ?', (email, user_id))
+                existing = cursor.fetchone()
+                if existing:
+                    conn.close()
+                    return jsonify({'error': 'Email already registered. Please use a different email.'}), 400
         
         # Update profile
         updates = []
         values = []
+        
+        if username is not None and username:
+            updates.append('username = ?')
+            values.append(username)
+        
+        if first_name is not None:
+            updates.append('first_name = ?')
+            values.append(first_name)
+        
+        if last_name is not None:
+            updates.append('last_name = ?')
+            values.append(last_name)
+        
+        if email is not None and email:
+            updates.append('email = ?')
+            values.append(email)
         
         if bio is not None:
             updates.append('bio = ?')
@@ -1349,6 +1396,15 @@ def update_profile():
                 SET {', '.join(updates)}
                 WHERE id = ?
             ''', values)
+            
+            # If username changed, update forum_users table too
+            if username and username != current_username:
+                cursor.execute('''
+                    UPDATE forum_users 
+                    SET username = ?, display_name = ?
+                    WHERE username = ?
+                ''', (username, f"{first_name or ''} {last_name or ''}".strip() or username, current_username))
+            
             conn.commit()
         
         # Get updated user

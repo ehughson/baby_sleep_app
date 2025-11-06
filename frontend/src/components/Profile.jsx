@@ -90,14 +90,32 @@ const Profile = ({ user, onUpdate, onClose }) => {
 
       // Update profile
       const updated = await authService.updateProfile({
+        username: profile.username,
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        email: profile.email,
         bio: profile.bio,
         profile_picture: profilePictureUrl
       });
 
+      // Update local profile state with saved data
+      setProfile({
+        username: updated.username || profile.username,
+        first_name: updated.first_name || profile.first_name,
+        last_name: updated.last_name || profile.last_name,
+        email: updated.email || profile.email,
+        bio: updated.bio || profile.bio,
+        profile_picture: updated.profile_picture || profile.profile_picture
+      });
+      
       setSuccess('Profile updated successfully!');
       if (onUpdate) {
         onUpdate({
           ...user,
+          username: updated.username,
+          first_name: updated.first_name,
+          last_name: updated.last_name,
+          email: updated.email,
           profile_picture: updated.profile_picture,
           bio: updated.bio
         });
@@ -106,9 +124,10 @@ const Profile = ({ user, onUpdate, onClose }) => {
       // Clear file selection
       setSelectedFile(null);
       
-      // Update preview URL
-      if (profilePictureUrl) {
-        setPreviewUrl(forumService.getFileUrl(profilePictureUrl));
+      // Update preview URL with the saved profile picture
+      const savedPictureUrl = updated.profile_picture || profilePictureUrl;
+      if (savedPictureUrl) {
+        setPreviewUrl(forumService.getFileUrl(savedPictureUrl));
       }
     } catch (error) {
       setError(error.message || 'Failed to update profile');
@@ -150,43 +169,75 @@ const Profile = ({ user, onUpdate, onClose }) => {
                 </div>
               )}
             </div>
-            <label className="profile-upload-btn">
-              {selectedFile ? 'Change Picture' : 'Upload Picture'}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                style={{ display: 'none' }}
-              />
-            </label>
-            {selectedFile && (
-              <button
-                type="button"
-                className="profile-remove-btn"
-                onClick={() => {
-                  setSelectedFile(null);
-                  setPreviewUrl(profile.profile_picture ? forumService.getFileUrl(profile.profile_picture) : null);
-                }}
-              >
-                Remove
-              </button>
-            )}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <label className="profile-upload-btn" style={{ cursor: 'pointer' }}>
+                {selectedFile ? 'Change Picture' : 'Upload Picture'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {selectedFile && (
+                <button
+                  type="button"
+                  className="profile-remove-btn"
+                  onClick={() => {
+                    setSelectedFile(null);
+                    setPreviewUrl(profile.profile_picture ? forumService.getFileUrl(profile.profile_picture) : null);
+                  }}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="profile-info-section">
             <div className="profile-info-item">
-              <label>Username</label>
-              <input type="text" value={profile.username} disabled />
+              <label htmlFor="profile-username">Username</label>
+              <input 
+                id="profile-username"
+                type="text" 
+                value={profile.username} 
+                onChange={(e) => setProfile({ ...profile, username: e.target.value })}
+                placeholder="Enter username"
+                minLength={3}
+              />
             </div>
 
             <div className="profile-info-item">
-              <label>Name</label>
-              <input type="text" value={`${profile.first_name || ''} ${profile.last_name || ''}`.trim()} disabled />
+              <label htmlFor="profile-first-name">First Name</label>
+              <input 
+                id="profile-first-name"
+                type="text" 
+                value={profile.first_name} 
+                onChange={(e) => setProfile({ ...profile, first_name: e.target.value })}
+                placeholder="Enter first name"
+              />
             </div>
 
             <div className="profile-info-item">
-              <label>Email</label>
-              <input type="email" value={profile.email} disabled />
+              <label htmlFor="profile-last-name">Last Name</label>
+              <input 
+                id="profile-last-name"
+                type="text" 
+                value={profile.last_name} 
+                onChange={(e) => setProfile({ ...profile, last_name: e.target.value })}
+                placeholder="Enter last name"
+              />
+            </div>
+
+            <div className="profile-info-item">
+              <label htmlFor="profile-email">Email</label>
+              <input 
+                id="profile-email"
+                type="email" 
+                value={profile.email} 
+                onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                placeholder="Enter email"
+              />
             </div>
 
             <div className="profile-info-item">
