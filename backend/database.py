@@ -177,6 +177,41 @@ def init_db():
         )
     ''')
     
+    # Create baby profiles table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS baby_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT,
+            birth_date DATE,
+            age_months INTEGER,
+            sleep_issues TEXT,
+            current_schedule TEXT,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES auth_users (id) ON DELETE CASCADE,
+            UNIQUE(user_id)
+        )
+    ''')
+    
+    # Create sleep goals table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sleep_goals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            goal_1 TEXT,
+            goal_2 TEXT,
+            goal_3 TEXT,
+            goal_4 TEXT,
+            goal_5 TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES auth_users (id) ON DELETE CASCADE,
+            UNIQUE(user_id)
+        )
+    ''')
+    
     # Create index for faster message queries
     cursor.execute('''
         CREATE INDEX IF NOT EXISTS idx_dm_conversation 

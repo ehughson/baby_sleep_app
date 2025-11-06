@@ -348,6 +348,44 @@ body {
   background: rgba(255, 255, 255, 0.3);
 }
 
+.baby-profile-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 18px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Nunito', sans-serif;
+}
+
+.baby-profile-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.sleep-goals-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 18px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Nunito', sans-serif;
+}
+
+.sleep-goals-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 /* Profile Modal Styles */
 .profile-modal-overlay {
   position: fixed;

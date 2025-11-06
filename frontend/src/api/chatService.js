@@ -14,11 +14,17 @@ export const chatService = {
       console.log('Sending message to:', `${API_BASE_URL}/chat`);
       
       // Use streaming by default
+      const token = localStorage.getItem('session_token');
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           message,
           conversation_id: conversationId,

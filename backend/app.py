@@ -135,7 +135,7 @@ init_db()
 # Load API key from environment variable
 gemini_api_key = os.getenv('GEMINI_API_KEY')
 
-def get_gemini_response(message, conversation_history=None, stream=False):
+def get_gemini_response(message, conversation_history=None, user_context=None, stream=False):
     """Get response from Gemini API with sleep training specialization"""
     if not gemini_api_key:
         raise ValueError("Gemini API key not configured. Please set GEMINI_API_KEY environment variable.")
@@ -178,6 +178,49 @@ IMPORTANT:
 Always be encouraging, understanding, and provide step-by-step guidance. Remember that every family and child is unique, so offer multiple options when possible.
 
 """
+    
+    # Add user context (baby profile and sleep goals) to prompt if available
+    if user_context:
+        context_section = "\n\n=== PARENT AND BABY INFORMATION ===\n"
+        
+        if user_context.get('baby_profile'):
+            bp = user_context['baby_profile']
+            context_section += "Baby Information:\n"
+            if bp.get('name'):
+                context_section += f"- Baby's name: {bp['name']}\n"
+            if bp.get('age_months'):
+                context_section += f"- Age: {bp['age_months']} months\n"
+            elif bp.get('birth_date'):
+                context_section += f"- Birth date: {bp['birth_date']}\n"
+            if bp.get('sleep_issues'):
+                context_section += f"- Sleep issues: {bp['sleep_issues']}\n"
+            if bp.get('current_schedule'):
+                context_section += f"- Current sleep schedule: {bp['current_schedule']}\n"
+            if bp.get('notes'):
+                context_section += f"- Additional notes: {bp['notes']}\n"
+            context_section += "\n"
+        
+        if user_context.get('sleep_goals'):
+            sg = user_context['sleep_goals']
+            context_section += "Parent's Sleep Goals:\n"
+            goals = []
+            if sg.get('goal_1'):
+                goals.append(f"1. {sg['goal_1']}")
+            if sg.get('goal_2'):
+                goals.append(f"2. {sg['goal_2']}")
+            if sg.get('goal_3'):
+                goals.append(f"3. {sg['goal_3']}")
+            if sg.get('goal_4'):
+                goals.append(f"4. {sg['goal_4']}")
+            if sg.get('goal_5'):
+                goals.append(f"5. {sg['goal_5']}")
+            if goals:
+                context_section += "\n".join(goals) + "\n"
+            context_section += "\n"
+        
+        if context_section != "\n\n=== PARENT AND BABY INFORMATION ===\n":
+            sleep_specialist_prompt += context_section
+            sleep_specialist_prompt += "Use this information to provide personalized, tailored advice that addresses their specific baby and goals.\n\n"
     
     # Prepare conversation context
     if conversation_history:
@@ -227,14 +270,54 @@ def get_messages(conversation_id):
 @app.route('/api/chat', methods=['POST'])
 def chat():
     """Send a message and get response (streaming)"""
+    from database import get_db_connection
     try:
         data = request.get_json()
         message = data.get('message')
         conversation_id = data.get('conversation_id')
         stream = data.get('stream', True)  # Default to streaming
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
         
         if not message:
             return jsonify({'error': 'Message is required'}), 400
+        
+        # Get user context (baby profile and sleep goals) if authenticated
+        user_context = None
+        if session_token:
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                
+                # Find user from session
+                cursor.execute('''
+                    SELECT u.id
+                    FROM sessions s
+                    JOIN auth_users u ON s.user_id = u.id
+                    WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
+                ''', (session_token,))
+                session = cursor.fetchone()
+                
+                if session:
+                    user_id = session['id']
+                    
+                    # Get baby profile
+                    cursor.execute('SELECT * FROM baby_profiles WHERE user_id = ?', (user_id,))
+                    baby_profile = cursor.fetchone()
+                    
+                    # Get sleep goals
+                    cursor.execute('SELECT * FROM sleep_goals WHERE user_id = ?', (user_id,))
+                    sleep_goals = cursor.fetchone()
+                    
+                    if baby_profile or sleep_goals:
+                        user_context = {
+                            'baby_profile': dict(baby_profile) if baby_profile else None,
+                            'sleep_goals': dict(sleep_goals) if sleep_goals else None
+                        }
+                
+                conn.close()
+            except Exception as e:
+                print(f"Error fetching user context: {str(e)}")
+                # Continue without user context if there's an error
         
         # Save user message
         user_message = Message(
@@ -255,7 +338,7 @@ def chat():
             def generate():
                 full_response = ""
                 try:
-                    response_stream = get_gemini_response(message, conversation_history, stream=True)
+                    response_stream = get_gemini_response(message, conversation_history, user_context=user_context, stream=True)
                     
                     for chunk in response_stream:
                         # Extract text from chunk - Gemini API structure
@@ -300,7 +383,7 @@ def chat():
             )
         else:
             # Non-streaming response (backward compatibility)
-            response_text = get_gemini_response(message, conversation_history, stream=False)
+            response_text = get_gemini_response(message, conversation_history, user_context=user_context, stream=False)
         
         # Save assistant response
         assistant_message = Message(
@@ -1432,6 +1515,39 @@ def signup():
         cursor.execute('SELECT profile_picture, bio FROM auth_users WHERE id = ?', (user_id,))
         user_data = cursor.fetchone()
         
+        # Create baby profile if provided
+        baby_profile = data.get('baby_profile')
+        if baby_profile:
+            baby_name = baby_profile.get('name', '').strip()
+            birth_date = baby_profile.get('birth_date', '').strip() or None
+            age_months = baby_profile.get('age_months')
+            sleep_issues = baby_profile.get('sleep_issues', '').strip() or None
+            current_schedule = baby_profile.get('current_schedule', '').strip() or None
+            notes = baby_profile.get('notes', '').strip() or None
+            
+            # Only create if at least name is provided
+            if baby_name:
+                cursor.execute('''
+                    INSERT INTO baby_profiles (user_id, name, birth_date, age_months, sleep_issues, current_schedule, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (user_id, baby_name, birth_date, age_months, sleep_issues, current_schedule, notes))
+        
+        # Create sleep goals if provided
+        sleep_goals = data.get('sleep_goals')
+        if sleep_goals:
+            goal_1 = sleep_goals.get('goal_1', '').strip() or None
+            goal_2 = sleep_goals.get('goal_2', '').strip() or None
+            goal_3 = sleep_goals.get('goal_3', '').strip() or None
+            goal_4 = sleep_goals.get('goal_4', '').strip() or None
+            goal_5 = sleep_goals.get('goal_5', '').strip() or None
+            
+            # Create if at least one goal is provided
+            if goal_1 or goal_2 or goal_3 or goal_4 or goal_5:
+                cursor.execute('''
+                    INSERT INTO sleep_goals (user_id, goal_1, goal_2, goal_3, goal_4, goal_5)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (user_id, goal_1, goal_2, goal_3, goal_4, goal_5))
+        
         conn.commit()
         conn.close()
         
@@ -1766,6 +1882,230 @@ def upload_profile_picture():
             return jsonify({'error': 'File type not allowed. Please upload an image.'}), 400
     except Exception as e:
         return jsonify({'error': f'Failed to upload profile picture: {str(e)}'}), 500
+
+# Baby Profile endpoints
+@app.route('/api/auth/baby-profile', methods=['GET'])
+def get_baby_profile():
+    """Get baby profile for the authenticated user"""
+    from database import get_db_connection
+    try:
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not session_token:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user from session
+        cursor.execute('''
+            SELECT u.id
+            FROM sessions s
+            JOIN auth_users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
+        ''', (session_token,))
+        session = cursor.fetchone()
+        
+        if not session:
+            conn.close()
+            return jsonify({'error': 'Invalid session'}), 401
+        
+        user_id = session['id']
+        
+        # Get baby profile
+        cursor.execute('''
+            SELECT * FROM baby_profiles
+            WHERE user_id = ?
+        ''', (user_id,))
+        baby_profile = cursor.fetchone()
+        
+        conn.close()
+        
+        if baby_profile:
+            return jsonify(dict(baby_profile))
+        else:
+            return jsonify(None)  # No baby profile yet
+    except Exception as e:
+        return jsonify({'error': f'Failed to get baby profile: {str(e)}'}), 500
+
+@app.route('/api/auth/baby-profile', methods=['PUT'])
+def update_baby_profile():
+    """Create or update baby profile"""
+    from database import get_db_connection
+    try:
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not session_token:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user from session
+        cursor.execute('''
+            SELECT u.id
+            FROM sessions s
+            JOIN auth_users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
+        ''', (session_token,))
+        session = cursor.fetchone()
+        
+        if not session:
+            conn.close()
+            return jsonify({'error': 'Invalid session'}), 401
+        
+        user_id = session['id']
+        data = request.get_json()
+        
+        name = data.get('name', '').strip()
+        birth_date = data.get('birth_date', '').strip() or None
+        age_months = data.get('age_months')
+        sleep_issues = data.get('sleep_issues', '').strip() or None
+        current_schedule = data.get('current_schedule', '').strip() or None
+        notes = data.get('notes', '').strip() or None
+        
+        if not name:
+            conn.close()
+            return jsonify({'error': 'Baby name is required'}), 400
+        
+        # Check if baby profile exists
+        cursor.execute('SELECT * FROM baby_profiles WHERE user_id = ?', (user_id,))
+        existing = cursor.fetchone()
+        
+        if existing:
+            # Update existing profile
+            cursor.execute('''
+                UPDATE baby_profiles
+                SET name = ?, birth_date = ?, age_months = ?, sleep_issues = ?, 
+                    current_schedule = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ?
+            ''', (name, birth_date, age_months, sleep_issues, current_schedule, notes, user_id))
+        else:
+            # Create new profile
+            cursor.execute('''
+                INSERT INTO baby_profiles (user_id, name, birth_date, age_months, sleep_issues, current_schedule, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (user_id, name, birth_date, age_months, sleep_issues, current_schedule, notes))
+        
+        conn.commit()
+        
+        # Get updated profile
+        cursor.execute('SELECT * FROM baby_profiles WHERE user_id = ?', (user_id,))
+        baby_profile = cursor.fetchone()
+        
+        conn.close()
+        return jsonify(dict(baby_profile))
+    except Exception as e:
+        return jsonify({'error': f'Failed to update baby profile: {str(e)}'}), 500
+
+# Sleep Goals endpoints
+@app.route('/api/auth/sleep-goals', methods=['GET'])
+def get_sleep_goals():
+    """Get sleep goals for the authenticated user"""
+    from database import get_db_connection
+    try:
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not session_token:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user from session
+        cursor.execute('''
+            SELECT u.id
+            FROM sessions s
+            JOIN auth_users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
+        ''', (session_token,))
+        session = cursor.fetchone()
+        
+        if not session:
+            conn.close()
+            return jsonify({'error': 'Invalid session'}), 401
+        
+        user_id = session['id']
+        
+        # Get sleep goals
+        cursor.execute('''
+            SELECT * FROM sleep_goals
+            WHERE user_id = ?
+        ''', (user_id,))
+        sleep_goals = cursor.fetchone()
+        
+        conn.close()
+        
+        if sleep_goals:
+            return jsonify(dict(sleep_goals))
+        else:
+            return jsonify(None)  # No sleep goals yet
+    except Exception as e:
+        return jsonify({'error': f'Failed to get sleep goals: {str(e)}'}), 500
+
+@app.route('/api/auth/sleep-goals', methods=['PUT'])
+def update_sleep_goals():
+    """Create or update sleep goals"""
+    from database import get_db_connection
+    try:
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not session_token:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user from session
+        cursor.execute('''
+            SELECT u.id
+            FROM sessions s
+            JOIN auth_users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
+        ''', (session_token,))
+        session = cursor.fetchone()
+        
+        if not session:
+            conn.close()
+            return jsonify({'error': 'Invalid session'}), 401
+        
+        user_id = session['id']
+        data = request.get_json()
+        
+        goal_1 = data.get('goal_1', '').strip() or None
+        goal_2 = data.get('goal_2', '').strip() or None
+        goal_3 = data.get('goal_3', '').strip() or None
+        goal_4 = data.get('goal_4', '').strip() or None
+        goal_5 = data.get('goal_5', '').strip() or None
+        
+        # Check if sleep goals exist
+        cursor.execute('SELECT * FROM sleep_goals WHERE user_id = ?', (user_id,))
+        existing = cursor.fetchone()
+        
+        if existing:
+            # Update existing goals
+            cursor.execute('''
+                UPDATE sleep_goals
+                SET goal_1 = ?, goal_2 = ?, goal_3 = ?, goal_4 = ?, goal_5 = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ?
+            ''', (goal_1, goal_2, goal_3, goal_4, goal_5, user_id))
+        else:
+            # Create new goals
+            cursor.execute('''
+                INSERT INTO sleep_goals (user_id, goal_1, goal_2, goal_3, goal_4, goal_5)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (user_id, goal_1, goal_2, goal_3, goal_4, goal_5))
+        
+        conn.commit()
+        
+        # Get updated goals
+        cursor.execute('SELECT * FROM sleep_goals WHERE user_id = ?', (user_id,))
+        sleep_goals = cursor.fetchone()
+        
+        conn.close()
+        return jsonify(dict(sleep_goals))
+    except Exception as e:
+        return jsonify({'error': f'Failed to update sleep goals: {str(e)}'}), 500
 
 @app.route('/api/auth/forgot-password', methods=['POST'])
 def forgot_password():

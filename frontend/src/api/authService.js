@@ -8,13 +8,13 @@ console.log('Environment:', import.meta.env.MODE);
 
 export const authService = {
   // Sign up new user
-  signup: async (firstName, lastName, email, password, username, useRandomUsername, rememberMe = false) => {
+  signup: async (firstName, lastName, email, password, username, useRandomUsername, rememberMe = false, babyProfile = null, sleepGoals = null) => {
     const url = `${API_BASE_URL}/auth/signup`;
     console.log('Signup request URL:', url);
-    console.log('Signup payload:', { firstName, lastName, email, password: '***', username, useRandomUsername, remember_me: rememberMe });
+    console.log('Signup payload:', { firstName, lastName, email, password: '***', username, useRandomUsername, remember_me: rememberMe, babyProfile, sleepGoals });
     
     try {
-      const response = await axios.post(url, {
+      const payload = {
         first_name: firstName,
         last_name: lastName,
         email,
@@ -22,7 +22,19 @@ export const authService = {
         username: username || '', // Send the username even if useRandomUsername is true, so backend can use it if available
         use_random_username: useRandomUsername,
         remember_me: rememberMe
-      }, {
+      };
+      
+      // Add baby profile if provided
+      if (babyProfile) {
+        payload.baby_profile = babyProfile;
+      }
+      
+      // Add sleep goals if provided
+      if (sleepGoals) {
+        payload.sleep_goals = sleepGoals;
+      }
+      
+      const response = await axios.post(url, payload, {
         timeout: 10000 // 10 second timeout
       });
       console.log('Signup response:', response.data);
@@ -224,6 +236,74 @@ export const authService = {
         throw new Error(message);
       }
       throw new Error(error.message || 'Failed to upload profile picture');
+    }
+  },
+
+  // Get baby profile
+  getBabyProfile: async () => {
+    try {
+      const token = localStorage.getItem('session_token');
+      const response = await axios.get(`${API_BASE_URL}/auth/baby-profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to get baby profile');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
+  },
+
+  // Update baby profile
+  updateBabyProfile: async (babyProfileData) => {
+    try {
+      const token = localStorage.getItem('session_token');
+      const response = await axios.put(`${API_BASE_URL}/auth/baby-profile`, babyProfileData, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to update baby profile');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
+  },
+
+  // Get sleep goals
+  getSleepGoals: async () => {
+    try {
+      const token = localStorage.getItem('session_token');
+      const response = await axios.get(`${API_BASE_URL}/auth/sleep-goals`, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to get sleep goals');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
+  },
+
+  // Update sleep goals
+  updateSleepGoals: async (sleepGoalsData) => {
+    try {
+      const token = localStorage.getItem('session_token');
+      const response = await axios.put(`${API_BASE_URL}/auth/sleep-goals`, sleepGoalsData, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to update sleep goals');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
     }
   }
 };

@@ -5,6 +5,7 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [isSignup, setIsSignup] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [signupStep, setSignupStep] = useState(1); // 1 = account, 2 = baby info, 3 = sleep goals
   
   // Signup fields
   const [firstName, setFirstName] = useState('');
@@ -14,6 +15,21 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState('');
   const [useRandomUsername, setUseRandomUsername] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  
+  // Baby profile fields
+  const [babyName, setBabyName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [ageMonths, setAgeMonths] = useState('');
+  const [sleepIssues, setSleepIssues] = useState('');
+  const [currentSchedule, setCurrentSchedule] = useState('');
+  const [babyNotes, setBabyNotes] = useState('');
+  
+  // Sleep goals fields
+  const [goal1, setGoal1] = useState('');
+  const [goal2, setGoal2] = useState('');
+  const [goal3, setGoal3] = useState('');
+  const [goal4, setGoal4] = useState('');
+  const [goal5, setGoal5] = useState('');
   
   // Login fields
   const [loginUsername, setLoginUsername] = useState('');
@@ -40,7 +56,34 @@ const LoginPage = ({ onLoginSuccess }) => {
     return `${adjective}_${noun}_${number}`;
   };
 
-  const handleSignup = async (e) => {
+  const handleSignupStep1 = (e) => {
+    e.preventDefault();
+    setError('');
+    
+    // Validate step 1 fields
+    if (!firstName || !lastName || !email || !password) {
+      setError('Please fill in all required fields');
+      return;
+    }
+    
+    if (!username && !useRandomUsername) {
+      setError('Please enter a username or select "Generate random username"');
+      return;
+    }
+    
+    // Move to step 2
+    setSignupStep(2);
+  };
+
+  const handleSignupStep2 = (e) => {
+    e.preventDefault();
+    setError('');
+    
+    // Move to step 3 (baby info is optional)
+    setSignupStep(3);
+  };
+
+  const handleSignupStep3 = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -57,7 +100,22 @@ const LoginPage = ({ onLoginSuccess }) => {
         password,
         username,
         shouldUseRandom,
-        rememberMe
+        rememberMe,
+        {
+          name: babyName,
+          birth_date: birthDate,
+          age_months: ageMonths ? parseInt(ageMonths) : null,
+          sleep_issues: sleepIssues,
+          current_schedule: currentSchedule,
+          notes: babyNotes
+        },
+        {
+          goal_1: goal1,
+          goal_2: goal2,
+          goal_3: goal3,
+          goal_4: goal4,
+          goal_5: goal5
+        }
       );
       
       if (response && response.session_token) {
@@ -78,6 +136,13 @@ const LoginPage = ({ onLoginSuccess }) => {
       setError(err.message || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    if (signupStep > 1) {
+      setSignupStep(signupStep - 1);
+      setError('');
     }
   };
 
@@ -173,6 +238,7 @@ const LoginPage = ({ onLoginSuccess }) => {
   const resetForm = () => {
     setError('');
     setSuccess('');
+    setSignupStep(1);
     setFirstName('');
     setLastName('');
     setEmail('');
@@ -180,6 +246,17 @@ const LoginPage = ({ onLoginSuccess }) => {
     setUsername('');
     setUseRandomUsername(false);
     setRememberMe(false);
+    setBabyName('');
+    setBirthDate('');
+    setAgeMonths('');
+    setSleepIssues('');
+    setCurrentSchedule('');
+    setBabyNotes('');
+    setGoal1('');
+    setGoal2('');
+    setGoal3('');
+    setGoal4('');
+    setGoal5('');
     setLoginUsername('');
     setLoginPassword('');
     setLoginRememberMe(false);
@@ -359,12 +436,43 @@ const LoginPage = ({ onLoginSuccess }) => {
             </button>
           </div>
 
-          <form onSubmit={isSignup ? handleSignup : handleLogin} className="login-form">
+          <form onSubmit={
+            isSignup 
+              ? (signupStep === 1 ? handleSignupStep1 : signupStep === 2 ? handleSignupStep2 : handleSignupStep3)
+              : handleLogin
+          } className="login-form">
             {error && <div className="login-error">{error}</div>}
             {success && <div className="login-success">{success}</div>}
             
+            {isSignup && signupStep > 1 && (
+              <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  disabled={isLoading}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #a68cab',
+                    color: '#a68cab',
+                    padding: '0.4rem 0.8rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  ← Back
+                </button>
+                <div style={{ flex: 1, textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                  Step {signupStep} of 3
+                </div>
+              </div>
+            )}
+            
             {isSignup ? (
-              <>
+              signupStep === 1 ? (
+                <>
+                  {/* Step 1: Account Information */}
+                  <h3 style={{ marginBottom: '1rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Create Your Account</h3>
                 <div className="form-group">
                   <label htmlFor="first-name">First Name</label>
                   <input
@@ -521,7 +629,153 @@ const LoginPage = ({ onLoginSuccess }) => {
                     <span>Remember me</span>
                   </label>
                 </div>
-              </>
+                </>
+              ) : signupStep === 2 ? (
+                <>
+                  {/* Step 2: Baby Information */}
+                  <h3 style={{ marginBottom: '1rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Baby Information</h3>
+                  <p style={{ marginBottom: '1.5rem', color: '#666', fontSize: '0.9rem' }}>Tell us about your little one (all fields are optional)</p>
+                  
+                  <div className="form-group">
+                    <label htmlFor="baby-name">Baby's Name</label>
+                    <input
+                      id="baby-name"
+                      type="text"
+                      value={babyName}
+                      onChange={(e) => setBabyName(e.target.value)}
+                      placeholder="Enter baby's name"
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="birth-date">Birth Date</label>
+                    <input
+                      id="birth-date"
+                      type="date"
+                      value={birthDate}
+                      onChange={(e) => setBirthDate(e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="age-months">Age (in months)</label>
+                    <input
+                      id="age-months"
+                      type="number"
+                      min="0"
+                      max="60"
+                      value={ageMonths}
+                      onChange={(e) => setAgeMonths(e.target.value)}
+                      placeholder="e.g., 6"
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="sleep-issues">Sleep Issues (optional)</label>
+                    <textarea
+                      id="sleep-issues"
+                      value={sleepIssues}
+                      onChange={(e) => setSleepIssues(e.target.value)}
+                      placeholder="Describe any sleep challenges (e.g., night wakings, bedtime resistance)"
+                      rows={3}
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="current-schedule">Current Sleep Schedule (optional)</label>
+                    <textarea
+                      id="current-schedule"
+                      value={currentSchedule}
+                      onChange={(e) => setCurrentSchedule(e.target.value)}
+                      placeholder="Describe current sleep schedule (e.g., naps at 9am and 2pm, bedtime at 7pm)"
+                      rows={3}
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="baby-notes">Additional Notes (optional)</label>
+                    <textarea
+                      id="baby-notes"
+                      value={babyNotes}
+                      onChange={(e) => setBabyNotes(e.target.value)}
+                      placeholder="Any other information about your baby's sleep"
+                      rows={3}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Step 3: Sleep Goals */}
+                  <h3 style={{ marginBottom: '1rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Sleep Goals</h3>
+                  <p style={{ marginBottom: '1.5rem', color: '#666', fontSize: '0.9rem' }}>What are your main sleep goals? (all fields are optional)</p>
+                  
+                  <div className="form-group">
+                    <label htmlFor="goal-1">Sleep Goal 1</label>
+                    <textarea
+                      id="goal-1"
+                      value={goal1}
+                      onChange={(e) => setGoal1(e.target.value)}
+                      placeholder="e.g., Establish a consistent bedtime routine"
+                      rows={2}
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="goal-2">Sleep Goal 2</label>
+                    <textarea
+                      id="goal-2"
+                      value={goal2}
+                      onChange={(e) => setGoal2(e.target.value)}
+                      placeholder="e.g., Reduce night wakings"
+                      rows={2}
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="goal-3">Sleep Goal 3</label>
+                    <textarea
+                      id="goal-3"
+                      value={goal3}
+                      onChange={(e) => setGoal3(e.target.value)}
+                      placeholder="e.g., Improve nap duration"
+                      rows={2}
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="goal-4">Sleep Goal 4</label>
+                    <textarea
+                      id="goal-4"
+                      value={goal4}
+                      onChange={(e) => setGoal4(e.target.value)}
+                      placeholder="e.g., Help baby fall asleep independently"
+                      rows={2}
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="goal-5">Sleep Goal 5</label>
+                    <textarea
+                      id="goal-5"
+                      value={goal5}
+                      onChange={(e) => setGoal5(e.target.value)}
+                      placeholder="e.g., Create a peaceful sleep environment"
+                      rows={2}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </>
+              )
             ) : (
               <>
                 <div className="form-group">
@@ -570,7 +824,12 @@ const LoginPage = ({ onLoginSuccess }) => {
               className="login-submit-btn"
               disabled={isLoading}
             >
-              {isLoading ? 'Please wait...' : (isSignup ? 'Create Account' : 'Login')}
+              {isLoading 
+                ? 'Please wait...' 
+                : isSignup 
+                  ? (signupStep === 3 ? 'Create Account' : 'Continue')
+                  : 'Login'
+              }
             </button>
 
             {!isSignup && (

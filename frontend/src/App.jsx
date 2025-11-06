@@ -6,6 +6,8 @@ import Friends from './components/Friends';
 import LoginPage from './components/LoginPage';
 import Notifications from './components/Notifications';
 import Profile from './components/Profile';
+import BabyProfile from './components/BabyProfile';
+import SleepGoals from './components/SleepGoals';
 import { chatService } from './api/chatService';
 import { authService } from './api/authService';
 import { forumService } from './api/forumService';
@@ -23,6 +25,8 @@ function App() {
   const [user, setUser] = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
+  const [showBabyProfile, setShowBabyProfile] = useState(false);
+  const [showSleepGoals, setShowSleepGoals] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -340,6 +344,20 @@ function App() {
                   👤
                 </button>
                 <button
+                  className="baby-profile-btn"
+                  onClick={() => setShowBabyProfile(true)}
+                  title="Baby Profile"
+                >
+                  👶
+                </button>
+                <button
+                  className="sleep-goals-btn"
+                  onClick={() => setShowSleepGoals(true)}
+                  title="Sleep Goals"
+                >
+                  🎯
+                </button>
+                <button
                   className="logout-btn"
                   onClick={handleLogout}
                   title="Logout"
@@ -462,6 +480,18 @@ function App() {
           user={user} 
           onUpdate={handleProfileUpdate}
           onClose={() => setShowProfile(false)}
+        />
+      )}
+      {showBabyProfile && user && (
+        <BabyProfile 
+          user={user} 
+          onClose={() => setShowBabyProfile(false)}
+        />
+      )}
+      {showSleepGoals && user && (
+        <SleepGoals 
+          user={user} 
+          onClose={() => setShowSleepGoals(false)}
         />
       )}
     </div>
