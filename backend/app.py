@@ -1519,7 +1519,7 @@ def signup():
         ''', (user_id, session_token, expires_at))
         
         # Get created user to return profile data
-        cursor.execute('SELECT profile_picture, bio FROM auth_users WHERE id = ?', (user_id,))
+        cursor.execute('SELECT profile_picture, bio, first_name FROM auth_users WHERE id = ?', (user_id,))
         user_data = cursor.fetchone()
         
         # Create baby profiles if provided (supports multiple babies)
@@ -1557,6 +1557,10 @@ def signup():
                 ''', (user_id, goal_1, goal_2, goal_3, goal_4, goal_5))
         
         conn.commit()
+        
+        # Get first_name from user_data before closing connection
+        user_first_name = user_data['first_name'] if user_data else first_name
+        
         conn.close()
         
         # Send welcome email (non-blocking - don't fail signup if email fails)
@@ -1566,16 +1570,12 @@ def signup():
             print(f"Failed to send welcome email: {str(email_error)}")
             # Continue with signup even if email fails
         
-        # Get first_name for response
-        cursor.execute('SELECT first_name FROM auth_users WHERE id = ?', (user_id,))
-        user_first_name = cursor.fetchone()
-        
         return jsonify({
             'message': 'Account created successfully',
             'session_token': session_token,
             'username': username,
             'user_id': user_id,
-            'first_name': user_first_name['first_name'] if user_first_name else first_name,
+            'first_name': user_first_name,
             'profile_picture': user_data['profile_picture'] if user_data else None,
             'bio': user_data['bio'] if user_data else None
         })
