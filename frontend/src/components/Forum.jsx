@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { forumService } from '../api/forumService';
 
@@ -537,20 +537,26 @@ const Forum = ({ user, navigationOptions }) => {
               data-post-id={post.id}
               className={`post-card ${isReply ? 'post-reply' : ''}`} 
               onClick={(e) => {
-                // Don't show picker if clicking on buttons, links, or the emoji picker itself
-                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.emoji-picker')) {
-                  return;
+                try {
+                  // Don't show picker if clicking on buttons, links, or the emoji picker itself
+                  if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.emoji-picker')) {
+                    return;
+                  }
+                  // Don't show picker if one is already open
+                  if (emojiPickerPostId) {
+                    return;
+                  }
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  if (rect && post && post.id) {
+                    setEmojiPickerPostId(post.id);
+                    setEmojiPickerPosition({
+                      x: rect.left + rect.width / 2,
+                      y: rect.top - 10
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error opening emoji picker:', error);
                 }
-                // Don't show picker if one is already open
-                if (emojiPickerPostId) {
-                  return;
-                }
-                const rect = e.currentTarget.getBoundingClientRect();
-                setEmojiPickerPostId(post.id);
-                setEmojiPickerPosition({
-                  x: rect.left + rect.width / 2,
-                  y: rect.top - 10
-                });
               }}
               style={{
                 ...(isReply ? { 
@@ -645,7 +651,6 @@ const Forum = ({ user, navigationOptions }) => {
               {/* Emoji Picker */}
               {emojiPickerPostId === post.id && (
                 <div 
-                  ref={emojiPickerRef}
                   className="emoji-picker"
                   style={{
                     position: 'fixed',
@@ -768,18 +773,24 @@ const Forum = ({ user, navigationOptions }) => {
                         className="post-card post-reply"
                         data-post-id={reply.id}
                         onClick={(e) => {
-                          if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.emoji-picker')) {
-                            return;
+                          try {
+                            if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.emoji-picker')) {
+                              return;
+                            }
+                            if (emojiPickerPostId) {
+                              return;
+                            }
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            if (rect && reply && reply.id) {
+                              setEmojiPickerPostId(reply.id);
+                              setEmojiPickerPosition({
+                                x: rect.left + rect.width / 2,
+                                y: rect.top - 10
+                              });
+                            }
+                          } catch (error) {
+                            console.error('Error opening emoji picker:', error);
                           }
-                          if (emojiPickerPostId) {
-                            return;
-                          }
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setEmojiPickerPostId(reply.id);
-                          setEmojiPickerPosition({
-                            x: rect.left + rect.width / 2,
-                            y: rect.top - 10
-                          });
                         }}
                         style={{
                           padding: '0.75rem',
