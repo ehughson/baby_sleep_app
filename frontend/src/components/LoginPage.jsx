@@ -124,6 +124,9 @@ const LoginPage = ({ onLoginSuccess }) => {
         localStorage.setItem('session_token', response.session_token);
         localStorage.setItem('username', response.username);
         localStorage.setItem('user_id', response.user_id);
+        if (response.first_name) {
+          localStorage.setItem('first_name', response.first_name);
+        }
         if (rememberMe) {
           localStorage.setItem('remember_me', 'true');
         } else {
@@ -161,6 +164,9 @@ const LoginPage = ({ onLoginSuccess }) => {
         localStorage.setItem('session_token', response.session_token);
         localStorage.setItem('username', response.username);
         localStorage.setItem('user_id', response.user_id);
+        if (response.first_name) {
+          localStorage.setItem('first_name', response.first_name);
+        }
         if (loginRememberMe) {
           localStorage.setItem('remember_me', 'true');
         } else {

@@ -1566,11 +1566,16 @@ def signup():
             print(f"Failed to send welcome email: {str(email_error)}")
             # Continue with signup even if email fails
         
+        # Get first_name for response
+        cursor.execute('SELECT first_name FROM auth_users WHERE id = ?', (user_id,))
+        user_first_name = cursor.fetchone()
+        
         return jsonify({
             'message': 'Account created successfully',
             'session_token': session_token,
             'username': username,
             'user_id': user_id,
+            'first_name': user_first_name['first_name'] if user_first_name else first_name,
             'profile_picture': user_data['profile_picture'] if user_data else None,
             'bio': user_data['bio'] if user_data else None
         })
@@ -1632,6 +1637,7 @@ def login():
             'session_token': session_token,
             'username': username,
             'user_id': user['id'],
+            'first_name': user['first_name'],
             'profile_picture': user['profile_picture'],
             'bio': user['bio']
         })
@@ -1653,7 +1659,7 @@ def check_session():
         
         # Find session
         cursor.execute('''
-            SELECT s.*, u.username, u.id as user_id, u.profile_picture, u.bio
+            SELECT s.*, u.username, u.id as user_id, u.first_name, u.profile_picture, u.bio
             FROM sessions s
             JOIN auth_users u ON s.user_id = u.id
             WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
@@ -1669,6 +1675,7 @@ def check_session():
             'authenticated': True,
             'username': session['username'],
             'user_id': session['user_id'],
+            'first_name': session['first_name'],
             'profile_picture': session['profile_picture'],
             'bio': session['bio']
         })

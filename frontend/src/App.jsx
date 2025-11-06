@@ -45,6 +45,7 @@ function App() {
             setUser({ 
               username: session.username, 
               user_id: session.user_id,
+              first_name: session.first_name,
               profile_picture: session.profile_picture,
               bio: session.bio
             });
@@ -55,11 +56,16 @@ function App() {
               localStorage.removeItem('session_token');
               localStorage.removeItem('username');
               localStorage.removeItem('user_id');
+              localStorage.removeItem('first_name');
               localStorage.removeItem('remember_me');
               setUser(null);
             } else {
               // If remember me is set, keep user logged in with stored credentials
-              setUser({ username: username, user_id: localStorage.getItem('user_id') });
+              setUser({ 
+                username: username, 
+                user_id: localStorage.getItem('user_id'),
+                first_name: localStorage.getItem('first_name')
+              });
             }
           }
         } catch (error) {
@@ -67,19 +73,28 @@ function App() {
           // Don't log out on network errors - keep user logged in if they have remember_me
           if (rememberMe) {
             // Keep user logged in with stored credentials
-            setUser({ username: username, user_id: localStorage.getItem('user_id') });
+            setUser({ 
+              username: username, 
+              user_id: localStorage.getItem('user_id'),
+              first_name: localStorage.getItem('first_name')
+            });
           } else {
             // Only clear if it's not a network error and remember_me is not set
             if (error.response && error.response.status === 401) {
               localStorage.removeItem('session_token');
               localStorage.removeItem('username');
               localStorage.removeItem('user_id');
+              localStorage.removeItem('first_name');
               localStorage.removeItem('remember_me');
               setUser(null);
-            } else {
-              // Network error - keep user logged in
-              setUser({ username: username, user_id: localStorage.getItem('user_id') });
-            }
+          } else {
+            // Network error - keep user logged in
+            setUser({ 
+              username: username, 
+              user_id: localStorage.getItem('user_id'),
+              first_name: localStorage.getItem('first_name')
+            });
+          }
           }
         }
       } else {
@@ -106,6 +121,7 @@ function App() {
     setUser({ 
       username: authData.username, 
       user_id: authData.user_id,
+      first_name: authData.first_name,
       profile_picture: authData.profile_picture,
       bio: authData.bio
     });
@@ -129,6 +145,7 @@ function App() {
     localStorage.removeItem('session_token');
     localStorage.removeItem('username');
     localStorage.removeItem('user_id');
+    localStorage.removeItem('first_name');
     localStorage.removeItem('remember_me');
     localStorage.removeItem('forum_author_name'); // Clear forum name too
     setUser(null);
@@ -496,7 +513,7 @@ function App() {
                     }}
                   />
                 </div>
-                <h2>{user?.username ? `Hi there, ${user.username}!` : 'Hi there!'}</h2>
+                <h2>{user?.first_name ? `Hi there, ${user.first_name}!` : 'Hi there!'}</h2>
                 <p>What sleep hurdle are we tackling?</p>
                 <div className="suggestion-chips">
                   <button 
