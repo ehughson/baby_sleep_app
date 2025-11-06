@@ -330,10 +330,10 @@ const LoginPage = ({ onLoginSuccess }) => {
   return (
     <div className="login-page">
       <div className="login-container">
-        <div className="login-header">
-          <h1 className="login-app-name">REMi</h1>
-          <p className="login-tagline">Shaping sleep, one night at a time</p>
-        </div>
+          <div className="login-header">
+            <h1 className="login-app-name"><span style={{ color: '#fff3d1' }}>REM</span>i</h1>
+            <p className="login-tagline">Shaping sleep, one night at a time</p>
+          </div>
 
         <div className="login-form-wrapper">
           <div className="login-tabs">

@@ -87,7 +87,7 @@ Always be encouraging, understanding, and provide step-by-step guidance. Remembe
         if stream:
             response = model.generate_content(context, stream=True)
         else:
-            response = model.generate_content(context)
+        response = model.generate_content(context)
     else:
         full_prompt = sleep_specialist_prompt + f"\nParent's question: {message}\n\nSleep Specialist:"
         if stream:
@@ -197,19 +197,19 @@ def chat():
         else:
             # Non-streaming response (backward compatibility)
             response_text = get_gemini_response(message, conversation_history, stream=False)
-            
-            # Save assistant response
-            assistant_message = Message(
-                conversation_id=conversation_id,
-                role='assistant',
-                content=response_text
-            )
-            assistant_message.save()
-            
-            return jsonify({
-                'response': response_text,
-                'conversation_id': conversation_id
-            })
+        
+        # Save assistant response
+        assistant_message = Message(
+            conversation_id=conversation_id,
+            role='assistant',
+            content=response_text
+        )
+        assistant_message.save()
+        
+        return jsonify({
+            'response': response_text,
+            'conversation_id': conversation_id
+        })
         
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
