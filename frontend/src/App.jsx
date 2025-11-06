@@ -64,15 +64,21 @@ function App() {
     };
     loadVersion();
 
-    // Check for updates every 60 seconds
+    // Check for updates every 15 seconds
     const checkInterval = setInterval(async () => {
       if (currentVersionRef.current) {
-        const hasUpdate = await checkForUpdates(currentVersionRef.current);
-        if (hasUpdate) {
-          setShowUpdateBanner(true);
+        try {
+          const hasUpdate = await checkForUpdates(currentVersionRef.current);
+          if (hasUpdate) {
+            // Auto-reload when update is detected
+            console.log('New version detected, reloading...');
+            window.location.reload();
+          }
+        } catch (error) {
+          console.error('Error checking for updates:', error);
         }
       }
-    }, 60000); // Check every minute
+    }, 15000); // Check every 15 seconds
 
     return () => clearInterval(checkInterval);
   }, []);
@@ -467,30 +473,6 @@ function App() {
 
   return (
     <div className="app">
-      {/* Update Banner */}
-      {showUpdateBanner && (
-        <div className="update-banner">
-          <div className="update-banner-content">
-            <span className="update-banner-text">🔄 A new version is available!</span>
-            <div className="update-banner-actions">
-              <button 
-                className="update-banner-btn"
-                onClick={() => {
-                  window.location.reload();
-                }}
-              >
-                Refresh Now
-              </button>
-              <button 
-                className="update-banner-close"
-                onClick={() => setShowUpdateBanner(false)}
-              >
-                ×
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       <header className="header">
         <div className="header-content">
           {activeTab === 'chat' && messages.length > 0 && (

@@ -167,8 +167,21 @@ const Friends = ({ user, navigationOptions }) => {
     }
   };
 
-  const handleSelectFriend = (friend) => {
-    const friendUsername = friend.display_name || friend.friend_name;
+  const handleSelectFriend = (friend, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    const friendUsername = friend.display_name || friend.friend_name || friend.username;
+    console.log('Selecting friend:', friendUsername, 'from friend object:', friend);
+    
+    if (!friendUsername) {
+      console.error('Friend username is missing:', friend);
+      alert('Error: Could not identify friend. Please try again.');
+      return;
+    }
+    
     setSelectedFriend(friendUsername);
     loadMessages(friendUsername, true); // Show loading when selecting a friend
   };
@@ -556,7 +569,9 @@ const Friends = ({ user, navigationOptions }) => {
                   <div 
                     key={idx} 
                     className="friend-card clickable"
-                    onClick={() => handleSelectFriend(friend)}
+                    onClick={(e) => handleSelectFriend(friend, e)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
                   >
                     <div className="friend-avatar">
                       {friend.profile_picture ? (
