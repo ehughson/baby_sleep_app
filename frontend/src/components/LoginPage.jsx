@@ -486,7 +486,7 @@ const LoginPage = ({ onLoginSuccess }) => {
               signupStep === 1 ? (
                 <>
                   {/* Step 1: Account Information */}
-                  <h3 style={{ marginBottom: '1rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Create Your Account</h3>
+                  <h3 style={{ marginBottom: '0.25rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Create Your Account</h3>
                   {/* Hidden field to prevent password autofill on name fields */}
                   <input type="password" style={{ display: 'none' }} autoComplete="new-password" tabIndex="-1" />
                 <div className="form-group">
@@ -650,7 +650,7 @@ const LoginPage = ({ onLoginSuccess }) => {
               ) : signupStep === 2 ? (
                 <>
                   {/* Step 2: Baby Information */}
-                  <h3 style={{ marginBottom: '0.5rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Baby Information</h3>
+                  <h3 style={{ marginBottom: '0.25rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Baby Information</h3>
                   <p style={{ marginBottom: '0.5rem', color: '#666', fontSize: '0.9rem' }}>Tell us about your little one(s) (all fields are optional)</p>
                   
                   {babies.map((baby, index) => (
@@ -812,7 +812,7 @@ const LoginPage = ({ onLoginSuccess }) => {
               ) : (
                 <>
                   {/* Step 3: Sleep Goals */}
-                  <h3 style={{ marginBottom: '0.5rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Sleep Goals</h3>
+                  <h3 style={{ marginBottom: '0.25rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Sleep Goals</h3>
                   <p style={{ marginBottom: '0.5rem', color: '#666', fontSize: '0.9rem' }}>What are your main sleep goals? (all fields are optional)</p>
                   
                   <div className="form-group">
