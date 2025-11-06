@@ -450,11 +450,16 @@ const LoginPage = ({ onLoginSuccess }) => {
             </button>
           </div>
 
-          <form onSubmit={
-            isSignup 
-              ? (signupStep === 1 ? handleSignupStep1 : signupStep === 2 ? handleSignupStep2 : handleSignupStep3)
-              : handleLogin
-          } className="login-form">
+          <form 
+            onSubmit={
+              isSignup 
+                ? (signupStep === 1 ? handleSignupStep1 : signupStep === 2 ? handleSignupStep2 : handleSignupStep3)
+                : handleLogin
+            } 
+            className="login-form"
+            autoComplete="off"
+            data-lpignore="true"
+          >
             {error && <div className="login-error">{error}</div>}
             {success && <div className="login-success">{success}</div>}
             
@@ -499,7 +504,8 @@ const LoginPage = ({ onLoginSuccess }) => {
                     required
                     disabled={isLoading}
                     autoFocus
-                    autoComplete="given-name"
+                    autoComplete="off"
+                    data-lpignore="true"
                     data-form-type="other"
                   />
                 </div>
@@ -515,7 +521,8 @@ const LoginPage = ({ onLoginSuccess }) => {
                     placeholder="Enter last name"
                     required
                     disabled={isLoading}
-                    autoComplete="family-name"
+                    autoComplete="off"
+                    data-lpignore="true"
                     data-form-type="other"
                   />
                 </div>
@@ -524,12 +531,14 @@ const LoginPage = ({ onLoginSuccess }) => {
                   <label htmlFor="signup-email">Email</label>
                   <input
                     id="signup-email"
+                    name="signup-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter email"
                     required
                     disabled={isLoading}
+                    autoComplete="email"
                   />
                 </div>
 
@@ -537,6 +546,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                   <label htmlFor="signup-password">Password</label>
                   <input
                     id="signup-password"
+                    name="signup-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -544,6 +554,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                     required
                     minLength={6}
                     disabled={isLoading}
+                    autoComplete="new-password"
                   />
                 </div>
 
