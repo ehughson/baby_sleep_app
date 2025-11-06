@@ -1427,7 +1427,8 @@ def search_users():
         
         # Search in both forum_users and auth_users to find all users with profile info
         # Only include active accounts (is_active = 1 or NULL for backward compatibility)
-        search_pattern = f'%{query}%'
+        # Use LOWER() for case-insensitive search
+        search_pattern = f'%{query.lower()}%'
         cursor.execute('''
             SELECT DISTINCT 
                 COALESCE(fu.username, au.username) as username,
@@ -1437,7 +1438,7 @@ def search_users():
                 au.bio
             FROM auth_users au
             LEFT JOIN forum_users fu ON au.username = fu.username
-            WHERE (au.username LIKE ? OR COALESCE(fu.display_name, au.username) LIKE ?)
+            WHERE (LOWER(au.username) LIKE ? OR LOWER(COALESCE(fu.display_name, au.username)) LIKE ?)
               AND au.username != ?
               AND (au.is_active = 1 OR au.is_active IS NULL)
             ORDER BY username ASC
