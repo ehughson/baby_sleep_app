@@ -194,7 +194,7 @@ const LoginPage = ({ onLoginSuccess }) => {
       <div className="login-page">
         <div className="login-container">
           <div className="login-header">
-            <h1 className="login-app-name">REMi</h1>
+            <h1 className="login-app-name"><span style={{ color: '#fff3d1' }}>REM</span>i</h1>
             <p className="login-tagline">Reset Your Password</p>
           </div>
 
@@ -278,7 +278,7 @@ const LoginPage = ({ onLoginSuccess }) => {
       <div className="login-page">
         <div className="login-container">
           <div className="login-header">
-            <h1 className="login-app-name">REMi</h1>
+            <h1 className="login-app-name"><span style={{ color: '#fff3d1' }}>REM</span>i</h1>
             <p className="login-tagline">Forgot Password</p>
           </div>
 
