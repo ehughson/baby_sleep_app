@@ -154,7 +154,15 @@ const LoginPage = ({ onLoginSuccess }) => {
   // Scroll to top when signup step changes
   useEffect(() => {
     if (isSignup && signupStep) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Use setTimeout to ensure DOM has updated
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        // Also scroll the container if it exists
+        const container = document.querySelector('.login-container') || document.querySelector('.login-form-wrapper');
+        if (container) {
+          container.scrollTop = 0;
+        }
+      }, 0);
     }
   }, [signupStep, isSignup]);
 
@@ -657,8 +665,8 @@ const LoginPage = ({ onLoginSuccess }) => {
               ) : signupStep === 2 ? (
                 <>
                   {/* Step 2: Baby Information */}
-                  <h3 style={{ marginBottom: '0.25rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Baby Information</h3>
-                  <p style={{ marginBottom: '0.25rem', color: '#666', fontSize: '0.9rem' }}>Tell us about your little one(s) (all fields are optional)</p>
+                  <h3 style={{ marginBottom: '0.1rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif', lineHeight: '1.2' }}>Baby Information</h3>
+                  <p style={{ marginBottom: '0.1rem', color: '#666', fontSize: '0.9rem', lineHeight: '1.3' }}>Tell us about your little one(s) (all fields are optional)</p>
                   
                   {babies.map((baby, index) => (
                     <div key={index} style={{ marginBottom: '2rem', padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#f9f9f9' }}>
@@ -819,8 +827,8 @@ const LoginPage = ({ onLoginSuccess }) => {
               ) : (
                 <>
                   {/* Step 3: Sleep Goals */}
-                  <h3 style={{ marginBottom: '0.25rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Sleep Goals</h3>
-                  <p style={{ marginBottom: '0.25rem', color: '#666', fontSize: '0.9rem' }}>What are your main sleep goals? (all fields are optional)</p>
+                  <h3 style={{ marginBottom: '0.1rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif', lineHeight: '1.2' }}>Sleep Goals</h3>
+                  <p style={{ marginBottom: '0.1rem', color: '#666', fontSize: '0.9rem', lineHeight: '1.3' }}>What are your main sleep goals? (all fields are optional)</p>
                   
                   <div className="form-group">
                     <label htmlFor="goal-1">Sleep Goal 1</label>
