@@ -82,11 +82,17 @@ export const authService = {
   checkSession: async (token) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/auth/session`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 5000 // 5 second timeout
       });
       return response.data;
     } catch (error) {
-      return { authenticated: false };
+      // Re-throw the error so the caller can distinguish between network errors and auth failures
+      if (error.response && error.response.status === 401) {
+        return { authenticated: false };
+      }
+      // For network errors, throw so caller can handle gracefully
+      throw error;
     }
   },
 

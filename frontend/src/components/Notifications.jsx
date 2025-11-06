@@ -19,10 +19,18 @@ const Notifications = ({ user }) => {
       try {
         const lastCheck = lastCheckRef.current;
         const data = await notificationService.getNotifications(user.username, lastCheck);
-        setNotifications(data);
         
-        // Update last check time after successfully getting notifications
-        lastCheckRef.current = new Date().toISOString();
+        // Ensure data structure is correct
+        if (data) {
+          setNotifications({
+            new_posts: data.new_posts || [],
+            new_messages: data.new_messages || 0,
+            new_friend_requests: data.new_friend_requests || []
+          });
+          
+          // Update last check time after successfully getting notifications
+          lastCheckRef.current = new Date().toISOString();
+        }
       } catch (error) {
         console.error('Error checking notifications:', error);
       }
@@ -50,9 +58,9 @@ const Notifications = ({ user }) => {
   }, []);
 
   const totalCount = 
-    notifications.new_posts.length + 
-    notifications.new_messages + 
-    notifications.new_friend_requests.length;
+    (notifications.new_posts?.length || 0) + 
+    (notifications.new_messages || 0) + 
+    (notifications.new_friend_requests?.length || 0);
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
@@ -108,7 +116,7 @@ const Notifications = ({ user }) => {
               <div className="no-notifications">No new notifications</div>
             ) : (
               <>
-                {notifications.new_friend_requests.length > 0 && (
+                {notifications.new_friend_requests && notifications.new_friend_requests.length > 0 && (
                   <div className="notification-section">
                     <h4 className="notification-section-title">Friend Requests</h4>
                     {notifications.new_friend_requests.map((req, idx) => (
@@ -135,7 +143,7 @@ const Notifications = ({ user }) => {
                   </div>
                 )}
 
-                {notifications.new_posts.length > 0 && (
+                {notifications.new_posts && notifications.new_posts.length > 0 && (
                   <div className="notification-section">
                     <h4 className="notification-section-title">New Posts</h4>
                     {notifications.new_posts.map((post) => (
@@ -145,7 +153,7 @@ const Notifications = ({ user }) => {
                           <p>
                             <strong>{post.author_name}</strong> posted in <strong>{post.channel_name}</strong>
                           </p>
-                          <p className="notification-preview">{post.content.substring(0, 50)}{post.content.length > 50 ? '...' : ''}</p>
+                          <p className="notification-preview">{post.content ? post.content.substring(0, 50) : ''}{post.content && post.content.length > 50 ? '...' : ''}</p>
                           <span className="notification-time">{formatTime(post.timestamp)}</span>
                         </div>
                       </div>

@@ -35,28 +35,46 @@ function App() {
       setIsCheckingAuth(true);
       const token = localStorage.getItem('session_token');
       const username = localStorage.getItem('username');
+      const rememberMe = localStorage.getItem('remember_me') === 'true';
       
       if (token && username) {
         try {
           const session = await authService.checkSession(token);
-          if (session.authenticated) {
+          if (session && session.authenticated) {
             setUser({ username: session.username, user_id: session.user_id });
           } else {
-            // Invalid session, clear it
-            localStorage.removeItem('session_token');
-            localStorage.removeItem('username');
-            localStorage.removeItem('user_id');
-            localStorage.removeItem('remember_me');
-            setUser(null);
+            // Only clear session if it's explicitly invalid (not a network error)
+            // If remember_me was set, keep the user logged in even if session check fails
+            if (!rememberMe) {
+              localStorage.removeItem('session_token');
+              localStorage.removeItem('username');
+              localStorage.removeItem('user_id');
+              localStorage.removeItem('remember_me');
+              setUser(null);
+            } else {
+              // If remember me is set, keep user logged in with stored credentials
+              setUser({ username: username, user_id: localStorage.getItem('user_id') });
+            }
           }
         } catch (error) {
           console.error('Auth check error:', error);
-          // Clear invalid session
-          localStorage.removeItem('session_token');
-          localStorage.removeItem('username');
-          localStorage.removeItem('user_id');
-          localStorage.removeItem('remember_me');
-          setUser(null);
+          // Don't log out on network errors - keep user logged in if they have remember_me
+          if (rememberMe) {
+            // Keep user logged in with stored credentials
+            setUser({ username: username, user_id: localStorage.getItem('user_id') });
+          } else {
+            // Only clear if it's not a network error and remember_me is not set
+            if (error.response && error.response.status === 401) {
+              localStorage.removeItem('session_token');
+              localStorage.removeItem('username');
+              localStorage.removeItem('user_id');
+              localStorage.removeItem('remember_me');
+              setUser(null);
+            } else {
+              // Network error - keep user logged in
+              setUser({ username: username, user_id: localStorage.getItem('user_id') });
+            }
+          }
         }
       } else {
         setUser(null);
