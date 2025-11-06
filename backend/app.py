@@ -1443,11 +1443,11 @@ def signup():
     from database import get_db_connection
     try:
         data = request.get_json()
-        first_name = data.get('first_name', '').strip()
-        last_name = data.get('last_name', '').strip()
-        email = data.get('email', '').strip()
+        first_name = (data.get('first_name') or '').strip()
+        last_name = (data.get('last_name') or '').strip()
+        email = (data.get('email') or '').strip()
         password = data.get('password', '')
-        username = data.get('username', '').strip()
+        username = (data.get('username') or '').strip()
         use_random_username = data.get('use_random_username', False)
         remember_me = data.get('remember_me', False)
         
@@ -1553,12 +1553,12 @@ def signup():
         baby_profiles = data.get('baby_profiles', [])
         if baby_profiles and isinstance(baby_profiles, list):
             for baby_profile in baby_profiles:
-                baby_name = baby_profile.get('name', '').strip()
-                birth_date = baby_profile.get('birth_date', '').strip() or None
+                baby_name = (baby_profile.get('name') or '').strip()
+                birth_date = (baby_profile.get('birth_date') or '').strip() or None
                 age_months = baby_profile.get('age_months')
-                sleep_issues = baby_profile.get('sleep_issues', '').strip() or None
-                current_schedule = baby_profile.get('current_schedule', '').strip() or None
-                notes = baby_profile.get('notes', '').strip() or None
+                sleep_issues = (baby_profile.get('sleep_issues') or '').strip() or None
+                current_schedule = (baby_profile.get('current_schedule') or '').strip() or None
+                notes = (baby_profile.get('notes') or '').strip() or None
                 
                 # Create if at least name is provided or if any other field has data
                 if baby_name or birth_date or age_months or sleep_issues or current_schedule or notes:
@@ -1570,11 +1570,11 @@ def signup():
         # Create sleep goals if provided
         sleep_goals = data.get('sleep_goals')
         if sleep_goals:
-            goal_1 = sleep_goals.get('goal_1', '').strip() or None
-            goal_2 = sleep_goals.get('goal_2', '').strip() or None
-            goal_3 = sleep_goals.get('goal_3', '').strip() or None
-            goal_4 = sleep_goals.get('goal_4', '').strip() or None
-            goal_5 = sleep_goals.get('goal_5', '').strip() or None
+            goal_1 = (sleep_goals.get('goal_1') or '').strip() or None
+            goal_2 = (sleep_goals.get('goal_2') or '').strip() or None
+            goal_3 = (sleep_goals.get('goal_3') or '').strip() or None
+            goal_4 = (sleep_goals.get('goal_4') or '').strip() or None
+            goal_5 = (sleep_goals.get('goal_5') or '').strip() or None
             
             # Create if at least one goal is provided
             if goal_1 or goal_2 or goal_3 or goal_4 or goal_5:
