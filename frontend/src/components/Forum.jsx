@@ -24,6 +24,8 @@ const Forum = ({ user, navigationOptions }) => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyContent, setReplyContent] = useState('');
+  const [emojiPickerPostId, setEmojiPickerPostId] = useState(null);
+  const [emojiPickerPosition, setEmojiPickerPosition] = useState({ x: 0, y: 0 });
 
 
   useEffect(() => {
@@ -530,7 +532,25 @@ const Forum = ({ user, navigationOptions }) => {
           });
 
           const renderPost = (post, isReply = false) => (
-            <div key={post.id} className={`post-card ${isReply ? 'post-reply' : ''}`} style={isReply ? { marginLeft: '2rem', marginTop: '0.5rem', borderLeft: '2px solid #e0e0e0', paddingLeft: '1rem' } : {}}>
+            <div 
+              key={post.id} 
+              className={`post-card ${isReply ? 'post-reply' : ''}`} 
+              onClick={(e) => {
+                // Only show picker if clicking on the post content area, not on buttons
+                if (e.target.closest('button') || e.target.closest('a')) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                setEmojiPickerPostId(post.id);
+                setEmojiPickerPosition({
+                  x: rect.left + rect.width / 2,
+                  y: rect.top - 10
+                });
+              }}
+              style={{
+                ...(isReply ? { marginLeft: '2rem', marginTop: '0.5rem', borderLeft: '2px solid #e0e0e0', paddingLeft: '1rem' } : {}),
+                cursor: 'pointer',
+                position: 'relative'
+              }}
+            >
               <div className="post-header">
                 <div className="post-avatar">
                   {getInitials(post.author_name)}
@@ -588,25 +608,64 @@ const Forum = ({ user, navigationOptions }) => {
                     <span>{reaction.count}</span>
                   </button>
                 ))}
-                <button
-                  onClick={() => {
-                    const emoji = prompt('Enter emoji:');
-                    if (emoji) handleAddReaction(post.id, emoji);
-                  }}
-                  style={{
-                    background: 'none',
-                    border: '1px dashed #ccc',
-                    borderRadius: '12px',
-                    padding: '0.25rem 0.5rem',
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                    color: '#999'
-                  }}
-                  title="Add reaction"
-                >
-                  +
-                </button>
               </div>
+              
+              {/* Emoji Picker */}
+              {emojiPickerPostId === post.id && (
+                <div 
+                  className="emoji-picker"
+                  style={{
+                    position: 'fixed',
+                    left: `${emojiPickerPosition.x}px`,
+                    top: `${emojiPickerPosition.y}px`,
+                    transform: 'translateX(-50%) translateY(-100%)',
+                    zIndex: 1000,
+                    background: 'white',
+                    borderRadius: '24px',
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
+                    padding: '0.5rem',
+                    display: 'flex',
+                    gap: '0.5rem',
+                    marginBottom: '0.5rem'
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddReaction(post.id, emoji);
+                        setEmojiPickerPostId(null);
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '1.8rem',
+                        cursor: 'pointer',
+                        padding: '0.5rem',
+                        borderRadius: '12px',
+                        transition: 'background 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '44px',
+                        height: '44px'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = '#f0f0f0';
+                        e.target.style.transform = 'scale(1.2)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = 'none';
+                        e.target.style.transform = 'scale(1)';
+                      }}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Reply button */}
               {!isReply && (
@@ -631,8 +690,27 @@ const Forum = ({ user, navigationOptions }) => {
             </div>
           );
 
-          return topLevelPosts.map(post => renderPost(post));
-        })()}
+        return (
+          <>
+            {topLevelPosts.map(post => renderPost(post))}
+            {/* Close emoji picker when clicking outside */}
+            {emojiPickerPostId && (
+              <div 
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 999,
+                  background: 'transparent'
+                }}
+                onClick={() => setEmojiPickerPostId(null)}
+              />
+            )}
+          </>
+        );
+      })()}
       </div>
 
       {/* Author name input (if not set) */}
