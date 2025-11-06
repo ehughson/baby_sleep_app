@@ -255,30 +255,43 @@ def get_channels():
 
 @app.route('/api/forum/channels/<int:channel_id>/posts', methods=['GET'])
 def get_posts(channel_id):
-    """Get all posts for a channel (check access for private channels)"""
+    """Get all posts for a channel - all members can see all posts"""
     from database import get_db_connection
     username = request.args.get('username', '')
     
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Check if channel is private and user has access
+    # Check if channel exists
     cursor.execute('SELECT is_private, owner_name FROM forum_channels WHERE id = ?', (channel_id,))
     channel = cursor.fetchone()
     
-    if channel and channel['is_private']:
+    if not channel:
+        conn.close()
+        return jsonify({'error': 'Channel not found'}), 404
+    
+    # For private channels, verify user is a member (owner or invited member)
+    if channel['is_private']:
         if not username:
             conn.close()
             return jsonify({'error': 'Authentication required for private channel'}), 403
         
-        # Check if user is owner or member
-        if channel['owner_name'] != username:
+        # Check if user is owner
+        is_owner = channel['owner_name'] == username
+        
+        # Check if user is a member (if not owner)
+        is_member = False
+        if not is_owner:
             cursor.execute('SELECT * FROM channel_members WHERE channel_id = ? AND username = ?', (channel_id, username))
             member = cursor.fetchone()
-            if not member:
-                conn.close()
-                return jsonify({'error': 'You do not have access to this channel'}), 403
+            is_member = member is not None
+        
+        # User must be either owner or member to see posts
+        if not is_owner and not is_member:
+            conn.close()
+            return jsonify({'error': 'You do not have access to this private channel'}), 403
     
+    # Return ALL posts in the channel - all members can see all posts regardless of who posted them
     cursor.execute('''
         SELECT * FROM forum_posts 
         WHERE channel_id = ? 
@@ -290,7 +303,7 @@ def get_posts(channel_id):
 
 @app.route('/api/forum/posts', methods=['POST'])
 def create_post():
-    """Create a new forum post"""
+    """Create a new forum post - all members can post and all members can see all posts"""
     from database import get_db_connection
     try:
         data = request.get_json()
@@ -303,6 +316,24 @@ def create_post():
         
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Check if channel is private and verify author is a member
+        cursor.execute('SELECT is_private, owner_name FROM forum_channels WHERE id = ?', (channel_id,))
+        channel = cursor.fetchone()
+        
+        if channel and channel['is_private']:
+            # For private channels, verify the author is a member (owner or invited member)
+            is_owner = channel['owner_name'] == author_name
+            is_member = False
+            
+            if not is_owner:
+                cursor.execute('SELECT * FROM channel_members WHERE channel_id = ? AND username = ?', (channel_id, author_name))
+                member = cursor.fetchone()
+                is_member = member is not None
+            
+            if not is_owner and not is_member:
+                conn.close()
+                return jsonify({'error': 'You must be a member of this private channel to post'}), 403
         
         # Ensure user exists (create if not)
         cursor.execute('SELECT * FROM forum_users WHERE username = ?', (author_name,))
@@ -319,7 +350,7 @@ def create_post():
                 WHERE username = ?
             ''', (author_name,))
         
-        # Create the post
+        # Create the post - all members will be able to see this post
         file_path = data.get('file_path')
         file_type = data.get('file_type')
         file_name = data.get('file_name')
