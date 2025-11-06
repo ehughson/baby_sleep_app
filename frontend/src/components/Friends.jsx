@@ -249,6 +249,7 @@ const Friends = ({ user, navigationOptions }) => {
   const loadFriends = async (username) => {
     if (!username) {
       console.error('Cannot load friends: username is missing');
+      alert('Error: Username is missing. Please refresh the page.');
       return;
     }
     
@@ -256,14 +257,28 @@ const Friends = ({ user, navigationOptions }) => {
       console.log('Loading friends for:', username);
       const data = await forumService.getFriends(username);
       console.log('Friends loaded:', data);
-      setFriends(data || []);
+      console.log('Number of friends:', data?.length || 0);
+      
+      if (Array.isArray(data)) {
+        setFriends(data);
+        if (data.length === 0) {
+          console.log('No friends found in database for user:', username);
+        }
+      } else {
+        console.error('Invalid friends data format:', data);
+        setFriends([]);
+        alert('Error: Invalid data format received from server.');
+      }
     } catch (error) {
       console.error('Error loading friends:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data
+      });
       setFriends([]);
-      // Show error to user if friends fail to load
-      if (error.message && !error.message.includes('Failed to fetch')) {
-        alert(`Failed to load friends: ${error.message}`);
-      }
+      // Show error to user
+      alert(`Failed to load friends: ${error.message || 'Unknown error'}\n\nPlease check the browser console for details.`);
     }
   };
 
@@ -457,12 +472,30 @@ const Friends = ({ user, navigationOptions }) => {
     <div className="friends-container">
       <div className="friends-header-section">
         <h2>Your Village Friends</h2>
-        <button
-          className="add-friend-header-btn"
-          onClick={() => setShowAddFriend(true)}
-        >
-          + Add Friend
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            className="add-friend-header-btn"
+            onClick={() => {
+              if (authorName) {
+                console.log('Manual refresh - reloading friends for:', authorName);
+                loadFriends(authorName);
+                loadFriendRequests(authorName);
+                loadUnreadCounts(authorName);
+              } else {
+                alert('Please wait for your account to load, then try again.');
+              }
+            }}
+            title="Refresh friends list"
+          >
+            🔄 Refresh
+          </button>
+          <button
+            className="add-friend-header-btn"
+            onClick={() => setShowAddFriend(true)}
+          >
+            + Add Friend
+          </button>
+        </div>
       </div>
 
       <div className="friends-content">

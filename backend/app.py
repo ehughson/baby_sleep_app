@@ -1294,9 +1294,19 @@ def get_friends(username):
         ''', (username, username, username, username, username))
         
         friends = cursor.fetchall()
+        friend_list = [dict(friend) for friend in friends]
+        
+        # Debug logging
+        print(f"Found {len(friend_list)} friends for user: {username}")
+        if friend_list:
+            print(f"Friend names: {[f.get('friend_name') for f in friend_list]}")
+        
         conn.close()
-        return jsonify([dict(friend) for friend in friends])
+        return jsonify(friend_list)
     except Exception as e:
+        print(f"Error in get_friends for {username}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Failed to get friends: {str(e)}'}), 500
 
 @app.route('/api/forum/friend-requests', methods=['GET'])
