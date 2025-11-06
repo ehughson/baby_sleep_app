@@ -79,8 +79,36 @@ def init_db():
             file_path TEXT,
             file_type TEXT,
             file_name TEXT,
+            parent_post_id INTEGER,
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (channel_id) REFERENCES forum_channels (id)
+            FOREIGN KEY (channel_id) REFERENCES forum_channels (id),
+            FOREIGN KEY (parent_post_id) REFERENCES forum_posts (id)
+        )
+    ''')
+    
+    # Create post reactions table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS post_reactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            emoji TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (post_id) REFERENCES forum_posts (id) ON DELETE CASCADE,
+            UNIQUE(post_id, username, emoji)
+        )
+    ''')
+    
+    # Create message reactions table (for direct messages)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS message_reactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            emoji TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (message_id) REFERENCES direct_messages (id) ON DELETE CASCADE,
+            UNIQUE(message_id, username, emoji)
         )
     ''')
     

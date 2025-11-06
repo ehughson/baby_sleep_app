@@ -17,9 +17,12 @@ export const forumService = {
   },
 
   // Get posts for a channel
-  getPosts: async (channelId) => {
+  getPosts: async (channelId, username = '') => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/forum/channels/${channelId}/posts`);
+      const url = username 
+        ? `${API_BASE_URL}/forum/channels/${channelId}/posts?username=${encodeURIComponent(username)}`
+        : `${API_BASE_URL}/forum/channels/${channelId}/posts`;
+      const response = await axios.get(url);
       return response.data;
     } catch (error) {
       // If endpoint doesn't exist yet, return empty array

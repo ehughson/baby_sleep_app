@@ -22,6 +22,8 @@ const Forum = ({ user, navigationOptions }) => {
   const [channelMembers, setChannelMembers] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyContent, setReplyContent] = useState('');
 
 
   useEffect(() => {
@@ -87,7 +89,8 @@ const Forum = ({ user, navigationOptions }) => {
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
-    if (!newPostContent.trim() || !authorName.trim()) return;
+    const content = replyingTo ? replyContent : newPostContent;
+    if (!content.trim() || !authorName.trim()) return;
 
     try {
       let fileData = null;
@@ -110,17 +113,50 @@ const Forum = ({ user, navigationOptions }) => {
       const post = await forumService.createPost({
         channel_id: selectedChannel.id,
         author_name: authorName,
-        content: newPostContent,
+        content: content,
         file_path: fileData?.file_path,
         file_type: fileData?.file_type,
-        file_name: fileData?.file_name
+        file_name: fileData?.file_name,
+        parent_post_id: replyingTo || null
       });
-      setPosts([...posts, post]);
-      setNewPostContent('');
+      
+      if (replyingTo) {
+        // Reload posts to show the new reply
+        loadPosts(selectedChannel.id, authorName);
+        setReplyingTo(null);
+        setReplyContent('');
+      } else {
+        setPosts([...posts, post]);
+        setNewPostContent('');
+      }
       setSelectedFile(null);
     } catch (error) {
       console.error('Error creating post:', error);
       alert(error.message || 'Failed to create post');
+    }
+  };
+
+  const handleAddReaction = async (postId, emoji) => {
+    if (!authorName) return;
+    try {
+      const response = await axios.post(`${API_BASE_URL}/forum/posts/${postId}/reactions`, {
+        username: authorName,
+        emoji: emoji
+      });
+      
+      // Update the post's reactions
+      setPosts(posts.map(post => {
+        if (post.id === postId) {
+          const wasReacted = (post.user_reactions || []).includes(emoji);
+          const newUserReactions = wasReacted 
+            ? (post.user_reactions || []).filter(e => e !== emoji)
+            : [...(post.user_reactions || []), emoji];
+          return { ...post, reactions: response.data.reactions, user_reactions: newUserReactions };
+        }
+        return post;
+      }));
+    } catch (error) {
+      console.error('Error adding reaction:', error);
     }
   };
 
@@ -482,9 +518,19 @@ const Forum = ({ user, navigationOptions }) => {
             <h3>No posts yet</h3>
             <p>Be the first to start a conversation!</p>
           </div>
-        ) : (
-                posts.map((post) => (
-            <div key={post.id} className="post-card">
+        ) : (() => {
+          // Group posts by parent_post_id (replies)
+          const topLevelPosts = posts.filter(p => !p.parent_post_id);
+          const repliesByParent = {};
+          posts.filter(p => p.parent_post_id).forEach(reply => {
+            if (!repliesByParent[reply.parent_post_id]) {
+              repliesByParent[reply.parent_post_id] = [];
+            }
+            repliesByParent[reply.parent_post_id].push(reply);
+          });
+
+          const renderPost = (post, isReply = false) => (
+            <div key={post.id} className={`post-card ${isReply ? 'post-reply' : ''}`} style={isReply ? { marginLeft: '2rem', marginTop: '0.5rem', borderLeft: '2px solid #e0e0e0', paddingLeft: '1rem' } : {}}>
               <div className="post-header">
                 <div className="post-avatar">
                   {getInitials(post.author_name)}
@@ -502,8 +548,6 @@ const Forum = ({ user, navigationOptions }) => {
                       style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', marginTop: '1rem', display: 'block' }}
                       onError={(e) => {
                         console.error('Failed to load image:', forumService.getFileUrl(post.file_path));
-                        console.error('File path:', post.file_path);
-                        console.error('File type:', post.file_type);
                         e.target.style.display = 'none';
                         e.target.parentElement.innerHTML = `<p style="color: #999; font-style: italic;">Image failed to load: ${post.file_name || post.file_path}</p>`;
                       }}
@@ -520,9 +564,75 @@ const Forum = ({ user, navigationOptions }) => {
                   )}
                 </div>
               )}
+              
+              {/* Reactions */}
+              <div className="post-reactions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                {(post.reactions || []).map((reaction, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleAddReaction(post.id, reaction.emoji)}
+                    className={`reaction-btn ${(post.user_reactions || []).includes(reaction.emoji) ? 'reacted' : ''}`}
+                    style={{
+                      background: (post.user_reactions || []).includes(reaction.emoji) ? '#a68cab' : '#f0f0f0',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '12px',
+                      padding: '0.25rem 0.5rem',
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
+                    }}
+                  >
+                    <span>{reaction.emoji}</span>
+                    <span>{reaction.count}</span>
+                  </button>
+                ))}
+                <button
+                  onClick={() => {
+                    const emoji = prompt('Enter emoji:');
+                    if (emoji) handleAddReaction(post.id, emoji);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: '1px dashed #ccc',
+                    borderRadius: '12px',
+                    padding: '0.25rem 0.5rem',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    color: '#999'
+                  }}
+                  title="Add reaction"
+                >
+                  +
+                </button>
+              </div>
+
+              {/* Reply button */}
+              {!isReply && (
+                <button
+                  onClick={() => setReplyingTo(replyingTo === post.id ? null : post.id)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#a68cab',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    marginTop: '0.5rem',
+                    padding: '0.25rem 0'
+                  }}
+                >
+                  {replyingTo === post.id ? 'Cancel' : 'Reply'}
+                </button>
+              )}
+
+              {/* Replies */}
+              {repliesByParent[post.id] && repliesByParent[post.id].map(reply => renderPost(reply, true))}
             </div>
-          ))
-        )}
+          );
+
+          return topLevelPosts.map(post => renderPost(post));
+        })()}
       </div>
 
       {/* Author name input (if not set) */}
@@ -540,8 +650,52 @@ const Forum = ({ user, navigationOptions }) => {
         </div>
       )}
 
+      {/* Reply input */}
+      {replyingTo && authorName && (
+        <div className="post-input-section" style={{ background: '#f8f8f8', padding: '1rem', borderRadius: '8px', marginTop: '1rem' }}>
+          <div style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
+            Replying to post...
+          </div>
+          <form className="post-input-form" onSubmit={handleCreatePost}>
+            <textarea
+              className="post-input"
+              placeholder="Write your reply..."
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              rows={2}
+            />
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setReplyingTo(null);
+                  setReplyContent('');
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#f0f0f0',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: '8px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="post-send-btn"
+                disabled={!replyContent.trim()}
+                style={{ alignSelf: 'flex-end' }}
+              >
+                Reply
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Post input */}
-      {authorName && (
+      {authorName && !replyingTo && (
         <div className="post-input-section">
           {selectedFile && (
             <div className="file-preview" style={{ padding: '0.5rem 1rem', background: '#f8f8f8', borderTop: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

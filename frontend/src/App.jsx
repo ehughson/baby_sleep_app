@@ -319,6 +319,7 @@ function App() {
           {user && (
             <>
               <div className="user-menu">
+                <span className="user-name">{user.username}</span>
                 <Notifications 
                   user={user} 
                   onNavigate={(tab, options) => {
@@ -336,7 +337,6 @@ function App() {
                 >
                   👤
                 </button>
-                <span className="user-name">{user.username}</span>
                 <button
                   className="logout-btn"
                   onClick={handleLogout}
@@ -402,8 +402,8 @@ function App() {
                     }}
                   />
                 </div>
-                <h2>{user?.username ? `Hi there ${user.username}!` : 'Hi there!'}</h2>
-                <p>what sleep hurdle are we tackling?</p>
+                <h2>{user?.username ? `Hi there, ${user.username}!` : 'Hi there!'}</h2>
+                <p>What sleep hurdle are we tackling?</p>
                 <div className="suggestion-chips">
                   <button 
                     className="chip" 
@@ -433,7 +433,7 @@ function App() {
           )}
           {isLoading && (
             <div className="loading">
-              <span>AI is thinking...</span>
+              <span>REMi is thinking...</span>
             </div>
           )}
           {error && (

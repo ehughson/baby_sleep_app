@@ -298,8 +298,36 @@ def get_posts(channel_id):
         ORDER BY timestamp ASC
     ''', (channel_id,))
     posts = cursor.fetchall()
+    
+    # Get reactions for each post
+    posts_with_reactions = []
+    for post in posts:
+        post_dict = dict(post)
+        # Get reactions for this post
+        cursor.execute('''
+            SELECT emoji, COUNT(*) as count
+            FROM post_reactions
+            WHERE post_id = ?
+            GROUP BY emoji
+        ''', (post['id'],))
+        reactions = cursor.fetchall()
+        post_dict['reactions'] = [dict(r) for r in reactions]
+        
+        # Get user's reactions for this post
+        if username:
+            cursor.execute('''
+                SELECT emoji FROM post_reactions
+                WHERE post_id = ? AND username = ?
+            ''', (post['id'], username))
+            user_reactions = cursor.fetchall()
+            post_dict['user_reactions'] = [r['emoji'] for r in user_reactions]
+        else:
+            post_dict['user_reactions'] = []
+        
+        posts_with_reactions.append(post_dict)
+    
     conn.close()
-    return jsonify([dict(post) for post in posts])
+    return jsonify(posts_with_reactions)
 
 @app.route('/api/forum/posts', methods=['POST'])
 def create_post():
@@ -310,6 +338,7 @@ def create_post():
         channel_id = data.get('channel_id')
         author_name = data.get('author_name')
         content = data.get('content')
+        parent_post_id = data.get('parent_post_id')  # For replies
         
         if not channel_id or not author_name or not content:
             return jsonify({'error': 'Missing required fields'}), 400
@@ -356,9 +385,9 @@ def create_post():
         file_name = data.get('file_name')
         
         cursor.execute('''
-            INSERT INTO forum_posts (channel_id, author_name, content, file_path, file_type, file_name)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (channel_id, author_name, content, file_path, file_type, file_name))
+            INSERT INTO forum_posts (channel_id, author_name, content, file_path, file_type, file_name, parent_post_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (channel_id, author_name, content, file_path, file_type, file_name, parent_post_id))
         post_id = cursor.lastrowid
         conn.commit()
         
@@ -688,6 +717,30 @@ def get_dm_messages():
         
         messages = cursor.fetchall()
         
+        # Get reactions for each message
+        messages_with_reactions = []
+        for msg in messages:
+            msg_dict = dict(msg)
+            # Get reactions for this message
+            cursor.execute('''
+                SELECT emoji, COUNT(*) as count
+                FROM message_reactions
+                WHERE message_id = ?
+                GROUP BY emoji
+            ''', (msg['id'],))
+            reactions = cursor.fetchall()
+            msg_dict['reactions'] = [dict(r) for r in reactions]
+            
+            # Get user's reactions for this message
+            cursor.execute('''
+                SELECT emoji FROM message_reactions
+                WHERE message_id = ? AND username = ?
+            ''', (msg['id'], username))
+            user_reactions = cursor.fetchall()
+            msg_dict['user_reactions'] = [r['emoji'] for r in user_reactions]
+            
+            messages_with_reactions.append(msg_dict)
+        
         # Mark messages as read
         cursor.execute('''
             UPDATE direct_messages
@@ -698,7 +751,7 @@ def get_dm_messages():
         conn.commit()
         conn.close()
         
-        return jsonify([dict(msg) for msg in messages])
+        return jsonify(messages_with_reactions)
     except Exception as e:
         return jsonify({'error': f'Failed to get messages: {str(e)}'}), 500
 
@@ -760,6 +813,109 @@ def get_unread_count():
         return jsonify({'count': result['count'] if result else 0})
     except Exception as e:
         return jsonify({'error': f'Failed to get unread count: {str(e)}'}), 500
+
+# Reaction endpoints
+@app.route('/api/forum/posts/<int:post_id>/reactions', methods=['POST'])
+def add_post_reaction(post_id):
+    """Add or remove a reaction to a post"""
+    from database import get_db_connection
+    try:
+        data = request.get_json()
+        username = data.get('username', '')
+        emoji = data.get('emoji', '')
+        
+        if not username or not emoji:
+            return jsonify({'error': 'Username and emoji are required'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if reaction already exists
+        cursor.execute('''
+            SELECT * FROM post_reactions
+            WHERE post_id = ? AND username = ? AND emoji = ?
+        ''', (post_id, username, emoji))
+        existing = cursor.fetchone()
+        
+        if existing:
+            # Remove reaction
+            cursor.execute('''
+                DELETE FROM post_reactions
+                WHERE post_id = ? AND username = ? AND emoji = ?
+            ''', (post_id, username, emoji))
+        else:
+            # Add reaction
+            cursor.execute('''
+                INSERT INTO post_reactions (post_id, username, emoji)
+                VALUES (?, ?, ?)
+            ''', (post_id, username, emoji))
+        
+        conn.commit()
+        
+        # Get updated reactions
+        cursor.execute('''
+            SELECT emoji, COUNT(*) as count
+            FROM post_reactions
+            WHERE post_id = ?
+            GROUP BY emoji
+        ''', (post_id,))
+        reactions = cursor.fetchall()
+        
+        conn.close()
+        return jsonify({'reactions': [dict(r) for r in reactions]})
+    except Exception as e:
+        return jsonify({'error': f'Failed to update reaction: {str(e)}'}), 500
+
+@app.route('/api/dm/messages/<int:message_id>/reactions', methods=['POST'])
+def add_message_reaction(message_id):
+    """Add or remove a reaction to a direct message"""
+    from database import get_db_connection
+    try:
+        data = request.get_json()
+        username = data.get('username', '')
+        emoji = data.get('emoji', '')
+        
+        if not username or not emoji:
+            return jsonify({'error': 'Username and emoji are required'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if reaction already exists
+        cursor.execute('''
+            SELECT * FROM message_reactions
+            WHERE message_id = ? AND username = ? AND emoji = ?
+        ''', (message_id, username, emoji))
+        existing = cursor.fetchone()
+        
+        if existing:
+            # Remove reaction
+            cursor.execute('''
+                DELETE FROM message_reactions
+                WHERE message_id = ? AND username = ? AND emoji = ?
+            ''', (message_id, username, emoji))
+        else:
+            # Add reaction
+            cursor.execute('''
+                INSERT INTO message_reactions (message_id, username, emoji)
+                VALUES (?, ?, ?)
+            ''', (message_id, username, emoji))
+        
+        conn.commit()
+        
+        # Get updated reactions
+        cursor.execute('''
+            SELECT emoji, COUNT(*) as count
+            FROM message_reactions
+            WHERE message_id = ?
+            GROUP BY emoji
+        ''', (message_id,))
+        reactions = cursor.fetchall()
+        
+        conn.close()
+        return jsonify({'reactions': [dict(r) for r in reactions]})
+    except Exception as e:
+        return jsonify({'error': f'Failed to update reaction: {str(e)}'}), 500
 
 @app.route('/api/notifications', methods=['GET'])
 def get_notifications():

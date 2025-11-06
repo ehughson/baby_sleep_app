@@ -180,21 +180,50 @@ export const authService = {
   uploadProfilePicture: async (file) => {
     try {
       const token = localStorage.getItem('session_token');
+      if (!token) {
+        throw new Error('Not authenticated. Please login again.');
+      }
+      
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await axios.post(`${API_BASE_URL}/auth/profile-picture`, formData, {
+      const url = `${API_BASE_URL}/auth/profile-picture`;
+      console.log('Uploading profile picture to:', url);
+      console.log('File:', file.name, file.type, file.size);
+      
+      // Don't set Content-Type header - let axios set it automatically with boundary
+      const response = await axios.post(url, formData, {
         headers: { 
           Authorization: `Bearer ${token}`
         },
         timeout: 30000
       });
+      
+      console.log('Upload response:', response.data);
       return response.data;
     } catch (error) {
+      console.error('Profile picture upload error:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status,
+        request: error.request
+      });
+      
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Upload timed out. Please try again.');
+      }
       if (error.response) {
         throw new Error(error.response.data?.error || 'Failed to upload profile picture');
       }
-      throw new Error('Unable to connect to server. Please check if the backend is running.');
+      if (error.request) {
+        const isRailway = API_BASE_URL.includes('railway.app');
+        const message = isRailway 
+          ? `Unable to connect to Railway backend. Please check if the backend is deployed and running.`
+          : `Unable to connect to server at ${API_BASE_URL}. Please check if the backend is running.`;
+        throw new Error(message);
+      }
+      throw new Error(error.message || 'Failed to upload profile picture');
     }
   }
 };
