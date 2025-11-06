@@ -667,18 +667,12 @@ const Forum = ({ user, navigationOptions }) => {
                     marginBottom: '0.5rem',
                     pointerEvents: 'auto'
                   }}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
                 >
                   {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
                   <button
                     key={emoji}
                     type="button"
-                    onClick={(e) => {
+                    onMouseDown={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
                       handleAddReaction(post.id, emoji);
@@ -703,12 +697,10 @@ const Forum = ({ user, navigationOptions }) => {
                       touchAction: 'manipulation'
                     }}
                     onMouseEnter={(e) => {
-                      e.stopPropagation();
                       e.currentTarget.style.background = '#f0f0f0';
                       e.currentTarget.style.transform = 'scale(1.3)';
                     }}
                     onMouseLeave={(e) => {
-                      e.stopPropagation();
                       e.currentTarget.style.background = 'none';
                       e.currentTarget.style.transform = 'scale(1)';
                     }}
@@ -901,7 +893,7 @@ const Forum = ({ user, navigationOptions }) => {
                               <button
                                 key={emoji}
                                 type="button"
-                                onClick={(e) => {
+                                onMouseDown={(e) => {
                                   e.stopPropagation();
                                   e.preventDefault();
                                   handleAddReaction(reply.id, emoji);
@@ -926,12 +918,10 @@ const Forum = ({ user, navigationOptions }) => {
                                   touchAction: 'manipulation'
                                 }}
                                 onMouseEnter={(e) => {
-                                  e.stopPropagation();
                                   e.currentTarget.style.background = '#f0f0f0';
                                   e.currentTarget.style.transform = 'scale(1.3)';
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.stopPropagation();
                                   e.currentTarget.style.background = 'none';
                                   e.currentTarget.style.transform = 'scale(1)';
                                 }}
@@ -965,7 +955,7 @@ const Forum = ({ user, navigationOptions }) => {
                   background: 'transparent',
                   pointerEvents: 'auto'
                 }}
-                onClick={(e) => {
+                onMouseDown={(e) => {
                   // Only close if clicking outside the picker
                   if (!e.target.closest('.emoji-picker')) {
                     setEmojiPickerPostId(null);
