@@ -1470,6 +1470,9 @@ body {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   width: 100%;
   max-width: 450px;
+  max-height: 95vh;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -1478,6 +1481,7 @@ body {
   color: white;
   padding: 3rem 2rem 2rem;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .login-app-name {
@@ -1501,6 +1505,9 @@ body {
 
 .login-form-wrapper {
   padding: 2rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .login-tabs {
