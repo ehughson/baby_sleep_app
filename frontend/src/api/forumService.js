@@ -159,16 +159,27 @@ export const forumService = {
   // File upload
   uploadFile: async (file) => {
     try {
+      console.log('Creating FormData for file:', file.name, file.type, file.size);
       const formData = new FormData();
       formData.append('file', file);
+      console.log('Sending upload request to:', `${API_BASE_URL}/forum/upload`);
+      
+      // Don't set Content-Type header - let axios set it automatically with boundary
       const response = await axios.post(`${API_BASE_URL}/forum/upload`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        timeout: 30000 // 30 second timeout for file uploads
       });
+      
+      console.log('Upload response:', response.data);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Failed to upload file');
+      console.error('Upload error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        code: error.code
+      });
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to upload file';
+      throw new Error(errorMessage);
     }
   },
 

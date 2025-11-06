@@ -82,10 +82,14 @@ const Forum = ({ user }) => {
       if (selectedFile) {
         setUploadingFile(true);
         try {
+          console.log('Uploading file:', selectedFile.name);
           fileData = await forumService.uploadFile(selectedFile);
+          console.log('File upload successful:', fileData);
         } catch (uploadError) {
+          console.error('File upload error:', uploadError);
           alert('Failed to upload file: ' + uploadError.message);
           setUploadingFile(false);
+          setSelectedFile(null);
           return;
         }
         setUploadingFile(false);
@@ -166,9 +170,13 @@ const Forum = ({ user }) => {
       // Check file size (10MB limit)
       if (file.size > 10 * 1024 * 1024) {
         alert('File size must be less than 10MB');
+        e.target.value = ''; // Reset file input
         return;
       }
+      console.log('File selected:', file.name, file.type, file.size);
       setSelectedFile(file);
+    } else {
+      console.log('No file selected');
     }
   };
 
@@ -545,8 +553,8 @@ const Forum = ({ user }) => {
               onChange={(e) => setNewPostContent(e.target.value)}
               rows={3}
             />
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <label className="file-upload-btn" style={{ cursor: 'pointer', padding: '0.5rem 1rem', background: '#f0f0f0', borderRadius: '8px', fontSize: '0.9rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label className="file-upload-btn" style={{ cursor: 'pointer', padding: '0.5rem 1rem', background: '#f0f0f0', borderRadius: '8px', fontSize: '0.9rem', alignSelf: 'flex-start' }}>
                 📎 Attach
                 <input
                   type="file"
@@ -559,6 +567,7 @@ const Forum = ({ user }) => {
                 type="submit"
                 className="post-send-btn"
                 disabled={(!newPostContent.trim() && !selectedFile) || uploadingFile}
+                style={{ alignSelf: 'flex-end' }}
               >
                 {uploadingFile ? 'Uploading...' : 'Post'}
               </button>

@@ -376,6 +376,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                     placeholder="Enter last name"
                     required
                     disabled={isLoading}
+                    autoComplete="family-name"
                   />
                 </div>
 
@@ -407,9 +408,10 @@ const LoginPage = ({ onLoginSuccess }) => {
                 </div>
 
                 <div className="form-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginBottom: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: useRandomUsername ? '0' : '0.5rem' }}>
                     <input
                       type="checkbox"
+                      id="random-username-checkbox"
                       checked={useRandomUsername}
                       onChange={(e) => {
                         setUseRandomUsername(e.target.checked);
@@ -418,9 +420,12 @@ const LoginPage = ({ onLoginSuccess }) => {
                         }
                       }}
                       disabled={isLoading}
+                      style={{ margin: 0 }}
                     />
-                    <span>Generate random username</span>
-                  </label>
+                    <label htmlFor="random-username-checkbox" style={{ margin: 0, cursor: 'pointer' }}>
+                      Generate random username
+                    </label>
+                  </div>
                   
                   {!useRandomUsername && (
                     <input
