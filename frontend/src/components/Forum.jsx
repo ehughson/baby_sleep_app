@@ -658,7 +658,7 @@ const Forum = ({ user, navigationOptions }) => {
                     left: `${emojiPickerPosition.x}px`,
                     top: `${emojiPickerPosition.y}px`,
                     transform: 'translateX(-50%) translateY(-100%)',
-                    zIndex: 1002,
+                    zIndex: 1003,
                     background: 'white',
                     borderRadius: '24px',
                     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
@@ -670,6 +670,11 @@ const Forum = ({ user, navigationOptions }) => {
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
                   }}
                 >
                   {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
@@ -679,6 +684,8 @@ const Forum = ({ user, navigationOptions }) => {
                     onMouseDown={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
+                      handleAddReaction(post.id, emoji);
+                      setEmojiPickerPostId(null);
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -887,7 +894,7 @@ const Forum = ({ user, navigationOptions }) => {
                               left: `${emojiPickerPosition.x}px`,
                               top: `${emojiPickerPosition.y}px`,
                               transform: 'translateX(-50%) translateY(-100%)',
-                              zIndex: 1002,
+                              zIndex: 1003,
                               background: 'white',
                               borderRadius: '24px',
                               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
@@ -899,6 +906,11 @@ const Forum = ({ user, navigationOptions }) => {
                             }}
                             onMouseDown={(e) => {
                               e.stopPropagation();
+                              e.preventDefault();
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
                             }}
                           >
                             {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
@@ -908,6 +920,8 @@ const Forum = ({ user, navigationOptions }) => {
                                 onMouseDown={(e) => {
                                   e.stopPropagation();
                                   e.preventDefault();
+                                  handleAddReaction(reply.id, emoji);
+                                  setEmojiPickerPostId(null);
                                 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -973,25 +987,22 @@ const Forum = ({ user, navigationOptions }) => {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  zIndex: 1001,
+                  zIndex: 1002,
                   background: 'transparent',
                   pointerEvents: 'auto'
                 }}
                 onMouseDown={(e) => {
                   // Don't close if clicking on the picker itself or any button inside it
-                  if (e.target.closest('.emoji-picker')) {
+                  const picker = e.target.closest('.emoji-picker');
+                  if (picker) {
                     e.stopPropagation();
+                    e.preventDefault();
                     return;
                   }
-                  setEmojiPickerPostId(null);
-                }}
-                onClick={(e) => {
-                  // Don't close if clicking on the picker itself
-                  if (e.target.closest('.emoji-picker')) {
-                    e.stopPropagation();
-                    return;
-                  }
-                  setEmojiPickerPostId(null);
+                  // Small delay to ensure picker clicks are processed first
+                  setTimeout(() => {
+                    setEmojiPickerPostId(null);
+                  }, 0);
                 }}
               />
             )}
