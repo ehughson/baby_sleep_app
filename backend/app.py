@@ -1444,29 +1444,47 @@ def search_users():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Search in both forum_users and auth_users to find all users with profile info
+        # Search in auth_users to find all users with profile info
         # Only include active accounts (is_active = 1 or NULL for backward compatibility)
         # Use LOWER() for case-insensitive search
         search_pattern = f'%{query.lower()}%'
+        
+        # First, let's check how many users exist total
+        cursor.execute('SELECT COUNT(*) as count FROM auth_users WHERE (is_active = 1 OR is_active IS NULL)')
+        total_users = cursor.fetchone()['count']
+        print(f"Total active users in database: {total_users}")
+        
         cursor.execute('''
             SELECT DISTINCT 
-                COALESCE(fu.username, au.username) as username,
+                au.username as username,
                 COALESCE(fu.display_name, au.username) as display_name,
                 fu.last_seen,
                 au.profile_picture,
                 au.bio
             FROM auth_users au
             LEFT JOIN forum_users fu ON au.username = fu.username
-            WHERE (LOWER(au.username) LIKE ? OR LOWER(COALESCE(fu.display_name, au.username)) LIKE ?)
+            WHERE LOWER(au.username) LIKE ?
               AND au.username != ?
               AND (au.is_active = 1 OR au.is_active IS NULL)
-            ORDER BY username ASC
+            ORDER BY au.username ASC
             LIMIT 20
-        ''', (search_pattern, search_pattern, current_user))
+        ''', (search_pattern, current_user))
         
         users = cursor.fetchall()
         user_list = [dict(user) for user in users]
-        print(f"Found {len(user_list)} users matching '{query}'")
+        print(f"Found {len(user_list)} users matching '{query}' (excluding current user '{current_user}')")
+        if user_list:
+            print(f"Matched usernames: {[u.get('username') for u in user_list]}")
+        else:
+            # Debug: show what users exist
+            cursor.execute('''
+                SELECT username FROM auth_users 
+                WHERE (is_active = 1 OR is_active IS NULL)
+                LIMIT 10
+            ''')
+            all_users = cursor.fetchall()
+            print(f"Sample of all users in database: {[u['username'] for u in all_users]}")
+        
         conn.close()
         return jsonify(user_list)
     except Exception as e:
