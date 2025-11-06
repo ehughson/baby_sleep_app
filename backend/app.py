@@ -1811,12 +1811,18 @@ def update_profile():
         current_username = session['username']
         data = request.get_json()
         
-        username = data.get('username', '').strip()
-        first_name = data.get('first_name', '').strip()
-        last_name = data.get('last_name', '').strip()
-        email = data.get('email', '').strip()
-        bio = data.get('bio', '').strip()
-        profile_picture = data.get('profile_picture', '').strip()
+        # Debug logging
+        print(f"Update profile request data: {data}")
+        
+        # Safely extract and strip values, handling None/null
+        username = (data.get('username') or '').strip() if data.get('username') is not None else ''
+        first_name = (data.get('first_name') or '').strip() if data.get('first_name') is not None else ''
+        last_name = (data.get('last_name') or '').strip() if data.get('last_name') is not None else ''
+        email = (data.get('email') or '').strip() if data.get('email') is not None else ''
+        bio = (data.get('bio') or '').strip() if data.get('bio') is not None else ''
+        profile_picture = (data.get('profile_picture') or '').strip() if data.get('profile_picture') is not None else ''
+        
+        print(f"Parsed values - username: '{username}', first_name: '{first_name}', last_name: '{last_name}', email: '{email}', bio: '{bio}', profile_picture: '{profile_picture}'")
         
         # Validate username if changed
         if username and username != current_username:
@@ -1850,10 +1856,10 @@ def update_profile():
         values = []
         
         # Always update these fields if they're in the request (even if empty)
-        if 'username' in data:
-            if username:  # Only update username if it's not empty
-                updates.append('username = ?')
-                values.append(username)
+        # The frontend always sends all fields, so we update all of them
+        if 'username' in data and username:  # Only update username if it's not empty
+            updates.append('username = ?')
+            values.append(username)
         
         if 'first_name' in data:
             updates.append('first_name = ?')
@@ -1863,10 +1869,9 @@ def update_profile():
             updates.append('last_name = ?')
             values.append(last_name)
         
-        if 'email' in data:
-            if email:  # Only update email if it's not empty
-                updates.append('email = ?')
-                values.append(email)
+        if 'email' in data and email:  # Only update email if it's not empty
+            updates.append('email = ?')
+            values.append(email)
         
         if 'bio' in data:
             updates.append('bio = ?')
@@ -1875,6 +1880,9 @@ def update_profile():
         if 'profile_picture' in data:
             updates.append('profile_picture = ?')
             values.append(profile_picture)
+        
+        print(f"Updates to apply: {updates}")
+        print(f"Values: {values}")
         
         if updates:
             values.append(user_id)

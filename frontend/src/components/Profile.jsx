@@ -94,20 +94,20 @@ const Profile = ({ user, onUpdate, onClose }) => {
 
     try {
       // Upload profile picture if selected
-      let profilePictureUrl = profile.profile_picture;
+      let profilePictureUrl = profile.profile_picture || '';
       if (selectedFile) {
         const uploadResult = await authService.uploadProfilePicture(selectedFile);
-        profilePictureUrl = uploadResult.profile_picture;
+        profilePictureUrl = uploadResult.profile_picture || '';
       }
 
-      // Update profile
+      // Update profile - ensure all values are strings, not null/undefined
       const updated = await authService.updateProfile({
-        username: profile.username,
-        first_name: profile.first_name,
-        last_name: profile.last_name,
-        email: profile.email,
-        bio: profile.bio,
-        profile_picture: profilePictureUrl
+        username: profile.username || '',
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        email: profile.email || '',
+        bio: profile.bio || '',
+        profile_picture: profilePictureUrl || ''
       });
 
       // Update local profile state with saved data
