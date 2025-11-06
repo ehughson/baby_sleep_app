@@ -12,6 +12,24 @@ import { chatService } from './api/chatService';
 import { authService } from './api/authService';
 import { forumService } from './api/forumService';
 
+// Version check utility
+const checkForUpdates = async (currentVersionData) => {
+  try {
+    // Add cache-busting query parameter
+    const response = await fetch(`/version.json?t=${Date.now()}`);
+    const newVersionData = await response.json();
+    
+    // Compare version and buildTime
+    if (!currentVersionData) return false;
+    
+    return newVersionData.version !== currentVersionData.version || 
+           newVersionData.buildTime !== currentVersionData.buildTime;
+  } catch (error) {
+    console.error('Error checking for updates:', error);
+    return false;
+  }
+};
+
 function App() {
   const [activeTab, setActiveTab] = useState('chat'); // 'chat', 'forum', or 'friends'
   const [messages, setMessages] = useState([]);
@@ -27,8 +45,37 @@ function App() {
   const [showBabyProfile, setShowBabyProfile] = useState(false);
   const [showSleepGoals, setShowSleepGoals] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showUpdateBanner, setShowUpdateBanner] = useState(false);
+  const currentVersionRef = useRef(null);
 
   // Removed autoscroll - user can manually scroll if needed
+
+  // Check for app updates periodically
+  useEffect(() => {
+    // Load initial version
+    const loadVersion = async () => {
+      try {
+        const response = await fetch('/version.json');
+        const data = await response.json();
+        currentVersionRef.current = data;
+      } catch (error) {
+        console.error('Error loading version:', error);
+      }
+    };
+    loadVersion();
+
+    // Check for updates every 60 seconds
+    const checkInterval = setInterval(async () => {
+      if (currentVersionRef.current) {
+        const hasUpdate = await checkForUpdates(currentVersionRef.current);
+        if (hasUpdate) {
+          setShowUpdateBanner(true);
+        }
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(checkInterval);
+  }, []);
 
   // Check authentication on mount
   useEffect(() => {
@@ -42,6 +89,13 @@ function App() {
         try {
           const session = await authService.checkSession(token);
           if (session && session.authenticated) {
+            // Update localStorage with latest session data
+            if (session.username) localStorage.setItem('username', session.username);
+            if (session.user_id) localStorage.setItem('user_id', session.user_id);
+            if (session.first_name) localStorage.setItem('first_name', session.first_name);
+            if (session.profile_picture) localStorage.setItem('profile_picture', session.profile_picture);
+            if (session.bio !== undefined) localStorage.setItem('bio', session.bio || '');
+            
             setUser({ 
               username: session.username, 
               user_id: session.user_id,
@@ -50,51 +104,68 @@ function App() {
               bio: session.bio
             });
           } else {
-            // Only clear session if it's explicitly invalid (not a network error)
-            // If remember_me was set, keep the user logged in even if session check fails
-            if (!rememberMe) {
+            // Session check returned false (401 or expired)
+            // If remember_me was set, keep the user logged in with stored credentials
+            if (rememberMe) {
+              // Keep user logged in with stored credentials
+              const storedProfilePicture = localStorage.getItem('profile_picture');
+              const storedBio = localStorage.getItem('bio');
+              setUser({ 
+                username: username, 
+                user_id: localStorage.getItem('user_id'),
+                first_name: localStorage.getItem('first_name'),
+                profile_picture: storedProfilePicture || null,
+                bio: storedBio || null
+              });
+            } else {
+              // No remember_me - clear session and log out
               localStorage.removeItem('session_token');
               localStorage.removeItem('username');
               localStorage.removeItem('user_id');
               localStorage.removeItem('first_name');
               localStorage.removeItem('remember_me');
+              localStorage.removeItem('profile_picture');
+              localStorage.removeItem('bio');
               setUser(null);
-            } else {
-              // If remember me is set, keep user logged in with stored credentials
-              setUser({ 
-                username: username, 
-                user_id: localStorage.getItem('user_id'),
-                first_name: localStorage.getItem('first_name')
-              });
             }
           }
         } catch (error) {
           console.error('Auth check error:', error);
-          // Don't log out on network errors - keep user logged in if they have remember_me
+          // On network errors or other exceptions, keep user logged in if remember_me is set
           if (rememberMe) {
             // Keep user logged in with stored credentials
+            const storedProfilePicture = localStorage.getItem('profile_picture');
+            const storedBio = localStorage.getItem('bio');
             setUser({ 
               username: username, 
               user_id: localStorage.getItem('user_id'),
-              first_name: localStorage.getItem('first_name')
+              first_name: localStorage.getItem('first_name'),
+              profile_picture: storedProfilePicture || null,
+              bio: storedBio || null
             });
           } else {
-            // Only clear if it's not a network error and remember_me is not set
+            // Only clear if it's an explicit 401 (unauthorized) and remember_me is not set
             if (error.response && error.response.status === 401) {
               localStorage.removeItem('session_token');
               localStorage.removeItem('username');
               localStorage.removeItem('user_id');
               localStorage.removeItem('first_name');
               localStorage.removeItem('remember_me');
+              localStorage.removeItem('profile_picture');
+              localStorage.removeItem('bio');
               setUser(null);
-          } else {
-            // Network error - keep user logged in
-            setUser({ 
-              username: username, 
-              user_id: localStorage.getItem('user_id'),
-              first_name: localStorage.getItem('first_name')
-            });
-          }
+            } else {
+              // Network error or other error - keep user logged in
+              const storedProfilePicture = localStorage.getItem('profile_picture');
+              const storedBio = localStorage.getItem('bio');
+              setUser({ 
+                username: username, 
+                user_id: localStorage.getItem('user_id'),
+                first_name: localStorage.getItem('first_name'),
+                profile_picture: storedProfilePicture || null,
+                bio: storedBio || null
+              });
+            }
           }
         }
       } else {
@@ -118,6 +189,13 @@ function App() {
   }, []);
 
   const handleLoginSuccess = (authData) => {
+    // Save to localStorage for persistence
+    if (authData.username) localStorage.setItem('username', authData.username);
+    if (authData.user_id) localStorage.setItem('user_id', authData.user_id);
+    if (authData.first_name) localStorage.setItem('first_name', authData.first_name);
+    if (authData.profile_picture) localStorage.setItem('profile_picture', authData.profile_picture);
+    if (authData.bio !== undefined) localStorage.setItem('bio', authData.bio || '');
+    
     setUser({ 
       username: authData.username, 
       user_id: authData.user_id,
@@ -147,6 +225,8 @@ function App() {
     localStorage.removeItem('user_id');
     localStorage.removeItem('first_name');
     localStorage.removeItem('remember_me');
+    localStorage.removeItem('profile_picture');
+    localStorage.removeItem('bio');
     localStorage.removeItem('forum_author_name'); // Clear forum name too
     setUser(null);
   };
@@ -387,6 +467,30 @@ function App() {
 
   return (
     <div className="app">
+      {/* Update Banner */}
+      {showUpdateBanner && (
+        <div className="update-banner">
+          <div className="update-banner-content">
+            <span className="update-banner-text">🔄 A new version is available!</span>
+            <div className="update-banner-actions">
+              <button 
+                className="update-banner-btn"
+                onClick={() => {
+                  window.location.reload();
+                }}
+              >
+                Refresh Now
+              </button>
+              <button 
+                className="update-banner-close"
+                onClick={() => setShowUpdateBanner(false)}
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <header className="header">
         <div className="header-content">
           {activeTab === 'chat' && messages.length > 0 && (
