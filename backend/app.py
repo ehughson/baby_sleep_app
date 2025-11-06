@@ -1416,7 +1416,10 @@ def search_users():
         query = request.args.get('q', '').strip()
         current_user = request.args.get('current_user', '')
         
+        print(f"Search request - query: '{query}', current_user: '{current_user}'")
+        
         if not query:
+            print("Empty query, returning empty list")
             return jsonify([])
         
         conn = get_db_connection()
@@ -1424,6 +1427,7 @@ def search_users():
         
         # Search in both forum_users and auth_users to find all users with profile info
         # Only include active accounts (is_active = 1 or NULL for backward compatibility)
+        search_pattern = f'%{query}%'
         cursor.execute('''
             SELECT DISTINCT 
                 COALESCE(fu.username, au.username) as username,
@@ -1438,12 +1442,17 @@ def search_users():
               AND (au.is_active = 1 OR au.is_active IS NULL)
             ORDER BY username ASC
             LIMIT 20
-        ''', (f'%{query}%', f'%{query}%', current_user))
+        ''', (search_pattern, search_pattern, current_user))
         
         users = cursor.fetchall()
+        user_list = [dict(user) for user in users]
+        print(f"Found {len(user_list)} users matching '{query}'")
         conn.close()
-        return jsonify([dict(user) for user in users])
+        return jsonify(user_list)
     except Exception as e:
+        print(f"Error in search_users: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Failed to search users: {str(e)}'}), 500
 
 # Authentication endpoints

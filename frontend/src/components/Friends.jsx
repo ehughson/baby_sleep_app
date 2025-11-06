@@ -237,8 +237,11 @@ const Friends = ({ user, navigationOptions }) => {
       return;
     }
     
+    console.log('Searching for users:', { query, authorName });
+    
     try {
-      const results = await forumService.searchUsers(query, authorName);
+      const results = await forumService.searchUsers(query.trim(), authorName);
+      console.log('Search results:', results);
       setSearchResults(results || []);
     } catch (error) {
       console.error('Error searching users:', error);
