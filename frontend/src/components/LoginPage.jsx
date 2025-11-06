@@ -459,7 +459,17 @@ const LoginPage = ({ onLoginSuccess }) => {
             className="login-form"
             autoComplete="off"
             data-lpignore="true"
+            data-1p-ignore="true"
+            data-form-type="other"
           >
+            {/* Hidden dummy fields to confuse browser autocomplete */}
+            {isSignup && signupStep === 1 && (
+              <>
+                <input type="text" name="fake-username" autoComplete="off" style={{ position: 'absolute', left: '-9999px', opacity: 0, pointerEvents: 'none' }} tabIndex="-1" />
+                <input type="password" name="fake-password" autoComplete="off" style={{ position: 'absolute', left: '-9999px', opacity: 0, pointerEvents: 'none' }} tabIndex="-1" />
+              </>
+            )}
+            
             {error && <div className="login-error">{error}</div>}
             {success && <div className="login-success">{success}</div>}
             
@@ -496,17 +506,23 @@ const LoginPage = ({ onLoginSuccess }) => {
                   <label htmlFor="first-name">First Name</label>
                   <input
                     id="first-name"
-                    name="first-name"
+                    name="fname"
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
+                    onFocus={(e) => {
+                      e.target.removeAttribute('readonly');
+                    }}
                     placeholder="Enter first name"
                     required
                     disabled={isLoading}
                     autoFocus
                     autoComplete="off"
                     data-lpignore="true"
+                    data-1p-ignore="true"
                     data-form-type="other"
+                    readOnly
+                    style={{ backgroundColor: 'white' }}
                   />
                 </div>
 
@@ -514,16 +530,22 @@ const LoginPage = ({ onLoginSuccess }) => {
                   <label htmlFor="last-name">Last Name</label>
                   <input
                     id="last-name"
-                    name="last-name"
+                    name="lname"
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
+                    onFocus={(e) => {
+                      e.target.removeAttribute('readonly');
+                    }}
                     placeholder="Enter last name"
                     required
                     disabled={isLoading}
                     autoComplete="off"
                     data-lpignore="true"
+                    data-1p-ignore="true"
                     data-form-type="other"
+                    readOnly
+                    style={{ backgroundColor: 'white' }}
                   />
                 </div>
 
@@ -531,7 +553,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                   <label htmlFor="signup-email">Email</label>
                   <input
                     id="signup-email"
-                    name="signup-email"
+                    name="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -546,7 +568,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                   <label htmlFor="signup-password">Password</label>
                   <input
                     id="signup-password"
-                    name="signup-password"
+                    name="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
