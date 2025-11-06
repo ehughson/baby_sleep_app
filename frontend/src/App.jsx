@@ -313,7 +313,7 @@ function App() {
             ) : (
               <span className="sleep-icon">🌙</span>
             )}
-            <h1>REMi</h1>
+            <h1><span style={{ color: '#fff3d1' }}>REM</span>i</h1>
           </div>
           <p className="header-subtitle">Shaping sleep, one night at a time</p>
         </div>

@@ -308,6 +308,7 @@ body {
   font-weight: 500;
   font-size: 0.85rem;
   white-space: nowrap;
+  font-family: 'Nunito', sans-serif;
 }
 
 .logout-btn {
@@ -2040,7 +2041,8 @@ body {
   background: #fafbfc;
 }
 
-.user-name {
+/* This is for search results, keep it separate from header username */
+.search-result-item .user-name {
   font-weight: 500;
   color: #2c3e50;
   font-family: 'Nunito', sans-serif;
