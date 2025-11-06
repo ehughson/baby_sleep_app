@@ -1353,7 +1353,8 @@ def signup():
         # Generate or validate username
         if use_random_username:
             # If a username was provided and matches the random pattern, try to use it first
-            if username and username.strip() and username.strip().match(r'^[a-z]+_[a-z]+_\d+$'):
+            import re
+            if username and username.strip() and re.match(r'^[a-z]+_[a-z]+_\d+$', username.strip()):
                 # Check if the provided username is available
                 cursor.execute('SELECT * FROM auth_users WHERE username = ?', (username.strip(),))
                 if not cursor.fetchone():
