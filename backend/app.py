@@ -444,8 +444,35 @@ def get_channels():
         cursor.execute('SELECT * FROM forum_channels WHERE is_private = 0 ORDER BY name ASC')
     
     channels = cursor.fetchall()
+    
+    # Add active user count for each channel
+    channels_with_counts = []
+    for channel in channels:
+        channel_dict = dict(channel)
+        channel_id = channel_dict['id']
+        is_private = channel_dict.get('is_private', 0)
+        
+        if is_private:
+            # For private channels, count members
+            cursor.execute('''
+                SELECT COUNT(DISTINCT username) as count
+                FROM channel_members
+                WHERE channel_id = ?
+            ''', (channel_id,))
+        else:
+            # For public channels, count distinct users who have posted
+            cursor.execute('''
+                SELECT COUNT(DISTINCT author_name) as count
+                FROM forum_posts
+                WHERE channel_id = ?
+            ''', (channel_id,))
+        
+        result = cursor.fetchone()
+        channel_dict['active_users'] = result['count'] if result else 0
+        channels_with_counts.append(channel_dict)
+    
     conn.close()
-    return jsonify([dict(channel) for channel in channels])
+    return jsonify(channels_with_counts)
 
 @app.route('/api/forum/channels/<int:channel_id>/posts', methods=['GET'])
 def get_posts(channel_id):

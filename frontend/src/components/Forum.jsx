@@ -353,6 +353,9 @@ const Forum = ({ user, navigationOptions }) => {
                   {channel.is_private === 1 && (
                     <span className="topic-stat" style={{ color: '#a68cab' }}>🔒 Private</span>
                   )}
+                  <span className="topic-stat" style={{ color: '#666' }}>
+                    👥 {channel.active_users || 0} {channel.active_users === 1 ? 'member' : 'members'}
+                  </span>
                 </div>
               </div>
             ))

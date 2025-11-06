@@ -305,7 +305,7 @@ body {
 
 .user-name {
   color: white;
-  font-weight: 500;
+  font-weight: 700;
   font-size: 0.85rem;
   white-space: nowrap;
   font-family: 'Nunito', sans-serif;
@@ -876,7 +876,7 @@ body {
   padding: 0.75rem 1.5rem;
   border-radius: 25px;
   font-size: 0.95rem;
-  font-weight: 500;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
   font-family: 'Nunito', sans-serif;
