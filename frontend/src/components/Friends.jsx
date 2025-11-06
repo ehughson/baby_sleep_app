@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { forumService } from '../api/forumService';
 
-const Friends = ({ user }) => {
+const Friends = ({ user, navigationOptions }) => {
   const [friends, setFriends] = useState([]);
   const [friendRequests, setFriendRequests] = useState([]);
   const [showAddFriend, setShowAddFriend] = useState(false);
@@ -46,6 +46,41 @@ const Friends = ({ user }) => {
       console.error('Error initializing user:', error);
     }
   };
+
+  // Handle navigation from notifications
+  useEffect(() => {
+    if (navigationOptions && authorName) {
+      if (navigationOptions.showFriendRequests) {
+        // Show friend requests section (they're already loaded, just ensure UI shows them)
+        setShowAddFriend(false);
+        setSelectedFriend(null); // Make sure we're not in a chat view
+        // Scroll to friend requests section if needed
+        setTimeout(() => {
+          const requestsSection = document.querySelector('.friend-requests-section');
+          if (requestsSection) {
+            requestsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+        // Clear navigation options after handling
+        sessionStorage.removeItem('notification_nav');
+      } else if (navigationOptions.showMessages) {
+        // Find first friend with unread messages and open that conversation
+        setShowAddFriend(false);
+        const friendWithUnread = friends.find(friend => {
+          const friendUsername = friend.display_name || friend.friend_name || friend.username;
+          return unreadCounts[friendUsername] > 0;
+        });
+        if (friendWithUnread) {
+          const friendUsername = friendWithUnread.display_name || friendWithUnread.friend_name;
+          setSelectedFriend(friendUsername);
+          loadMessages(friendUsername);
+        }
+        // Clear navigation options after handling
+        sessionStorage.removeItem('notification_nav');
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigationOptions, authorName, friends, unreadCounts]);
 
   const loadUnreadCounts = async (username) => {
     try {

@@ -4,7 +4,7 @@ import { forumService } from '../api/forumService';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
-const Forum = ({ user }) => {
+const Forum = ({ user, navigationOptions }) => {
   const [channels, setChannels] = useState([]);
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -43,6 +43,18 @@ const Forum = ({ user }) => {
   }, [user]);
 
   // Removed auto-selection of first channel - start on channel list instead
+
+  // Handle navigation from notifications
+  useEffect(() => {
+    if (navigationOptions && navigationOptions.channelId && channels.length > 0) {
+      const channel = channels.find(c => c.id === navigationOptions.channelId);
+      if (channel) {
+        setSelectedChannel(channel);
+        // Clear navigation options after handling
+        sessionStorage.removeItem('notification_nav');
+      }
+    }
+  }, [navigationOptions, channels]);
 
   useEffect(() => {
     if (selectedChannel && !isLoadingChannels) {

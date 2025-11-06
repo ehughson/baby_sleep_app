@@ -289,7 +289,16 @@ function App() {
         <div className="header-actions">
           {user && (
             <>
-              <Notifications user={user} />
+              <Notifications 
+                user={user} 
+                onNavigate={(tab, options) => {
+                  setActiveTab(tab);
+                  // Store navigation options for child components
+                  if (options) {
+                    sessionStorage.setItem('notification_nav', JSON.stringify(options));
+                  }
+                }}
+              />
               <div className="user-menu">
                 <span className="user-name">{user.username}</span>
                 <button
@@ -405,9 +414,9 @@ function App() {
         />
       </div>
       ) : activeTab === 'forum' ? (
-        <Forum user={user} />
+        <Forum user={user} navigationOptions={activeTab === 'forum' ? JSON.parse(sessionStorage.getItem('notification_nav') || 'null') : null} />
       ) : (
-        <Friends user={user} />
+        <Friends user={user} navigationOptions={activeTab === 'friends' ? JSON.parse(sessionStorage.getItem('notification_nav') || 'null') : null} />
       )}
 
     </div>

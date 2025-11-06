@@ -244,6 +244,14 @@ body {
   background: #f8f8f8;
 }
 
+.notification-item.clickable {
+  cursor: pointer;
+}
+
+.notification-item.clickable:hover {
+  background: #f0f0f0;
+}
+
 .notification-icon {
   font-size: 1.2rem;
   flex-shrink: 0;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { notificationService } from '../api/notificationService';
 
-const Notifications = ({ user }) => {
+const Notifications = ({ user, onNavigate }) => {
   const [notifications, setNotifications] = useState({
     new_posts: [],
     new_messages: 0,
@@ -120,7 +120,16 @@ const Notifications = ({ user }) => {
                   <div className="notification-section">
                     <h4 className="notification-section-title">Friend Requests</h4>
                     {notifications.new_friend_requests.map((req, idx) => (
-                      <div key={idx} className="notification-item">
+                      <div 
+                        key={idx} 
+                        className="notification-item clickable"
+                        onClick={() => {
+                          if (onNavigate) {
+                            onNavigate('friends', { showFriendRequests: true });
+                            setShowDropdown(false);
+                          }
+                        }}
+                      >
                         <span className="notification-icon">👤</span>
                         <div className="notification-content">
                           <p><strong>{req.from_user}</strong> sent you a friend request</p>
@@ -134,7 +143,15 @@ const Notifications = ({ user }) => {
                 {notifications.new_messages > 0 && (
                   <div className="notification-section">
                     <h4 className="notification-section-title">Messages</h4>
-                    <div className="notification-item">
+                    <div 
+                      className="notification-item clickable"
+                      onClick={() => {
+                        if (onNavigate) {
+                          onNavigate('friends', { showMessages: true });
+                          setShowDropdown(false);
+                        }
+                      }}
+                    >
                       <span className="notification-icon">💬</span>
                       <div className="notification-content">
                         <p>You have <strong>{notifications.new_messages}</strong> new message{notifications.new_messages !== 1 ? 's' : ''}</p>
@@ -147,7 +164,16 @@ const Notifications = ({ user }) => {
                   <div className="notification-section">
                     <h4 className="notification-section-title">New Posts</h4>
                     {notifications.new_posts.map((post) => (
-                      <div key={post.id} className="notification-item">
+                      <div 
+                        key={post.id} 
+                        className="notification-item clickable"
+                        onClick={() => {
+                          if (onNavigate) {
+                            onNavigate('forum', { channelId: post.channel_id, postId: post.id });
+                            setShowDropdown(false);
+                          }
+                        }}
+                      >
                         <span className="notification-icon">📝</span>
                         <div className="notification-content">
                           <p>
