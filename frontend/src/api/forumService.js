@@ -90,14 +90,22 @@ export const forumService = {
 
   sendFriendRequest: async (fromUser, toUser) => {
     try {
+      console.log('Sending friend request API call:', { fromUser, toUser, url: `${API_BASE_URL}/forum/friends` });
       const response = await axios.post(`${API_BASE_URL}/forum/friends`, {
         from_user: fromUser,
         to_user: toUser
+      }, {
+        timeout: 10000
       });
+      console.log('Friend request response:', response.data);
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Failed to send friend request';
-      throw new Error(errorMessage);
+      console.error('Friend request error:', error);
+      if (error.response) {
+        const errorMessage = error.response.data?.error || 'Failed to send friend request';
+        throw new Error(errorMessage);
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
     }
   },
 

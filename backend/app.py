@@ -1346,8 +1346,10 @@ def send_friend_request():
     from database import get_db_connection
     try:
         data = request.get_json()
-        from_user = data.get('from_user')
-        to_user = data.get('to_user')
+        from_user = data.get('from_user', '').strip()
+        to_user = data.get('to_user', '').strip()
+        
+        print(f"Friend request - from: '{from_user}', to: '{to_user}'")
         
         if not from_user or not to_user:
             return jsonify({'error': 'Both users are required'}), 400
@@ -1369,9 +1371,11 @@ def send_friend_request():
         if existing:
             if existing['status'] == 'accepted':
                 conn.close()
+                print(f"Already friends: {from_user} and {to_user}")
                 return jsonify({'error': 'Already friends'}), 400
             elif existing['status'] == 'pending':
                 conn.close()
+                print(f"Friend request already pending: {from_user} and {to_user}")
                 return jsonify({'error': 'Friend request already sent'}), 400
         
         # Create friend request
@@ -1380,10 +1384,14 @@ def send_friend_request():
             VALUES (?, ?, 'pending')
         ''', (from_user, to_user))
         conn.commit()
+        print(f"Friend request created: {from_user} -> {to_user}")
         conn.close()
         
         return jsonify({'message': 'Friend request sent'})
     except Exception as e:
+        print(f"Error in send_friend_request: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Failed to send friend request: {str(e)}'}), 500
 
 @app.route('/api/forum/friends/accept', methods=['POST'])

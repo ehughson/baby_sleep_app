@@ -312,13 +312,31 @@ const Friends = ({ user, navigationOptions }) => {
   };
 
   const handleSendFriendRequest = async (toUser) => {
+    if (!authorName || !authorName.trim()) {
+      alert('Error: Your username is not set. Please refresh the page.');
+      return;
+    }
+    
+    if (!toUser || !toUser.trim()) {
+      alert('Error: Invalid user selected.');
+      return;
+    }
+    
+    console.log('Sending friend request:', { from: authorName, to: toUser });
+    
     try {
-      await forumService.sendFriendRequest(authorName, toUser);
+      const result = await forumService.sendFriendRequest(authorName, toUser);
+      console.log('Friend request sent successfully:', result);
       alert('Friend request sent!');
       setFriendSearchQuery('');
       setSearchResults([]);
       setShowAddFriend(false);
+      // Reload friend requests to show the sent request
+      if (authorName) {
+        loadFriendRequests(authorName);
+      }
     } catch (error) {
+      console.error('Error sending friend request:', error);
       alert(error.message || 'Failed to send friend request');
     }
   };
