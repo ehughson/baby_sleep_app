@@ -1306,6 +1306,17 @@ def get_friends(username):
         for f in all_friendships:
             print(f"  - {dict(f)}")
         
+        # Also check ALL friendships in database (for debugging)
+        cursor.execute('SELECT COUNT(*) as count FROM friendships')
+        total_friendships = cursor.fetchone()['count']
+        print(f"DEBUG: Total friendships in database: {total_friendships}")
+        if total_friendships > 0:
+            cursor.execute('SELECT * FROM friendships LIMIT 10')
+            sample_friendships = cursor.fetchall()
+            print(f"DEBUG: Sample friendships (first 10):")
+            for f in sample_friendships:
+                print(f"  - {dict(f)}")
+        
         print(f"Found {len(friend_list)} accepted friends for user: {username}")
         if friend_list:
             print(f"Friend names: {[f.get('friend_name') for f in friend_list]}")
