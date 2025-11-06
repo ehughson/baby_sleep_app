@@ -606,30 +606,48 @@ const Forum = ({ user, navigationOptions }) => {
                 </div>
               )}
               
-              {/* Reactions */}
-              <div className="post-reactions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                {(post.reactions || []).map((reaction, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleAddReaction(post.id, reaction.emoji)}
-                    className={`reaction-btn ${(post.user_reactions || []).includes(reaction.emoji) ? 'reacted' : ''}`}
-                    style={{
-                      background: (post.user_reactions || []).includes(reaction.emoji) ? '#a68cab' : '#f0f0f0',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '12px',
-                      padding: '0.25rem 0.5rem',
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.25rem'
-                    }}
-                  >
-                    <span>{reaction.emoji}</span>
-                    <span>{reaction.count}</span>
-                  </button>
-                ))}
-              </div>
+              {/* Reactions - LinkedIn style with counts */}
+              {(post.reactions || []).length > 0 && (
+                <div className="post-reactions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                  {(post.reactions || []).map((reaction, idx) => (
+                    <button
+                      key={idx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddReaction(post.id, reaction.emoji);
+                      }}
+                      className={`reaction-btn ${(post.user_reactions || []).includes(reaction.emoji) ? 'reacted' : ''}`}
+                      style={{
+                        background: (post.user_reactions || []).includes(reaction.emoji) ? '#a68cab' : '#f0f0f0',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '20px',
+                        padding: '0.35rem 0.65rem',
+                        fontSize: '0.9rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        transition: 'all 0.2s ease',
+                        fontWeight: 500,
+                        color: (post.user_reactions || []).includes(reaction.emoji) ? 'white' : '#333'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!(post.user_reactions || []).includes(reaction.emoji)) {
+                          e.currentTarget.style.background = '#e8e8e8';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!(post.user_reactions || []).includes(reaction.emoji)) {
+                          e.currentTarget.style.background = '#f0f0f0';
+                        }
+                      }}
+                    >
+                      <span style={{ fontSize: '1rem' }}>{reaction.emoji}</span>
+                      <span>{reaction.count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               
               {/* Emoji Picker */}
               {emojiPickerPostId === post.id && (
@@ -660,6 +678,17 @@ const Forum = ({ user, navigationOptions }) => {
                     type="button"
                     onMouseDown={(e) => {
                       e.stopPropagation();
+                      e.preventDefault();
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      handleAddReaction(post.id, emoji);
+                      setEmojiPickerPostId(null);
+                    }}
+                    onTouchEnd={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
                       handleAddReaction(post.id, emoji);
                       setEmojiPickerPostId(null);
                     }}
@@ -678,7 +707,8 @@ const Forum = ({ user, navigationOptions }) => {
                       height: '44px',
                       pointerEvents: 'auto',
                       userSelect: 'none',
-                      WebkitUserSelect: 'none'
+                      WebkitUserSelect: 'none',
+                      touchAction: 'manipulation'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.background = '#f0f0f0';
@@ -806,33 +836,48 @@ const Forum = ({ user, navigationOptions }) => {
                             )}
                           </div>
                         )}
-                        {/* Reactions for reply */}
-                        <div className="post-reactions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                          {(reply.reactions || []).map((reaction, idx) => (
-                            <button
-                              key={idx}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAddReaction(reply.id, reaction.emoji);
-                              }}
-                              className={`reaction-btn ${(reply.user_reactions || []).includes(reaction.emoji) ? 'reacted' : ''}`}
-                              style={{
-                                background: (reply.user_reactions || []).includes(reaction.emoji) ? '#a68cab' : '#f0f0f0',
-                                border: '1px solid #e0e0e0',
-                                borderRadius: '12px',
-                                padding: '0.25rem 0.5rem',
-                                fontSize: '0.85rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.25rem'
-                              }}
-                            >
-                              <span>{reaction.emoji}</span>
-                              <span>{reaction.count}</span>
-                            </button>
-                          ))}
-                        </div>
+                        {/* Reactions for reply - LinkedIn style */}
+                        {(reply.reactions || []).length > 0 && (
+                          <div className="post-reactions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                            {(reply.reactions || []).map((reaction, idx) => (
+                              <button
+                                key={idx}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddReaction(reply.id, reaction.emoji);
+                                }}
+                                className={`reaction-btn ${(reply.user_reactions || []).includes(reaction.emoji) ? 'reacted' : ''}`}
+                                style={{
+                                  background: (reply.user_reactions || []).includes(reaction.emoji) ? '#a68cab' : '#f0f0f0',
+                                  border: '1px solid #e0e0e0',
+                                  borderRadius: '20px',
+                                  padding: '0.35rem 0.65rem',
+                                  fontSize: '0.85rem',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  transition: 'all 0.2s ease',
+                                  fontWeight: 500,
+                                  color: (reply.user_reactions || []).includes(reaction.emoji) ? 'white' : '#333'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!(reply.user_reactions || []).includes(reaction.emoji)) {
+                                    e.currentTarget.style.background = '#e8e8e8';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!(reply.user_reactions || []).includes(reaction.emoji)) {
+                                    e.currentTarget.style.background = '#f0f0f0';
+                                  }
+                                }}
+                              >
+                                <span style={{ fontSize: '0.95rem' }}>{reaction.emoji}</span>
+                                <span>{reaction.count}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         {/* Emoji Picker for reply */}
                         {emojiPickerPostId === reply.id && (
                           <div 
@@ -862,6 +907,17 @@ const Forum = ({ user, navigationOptions }) => {
                                 type="button"
                                 onMouseDown={(e) => {
                                   e.stopPropagation();
+                                  e.preventDefault();
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  handleAddReaction(reply.id, emoji);
+                                  setEmojiPickerPostId(null);
+                                }}
+                                onTouchEnd={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
                                   handleAddReaction(reply.id, emoji);
                                   setEmojiPickerPostId(null);
                                 }}
@@ -880,7 +936,8 @@ const Forum = ({ user, navigationOptions }) => {
                                   height: '44px',
                                   pointerEvents: 'auto',
                                   userSelect: 'none',
-                                  WebkitUserSelect: 'none'
+                                  WebkitUserSelect: 'none',
+                                  touchAction: 'manipulation'
                                 }}
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.background = '#f0f0f0';
@@ -922,6 +979,14 @@ const Forum = ({ user, navigationOptions }) => {
                 }}
                 onMouseDown={(e) => {
                   // Don't close if clicking on the picker itself or any button inside it
+                  if (e.target.closest('.emoji-picker')) {
+                    e.stopPropagation();
+                    return;
+                  }
+                  setEmojiPickerPostId(null);
+                }}
+                onClick={(e) => {
+                  // Don't close if clicking on the picker itself
                   if (e.target.closest('.emoji-picker')) {
                     e.stopPropagation();
                     return;
