@@ -633,7 +633,7 @@ const Forum = ({ user, navigationOptions }) => {
                     left: `${emojiPickerPosition.x}px`,
                     top: `${emojiPickerPosition.y}px`,
                     transform: 'translateX(-50%) translateY(-100%)',
-                    zIndex: 1001,
+                    zIndex: 1002,
                     background: 'white',
                     borderRadius: '24px',
                     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
@@ -643,8 +643,14 @@ const Forum = ({ user, navigationOptions }) => {
                     marginBottom: '0.5rem',
                     pointerEvents: 'auto'
                   }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }}
                 >
                   {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
                     <button
@@ -653,6 +659,8 @@ const Forum = ({ user, navigationOptions }) => {
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
+                        handleAddReaction(post.id, emoji);
+                        setEmojiPickerPostId(null);
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -673,7 +681,8 @@ const Forum = ({ user, navigationOptions }) => {
                         justifyContent: 'center',
                         width: '44px',
                         height: '44px',
-                        pointerEvents: 'auto'
+                        pointerEvents: 'auto',
+                        userSelect: 'none'
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.background = '#f0f0f0';
@@ -868,7 +877,7 @@ const Forum = ({ user, navigationOptions }) => {
                               left: `${emojiPickerPosition.x}px`,
                               top: `${emojiPickerPosition.y}px`,
                               transform: 'translateX(-50%) translateY(-100%)',
-                              zIndex: 1001,
+                              zIndex: 1002,
                               background: 'white',
                               borderRadius: '24px',
                               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
@@ -878,8 +887,14 @@ const Forum = ({ user, navigationOptions }) => {
                               marginBottom: '0.5rem',
                               pointerEvents: 'auto'
                             }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                            }}
                           >
                             {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
                               <button
@@ -888,6 +903,8 @@ const Forum = ({ user, navigationOptions }) => {
                                 onMouseDown={(e) => {
                                   e.stopPropagation();
                                   e.preventDefault();
+                                  handleAddReaction(reply.id, emoji);
+                                  setEmojiPickerPostId(null);
                                 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -908,7 +925,8 @@ const Forum = ({ user, navigationOptions }) => {
                                   justifyContent: 'center',
                                   width: '44px',
                                   height: '44px',
-                                  pointerEvents: 'auto'
+                                  pointerEvents: 'auto',
+                                  userSelect: 'none'
                                 }}
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.background = '#f0f0f0';
@@ -949,15 +967,17 @@ const Forum = ({ user, navigationOptions }) => {
                   pointerEvents: 'auto'
                 }}
                 onMouseDown={(e) => {
-                  // Don't close if clicking on the picker itself
+                  // Don't close if clicking on the picker itself or any button inside it
                   if (e.target.closest('.emoji-picker')) {
+                    e.stopPropagation();
                     return;
                   }
                   setEmojiPickerPostId(null);
                 }}
                 onClick={(e) => {
-                  // Don't close if clicking on the picker itself
+                  // Don't close if clicking on the picker itself or any button inside it
                   if (e.target.closest('.emoji-picker')) {
+                    e.stopPropagation();
                     return;
                   }
                   setEmojiPickerPostId(null);
@@ -984,85 +1004,56 @@ const Forum = ({ user, navigationOptions }) => {
         </div>
       )}
 
-      {/* Reply input - Show which post is being replied to */}
-      {replyingTo && authorName && (() => {
-        const originalPost = posts.find(p => p.id === replyingTo);
-        return originalPost ? (
-          <div className="post-input-section" style={{ background: '#f8f8f8', padding: '1rem', borderRadius: '8px', marginTop: '1rem', border: '1px solid #e0e0e0' }}>
-            <div style={{ marginBottom: '0.75rem', fontSize: '0.85rem', color: '#666', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ color: '#a68cab', fontWeight: 600 }}>Replying to {originalPost.author_name}</span>
-            </div>
-            {/* Original message preview */}
-            <div 
-              style={{
-                background: 'white',
-                borderRadius: '8px',
-                padding: '0.75rem',
-                marginBottom: '0.75rem',
-                borderLeft: '3px solid #a68cab',
-                fontSize: '0.85rem',
-                color: '#666'
-              }}
-            >
-              <div style={{ fontWeight: 600, color: '#a68cab', marginBottom: '0.25rem', fontSize: '0.8rem' }}>
-                {originalPost.author_name}
-              </div>
-              <div style={{ 
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                lineHeight: '1.4'
-              }}>
-                {originalPost.content}
-              </div>
-            </div>
-            <form className="post-input-form" onSubmit={handleCreatePost}>
-              <textarea
-                className="post-input"
-                placeholder="Write your reply..."
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                rows={2}
-                style={{ background: 'white' }}
-              />
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReplyingTo(null);
-                    setReplyContent('');
-                  }}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: '#f0f0f0',
-                    border: '1px solid #e0e0e0',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    color: '#666',
-                    fontSize: '0.9rem'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="post-send-btn"
-                  disabled={!replyContent.trim()}
-                  style={{ 
-                    alignSelf: 'flex-end',
-                    padding: '0.5rem 1.5rem',
-                    fontSize: '0.9rem'
-                  }}
-                >
-                  Reply
-                </button>
-              </div>
-            </form>
+      {/* Reply input */}
+      {replyingTo && authorName && (
+        <div className="post-input-section" style={{ background: '#f8f8f8', padding: '1rem', borderRadius: '8px', marginTop: '1rem', border: '1px solid #e0e0e0' }}>
+          <div style={{ marginBottom: '0.75rem', fontSize: '0.85rem', color: '#666', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ color: '#a68cab', fontWeight: 600 }}>Replying to a post</span>
           </div>
-        ) : null;
-      })()}
+          <form className="post-input-form" onSubmit={handleCreatePost}>
+            <textarea
+              className="post-input"
+              placeholder="Write your reply..."
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              rows={2}
+              style={{ background: 'white' }}
+            />
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setReplyingTo(null);
+                  setReplyContent('');
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#f0f0f0',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  color: '#666',
+                  fontSize: '0.9rem'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="post-send-btn"
+                disabled={!replyContent.trim()}
+                style={{ 
+                  alignSelf: 'flex-end',
+                  padding: '0.5rem 1.5rem',
+                  fontSize: '0.9rem'
+                }}
+              >
+                Reply
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Post input */}
       {authorName && !replyingTo && (
