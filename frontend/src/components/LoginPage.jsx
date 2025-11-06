@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { authService } from '../api/authService';
 
 const LoginPage = ({ onLoginSuccess }) => {
@@ -150,6 +150,13 @@ const LoginPage = ({ onLoginSuccess }) => {
       setError('');
     }
   };
+
+  // Scroll to top when signup step changes
+  useEffect(() => {
+    if (isSignup && signupStep) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [signupStep, isSignup]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -651,7 +658,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                 <>
                   {/* Step 2: Baby Information */}
                   <h3 style={{ marginBottom: '0.25rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Baby Information</h3>
-                  <p style={{ marginBottom: '0.5rem', color: '#666', fontSize: '0.9rem' }}>Tell us about your little one(s) (all fields are optional)</p>
+                  <p style={{ marginBottom: '0.25rem', color: '#666', fontSize: '0.9rem' }}>Tell us about your little one(s) (all fields are optional)</p>
                   
                   {babies.map((baby, index) => (
                     <div key={index} style={{ marginBottom: '2rem', padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#f9f9f9' }}>
@@ -813,7 +820,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                 <>
                   {/* Step 3: Sleep Goals */}
                   <h3 style={{ marginBottom: '0.25rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Sleep Goals</h3>
-                  <p style={{ marginBottom: '0.5rem', color: '#666', fontSize: '0.9rem' }}>What are your main sleep goals? (all fields are optional)</p>
+                  <p style={{ marginBottom: '0.25rem', color: '#666', fontSize: '0.9rem' }}>What are your main sleep goals? (all fields are optional)</p>
                   
                   <div className="form-group">
                     <label htmlFor="goal-1">Sleep Goal 1</label>
