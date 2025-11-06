@@ -536,7 +536,7 @@ const Forum = ({ user, navigationOptions }) => {
               key={post.id}
               data-post-id={post.id}
               className={`post-card ${isReply ? 'post-reply' : ''}`} 
-              onMouseDown={(e) => {
+              onClick={(e) => {
                 // Don't show picker if clicking on buttons, links, or the emoji picker itself
                 if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.emoji-picker')) {
                   return;
@@ -545,19 +545,12 @@ const Forum = ({ user, navigationOptions }) => {
                 if (emojiPickerPostId) {
                   return;
                 }
-                e.preventDefault();
                 const rect = e.currentTarget.getBoundingClientRect();
                 setEmojiPickerPostId(post.id);
                 setEmojiPickerPosition({
                   x: rect.left + rect.width / 2,
                   y: rect.top - 10
                 });
-              }}
-              onClick={(e) => {
-                // Prevent default click behavior when picker is open
-                if (emojiPickerPostId === post.id) {
-                  e.stopPropagation();
-                }
               }}
               style={{
                 ...(isReply ? { 
@@ -774,26 +767,19 @@ const Forum = ({ user, navigationOptions }) => {
                       <div 
                         className="post-card post-reply"
                         data-post-id={reply.id}
-                        onMouseDown={(e) => {
+                        onClick={(e) => {
                           if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.emoji-picker')) {
                             return;
                           }
                           if (emojiPickerPostId) {
                             return;
                           }
-                          e.preventDefault();
                           const rect = e.currentTarget.getBoundingClientRect();
                           setEmojiPickerPostId(reply.id);
                           setEmojiPickerPosition({
                             x: rect.left + rect.width / 2,
                             y: rect.top - 10
                           });
-                        }}
-                        onClick={(e) => {
-                          // Prevent default click behavior when picker is open
-                          if (emojiPickerPostId === reply.id) {
-                            e.stopPropagation();
-                          }
                         }}
                         style={{
                           padding: '0.75rem',
