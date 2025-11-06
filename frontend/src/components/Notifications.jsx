@@ -124,6 +124,13 @@ const Notifications = ({ user, onNavigate }) => {
                         key={idx} 
                         className="notification-item clickable"
                         onClick={() => {
+                          // Clear this notification by updating last check time
+                          lastCheckRef.current = new Date().toISOString();
+                          // Remove this friend request from notifications
+                          setNotifications(prev => ({
+                            ...prev,
+                            new_friend_requests: prev.new_friend_requests.filter((r, i) => i !== idx)
+                          }));
                           if (onNavigate) {
                             onNavigate('friends', { showFriendRequests: true });
                             setShowDropdown(false);
@@ -146,6 +153,12 @@ const Notifications = ({ user, onNavigate }) => {
                     <div 
                       className="notification-item clickable"
                       onClick={() => {
+                        // Clear message notifications by updating last check time
+                        lastCheckRef.current = new Date().toISOString();
+                        setNotifications(prev => ({
+                          ...prev,
+                          new_messages: 0
+                        }));
                         if (onNavigate) {
                           onNavigate('friends', { showMessages: true });
                           setShowDropdown(false);
@@ -168,6 +181,12 @@ const Notifications = ({ user, onNavigate }) => {
                         key={post.id} 
                         className="notification-item clickable"
                         onClick={() => {
+                          // Clear this post notification
+                          lastCheckRef.current = new Date().toISOString();
+                          setNotifications(prev => ({
+                            ...prev,
+                            new_posts: prev.new_posts.filter(p => p.id !== post.id)
+                          }));
                           if (onNavigate) {
                             onNavigate('forum', { channelId: post.channel_id, postId: post.id });
                             setShowDropdown(false);

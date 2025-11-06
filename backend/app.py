@@ -1391,12 +1391,13 @@ def accept_friend_request():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Update friendship status
+        # Update friendship status - check both directions since friendship can be stored either way
         cursor.execute('''
             UPDATE friendships
             SET status = 'accepted'
-            WHERE user1_name = ? AND user2_name = ? AND status = 'pending'
-        ''', (from_user, to_user))
+            WHERE ((user1_name = ? AND user2_name = ?) OR (user1_name = ? AND user2_name = ?))
+            AND status = 'pending'
+        ''', (from_user, to_user, to_user, from_user))
         
         if cursor.rowcount == 0:
             conn.close()
