@@ -328,13 +328,18 @@ body {
   background: rgba(255, 255, 255, 0.3);
 }
 
-.profile-btn {
+/* User Menu Dropdown */
+.user-menu-dropdown {
+  position: relative;
+}
+
+.user-menu-toggle {
   background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.3);
   color: white;
   padding: 0.5rem 0.75rem;
   border-radius: 18px;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
@@ -342,48 +347,78 @@ body {
   justify-content: center;
   min-width: 40px;
   height: 40px;
-}
-
-.profile-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.baby-profile-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 0.5rem 0.75rem;
-  border-radius: 18px;
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  line-height: 1;
   font-family: 'Nunito', sans-serif;
 }
 
-.baby-profile-btn:hover {
+.user-menu-toggle:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 
-.sleep-goals-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 0.5rem 0.75rem;
-  border-radius: 18px;
-  font-size: 1.2rem;
+.user-menu-dropdown-content {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  min-width: 200px;
+  z-index: 1000;
+  overflow: hidden;
+  animation: dropdownFadeIn 0.2s ease;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-menu-item {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  text-align: left;
   cursor: pointer;
-  transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #333;
   font-family: 'Nunito', sans-serif;
+  transition: background 0.2s ease;
 }
 
-.sleep-goals-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+.user-menu-item:hover {
+  background: #f5f5f5;
+}
+
+.user-menu-item .menu-icon {
+  font-size: 1.2rem;
+  width: 24px;
+  text-align: center;
+}
+
+.user-menu-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 0.25rem 0;
+}
+
+.dropdown-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  background: transparent;
 }
 
 /* Profile Modal Styles */

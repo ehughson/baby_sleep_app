@@ -26,6 +26,7 @@ function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showBabyProfile, setShowBabyProfile] = useState(false);
   const [showSleepGoals, setShowSleepGoals] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Removed autoscroll - user can manually scroll if needed
 
@@ -383,34 +384,60 @@ function App() {
                     }
                   }}
                 />
-                <button
-                  className="profile-btn"
-                  onClick={() => setShowProfile(true)}
-                  title="Profile"
-                >
-                  👤
-                </button>
-                <button
-                  className="baby-profile-btn"
-                  onClick={() => setShowBabyProfile(true)}
-                  title="Baby Profile"
-                >
-                  👶
-                </button>
-                <button
-                  className="sleep-goals-btn"
-                  onClick={() => setShowSleepGoals(true)}
-                  title="Sleep Goals"
-                >
-                  🎯
-                </button>
-                <button
-                  className="logout-btn"
-                  onClick={handleLogout}
-                  title="Logout"
-                >
-                  Logout
-                </button>
+                <div className="user-menu-dropdown">
+                  <button
+                    className="user-menu-toggle"
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    title="Menu"
+                  >
+                    ⋯
+                  </button>
+                  {showUserMenu && (
+                    <div className="user-menu-dropdown-content">
+                      <button
+                        className="user-menu-item"
+                        onClick={() => {
+                          setShowProfile(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <span className="menu-icon">👤</span>
+                        <span>Profile</span>
+                      </button>
+                      <button
+                        className="user-menu-item"
+                        onClick={() => {
+                          setShowBabyProfile(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <span className="menu-icon">👶</span>
+                        <span>Baby Profile</span>
+                      </button>
+                      <button
+                        className="user-menu-item"
+                        onClick={() => {
+                          setShowSleepGoals(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <span className="menu-icon">🎯</span>
+                        <span>Sleep Goals</span>
+                      </button>
+                      <div className="user-menu-divider"></div>
+                      <button
+                        className="user-menu-item"
+                        onClick={() => {
+                          handleLogout();
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <span className="menu-icon">🚪</span>
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}
@@ -538,6 +565,14 @@ function App() {
         <SleepGoals 
           user={user} 
           onClose={() => setShowSleepGoals(false)}
+        />
+      )}
+      
+      {/* Close dropdown when clicking outside */}
+      {showUserMenu && (
+        <div 
+          className="dropdown-overlay"
+          onClick={() => setShowUserMenu(false)}
         />
       )}
     </div>
