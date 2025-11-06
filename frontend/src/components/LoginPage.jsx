@@ -412,17 +412,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     <div className="login-page">
       <div className="login-container">
           <div className="login-header">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              <img 
-                src="/images/baby-icon.png" 
-                alt="REMi" 
-                style={{ width: '40px', height: '40px', objectFit: 'contain' }}
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-              <h1 className="login-app-name"><span style={{ color: '#fff3d1' }}>REM</span>i</h1>
-            </div>
+            <h1 className="login-app-name"><span style={{ color: '#fff3d1' }}>REM</span>i</h1>
             <p className="login-tagline">Shaping sleep, one night at a time</p>
           </div>
 

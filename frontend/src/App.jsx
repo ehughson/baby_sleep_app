@@ -18,7 +18,6 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [conversationId, setConversationId] = useState(null);
-  const messagesEndRef = useRef(null);
   const isInitialMount = useRef(true);
   
   // Authentication state
@@ -28,13 +27,7 @@ function App() {
   const [showBabyProfile, setShowBabyProfile] = useState(false);
   const [showSleepGoals, setShowSleepGoals] = useState(false);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  // Removed autoscroll - user can manually scroll if needed
 
   // Check authentication on mount
   useEffect(() => {
@@ -217,26 +210,80 @@ function App() {
     setMessages(prev => [...prev, assistantMessage]);
 
     try {
+      // Track displayed content for letter-by-letter animation
+      let displayedLength = 0;
+      let fullResponseText = '';
+      let animationTimeout = null;
+      
+      // Function to animate one letter
+      const animateNextLetter = () => {
+        if (displayedLength < fullResponseText.length) {
+          displayedLength++;
+          const currentContent = fullResponseText.substring(0, displayedLength);
+          
+          // Update the assistant message
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, content: currentContent }
+              : msg
+          ));
+          
+          // Continue animating if there's more content
+          if (displayedLength < fullResponseText.length) {
+            animationTimeout = setTimeout(animateNextLetter, 20); // 20ms delay between letters (~50 letters per second)
+          } else {
+            animationTimeout = null; // Animation complete
+          }
+        } else {
+          animationTimeout = null; // Animation complete
+        }
+      };
+      
       // Handle streaming response
       const response = await chatService.sendMessage(
         message, 
         conversationId,
         (chunk, fullResponse) => {
-          // Update the assistant message as chunks arrive
-          setMessages(prev => prev.map(msg => 
-            msg.id === assistantMessageId 
-              ? { ...msg, content: fullResponse }
-              : msg
-          ));
+          // Update the full response text
+          fullResponseText = fullResponse;
+          
+          // Start animation if not already running
+          if (!animationTimeout && displayedLength < fullResponseText.length) {
+            animateNextLetter();
+          }
+          // If animation is running, it will naturally continue to the new content
         }
       );
-
-      // Update the final message with complete response
-      setMessages(prev => prev.map(msg => 
-        msg.id === assistantMessageId 
-          ? { ...msg, content: response.response }
-          : msg
-      ));
+      
+      // Ensure final content is displayed (complete any remaining animation)
+      const completeAnimation = () => {
+        if (displayedLength < response.response.length) {
+          displayedLength++;
+          const currentContent = response.response.substring(0, displayedLength);
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, content: currentContent }
+              : msg
+          ));
+          
+          // Continue if more content remains
+          if (displayedLength < response.response.length) {
+            animationTimeout = setTimeout(completeAnimation, 20);
+          }
+        }
+      };
+      
+      // Start completing animation if needed
+      if (displayedLength < response.response.length) {
+        completeAnimation();
+      }
+      
+      // Clean up any pending animation after a delay to ensure it completes
+      setTimeout(() => {
+        if (animationTimeout) {
+          clearTimeout(animationTimeout);
+        }
+      }, (response.response.length - displayedLength) * 20 + 100);
 
       // Set conversation ID if this is the first message
       if (!conversationId) {
@@ -461,7 +508,6 @@ function App() {
               {error}
             </div>
           )}
-          <div ref={messagesEndRef} />
         </div>
 
         <ChatInput
