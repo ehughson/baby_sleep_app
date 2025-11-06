@@ -165,7 +165,18 @@ const LoginPage = ({ onLoginSuccess }) => {
       }
     } catch (err) {
       console.error('Signup error:', err);
-      setError(err.message || 'An error occurred. Please try again.');
+      const errorMessage = err.message || 'An error occurred. Please try again.';
+      setError(errorMessage);
+      
+      // If email is already registered, suggest logging in
+      if (errorMessage.includes('Email already registered')) {
+        setTimeout(() => {
+          if (window.confirm('This email is already registered. Would you like to go to the login page instead?')) {
+            setIsSignup(false);
+            setError('');
+          }
+        }, 100);
+      }
     } finally {
       setIsLoading(false);
     }
