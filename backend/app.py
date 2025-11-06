@@ -1353,13 +1353,15 @@ def update_profile():
         if email:
             # Check if email already exists (if changed)
             cursor.execute('SELECT email FROM auth_users WHERE id = ?', (user_id,))
-            current_email = cursor.fetchone()['email']
-            if email != current_email:
-                cursor.execute('SELECT * FROM auth_users WHERE email = ? AND id != ?', (email, user_id))
-                existing = cursor.fetchone()
-                if existing:
-                    conn.close()
-                    return jsonify({'error': 'Email already registered. Please use a different email.'}), 400
+            current_email_row = cursor.fetchone()
+            if current_email_row:
+                current_email = current_email_row['email']
+                if email != current_email:
+                    cursor.execute('SELECT * FROM auth_users WHERE email = ? AND id != ?', (email, user_id))
+                    existing = cursor.fetchone()
+                    if existing:
+                        conn.close()
+                        return jsonify({'error': 'Email already registered. Please use a different email.'}), 400
         
         # Update profile
         updates = []
