@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { authService } from '../api/authService';
 
 const LoginPage = ({ onLoginSuccess }) => {
@@ -6,6 +6,7 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [signupStep, setSignupStep] = useState(1); // 1 = account, 2 = baby info, 3 = sleep goals
+  const formWrapperRef = useRef(null);
   
   // Signup fields
   const [firstName, setFirstName] = useState('');
@@ -75,14 +76,19 @@ const LoginPage = ({ onLoginSuccess }) => {
     
     // Move to step 2
     setSignupStep(2);
-    // Scroll to top
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      const container = document.querySelector('.login-container') || document.querySelector('.login-form-wrapper');
-      if (container) {
-        container.scrollTop = 0;
-      }
-    }, 0);
+    // Scroll to top after render
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        if (formWrapperRef.current) {
+          formWrapperRef.current.scrollTop = 0;
+        }
+        const container = document.querySelector('.login-container');
+        if (container) {
+          container.scrollTop = 0;
+        }
+      });
+    });
   };
 
   const handleSignupStep2 = (e) => {
@@ -91,14 +97,19 @@ const LoginPage = ({ onLoginSuccess }) => {
     
     // Move to step 3 (baby info is optional)
     setSignupStep(3);
-    // Scroll to top
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      const container = document.querySelector('.login-container') || document.querySelector('.login-form-wrapper');
-      if (container) {
-        container.scrollTop = 0;
-      }
-    }, 0);
+    // Scroll to top after render
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        if (formWrapperRef.current) {
+          formWrapperRef.current.scrollTop = 0;
+        }
+        const container = document.querySelector('.login-container');
+        if (container) {
+          container.scrollTop = 0;
+        }
+      });
+    });
   };
 
   const handleSignupStep3 = async (e) => {
@@ -170,15 +181,19 @@ const LoginPage = ({ onLoginSuccess }) => {
   // Scroll to top when signup step changes
   useEffect(() => {
     if (isSignup && signupStep) {
-      // Use setTimeout to ensure DOM has updated
-      setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'instant' });
-        // Also scroll the container if it exists
-        const container = document.querySelector('.login-container') || document.querySelector('.login-form-wrapper');
-        if (container) {
-          container.scrollTop = 0;
-        }
-      }, 0);
+      // Use double requestAnimationFrame to ensure DOM has fully updated
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: 0, behavior: 'instant' });
+          if (formWrapperRef.current) {
+            formWrapperRef.current.scrollTop = 0;
+          }
+          const container = document.querySelector('.login-container');
+          if (container) {
+            container.scrollTop = 0;
+          }
+        });
+      });
     }
   }, [signupStep, isSignup]);
 
@@ -453,7 +468,7 @@ const LoginPage = ({ onLoginSuccess }) => {
             <p className="login-tagline">Shaping sleep, one night at a time</p>
           </div>
 
-        <div className="login-form-wrapper">
+        <div className="login-form-wrapper" ref={formWrapperRef}>
           <div className="login-tabs">
             <button
               type="button"
