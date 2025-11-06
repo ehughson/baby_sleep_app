@@ -1650,6 +1650,11 @@ def login():
             conn.close()
             return jsonify({'error': 'Invalid username or password'}), 401
         
+        # Check if account is active
+        if user.get('is_active', 1) == 0:
+            conn.close()
+            return jsonify({'error': 'This account has been deactivated'}), 403
+        
         # Check password
         if not check_password_hash(user['password_hash'], password):
             conn.close()
@@ -1702,7 +1707,7 @@ def check_session():
         
         # Find session
         cursor.execute('''
-            SELECT s.*, u.username, u.id as user_id, u.first_name, u.profile_picture, u.bio
+            SELECT s.*, u.username, u.id as user_id, u.first_name, u.profile_picture, u.bio, u.is_active
             FROM sessions s
             JOIN auth_users u ON s.user_id = u.id
             WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
@@ -1712,6 +1717,11 @@ def check_session():
         if not session:
             conn.close()
             return jsonify({'authenticated': False}), 401
+        
+        # Check if account is active
+        if session.get('is_active', 1) == 0:
+            conn.close()
+            return jsonify({'authenticated': False, 'error': 'Account has been deactivated'}), 403
         
         conn.close()
         return jsonify({
@@ -1914,6 +1924,51 @@ def update_profile():
         return jsonify(dict(user))
     except Exception as e:
         return jsonify({'error': f'Failed to update profile: {str(e)}'}), 500
+
+@app.route('/api/auth/deactivate', methods=['POST'])
+def deactivate_account():
+    """Deactivate user account"""
+    from database import get_db_connection
+    try:
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not session_token:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user from session
+        cursor.execute('''
+            SELECT u.id, u.username
+            FROM sessions s
+            JOIN auth_users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
+        ''', (session_token,))
+        session = cursor.fetchone()
+        
+        if not session:
+            conn.close()
+            return jsonify({'error': 'Invalid session'}), 401
+        
+        user_id = session['id']
+        
+        # Deactivate account
+        cursor.execute('''
+            UPDATE auth_users 
+            SET is_active = 0, deactivated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (user_id,))
+        
+        # Delete all sessions for this user
+        cursor.execute('DELETE FROM sessions WHERE user_id = ?', (user_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': 'Account deactivated successfully'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to deactivate account: {str(e)}'}), 500
 
 @app.route('/api/auth/profile-picture', methods=['POST'])
 def upload_profile_picture():

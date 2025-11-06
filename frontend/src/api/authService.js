@@ -119,6 +119,26 @@ export const authService = {
     }
   },
 
+  // Deactivate account
+  deactivateAccount: async () => {
+    try {
+      const token = localStorage.getItem('session_token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      const response = await axios.post(`${API_BASE_URL}/auth/deactivate`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to deactivate account');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
+  },
+
   // Forgot password
   forgotPassword: async (email) => {
     try {

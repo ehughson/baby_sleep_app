@@ -149,9 +149,22 @@ def init_db():
             bio TEXT,
             reset_token TEXT,
             reset_token_expires TIMESTAMP,
+            is_active INTEGER DEFAULT 1,
+            deactivated_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    # Add is_active and deactivated_at columns to existing tables if they don't exist
+    try:
+        cursor.execute('ALTER TABLE auth_users ADD COLUMN is_active INTEGER DEFAULT 1')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    try:
+        cursor.execute('ALTER TABLE auth_users ADD COLUMN deactivated_at TIMESTAMP')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     
     # Create sessions table
     cursor.execute('''

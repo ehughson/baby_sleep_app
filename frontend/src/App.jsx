@@ -151,6 +151,32 @@ function App() {
     setUser(null);
   };
 
+  const handleDeactivate = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to deactivate your account? This action cannot be undone. You will be logged out immediately.'
+    );
+    
+    if (!confirmed) {
+      return;
+    }
+    
+    try {
+      await authService.deactivateAccount();
+      // Clear all local storage
+      localStorage.removeItem('session_token');
+      localStorage.removeItem('username');
+      localStorage.removeItem('user_id');
+      localStorage.removeItem('first_name');
+      localStorage.removeItem('remember_me');
+      localStorage.removeItem('forum_author_name');
+      setUser(null);
+      setShowUserMenu(false);
+      alert('Your account has been deactivated. You have been logged out.');
+    } catch (error) {
+      alert(`Failed to deactivate account: ${error.message}`);
+    }
+  };
+
   // Handle browser back/forward buttons and trackpad swipe gestures
   useEffect(() => {
     const handlePopState = (event) => {
@@ -442,6 +468,17 @@ function App() {
                         <span>Sleep Goals</span>
                       </button>
                       <div className="user-menu-divider"></div>
+                      <button
+                        className="user-menu-item"
+                        onClick={() => {
+                          handleDeactivate();
+                          setShowUserMenu(false);
+                        }}
+                        style={{ color: '#dc3545' }}
+                      >
+                        <span className="menu-icon">⚠️</span>
+                        <span>Deactivate Account</span>
+                      </button>
                       <button
                         className="user-menu-item"
                         onClick={() => {
