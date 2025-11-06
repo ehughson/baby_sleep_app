@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { forumService } from '../api/forumService';
+import UserProfile from './UserProfile';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
@@ -24,6 +25,7 @@ const Forum = ({ user, navigationOptions }) => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyContent, setReplyContent] = useState('');
+  const [viewingProfile, setViewingProfile] = useState(null);
 
 
   useEffect(() => {
@@ -552,9 +554,47 @@ const Forum = ({ user, navigationOptions }) => {
             >
               <div className="post-header" style={isReply ? { marginBottom: '0.5rem' } : {}}>
                 <div className="post-avatar" style={isReply ? { width: '32px', height: '32px', fontSize: '0.8rem' } : {}}>
-                  {getInitials(post.author_name)}
+                  {post.profile_picture ? (
+                    <img 
+                      src={forumService.getFileUrl(post.profile_picture)} 
+                      alt={post.author_name}
+                      style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        borderRadius: '50%', 
+                        objectFit: 'cover' 
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.parentElement.textContent = getInitials(post.author_name);
+                      }}
+                    />
+                  ) : (
+                    getInitials(post.author_name)
+                  )}
                 </div>
-                <span className="post-author" style={isReply ? { fontSize: '0.9rem' } : {}}>{post.author_name}</span>
+                <span 
+                  className="post-author" 
+                  style={{ 
+                    ...(isReply ? { fontSize: '0.9rem' } : {}),
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    textDecorationColor: 'transparent',
+                    transition: 'text-decoration-color 0.2s ease'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setViewingProfile(post.author_name);
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.textDecorationColor = '#a68cab';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.textDecorationColor = 'transparent';
+                  }}
+                >
+                  {post.author_name}
+                </span>
                 <span className="post-time" style={isReply ? { fontSize: '0.75rem' } : {}}>{formatTime(post.timestamp)}</span>
               </div>
               <div className="post-message" style={isReply ? { fontSize: '0.9rem', lineHeight: '1.5' } : {}}>{post.content}</div>
@@ -691,9 +731,47 @@ const Forum = ({ user, navigationOptions }) => {
                       >
                         <div className="post-header" style={{ marginBottom: '0.5rem' }}>
                           <div className="post-avatar" style={{ width: '32px', height: '32px', fontSize: '0.8rem' }}>
-                            {getInitials(reply.author_name)}
+                            {reply.profile_picture ? (
+                              <img 
+                                src={forumService.getFileUrl(reply.profile_picture)} 
+                                alt={reply.author_name}
+                                style={{ 
+                                  width: '100%', 
+                                  height: '100%', 
+                                  borderRadius: '50%', 
+                                  objectFit: 'cover' 
+                                }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.parentElement.textContent = getInitials(reply.author_name);
+                                }}
+                              />
+                            ) : (
+                              getInitials(reply.author_name)
+                            )}
                           </div>
-                          <span className="post-author" style={{ fontSize: '0.9rem' }}>{reply.author_name}</span>
+                          <span 
+                            className="post-author" 
+                            style={{ 
+                              fontSize: '0.9rem',
+                              cursor: 'pointer',
+                              textDecoration: 'underline',
+                              textDecorationColor: 'transparent',
+                              transition: 'text-decoration-color 0.2s ease'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewingProfile(reply.author_name);
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.textDecorationColor = '#a68cab';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.textDecorationColor = 'transparent';
+                            }}
+                          >
+                            {reply.author_name}
+                          </span>
                           <span className="post-time" style={{ fontSize: '0.75rem' }}>{formatTime(reply.timestamp)}</span>
                         </div>
                         <div className="post-message" style={{ fontSize: '0.9rem', lineHeight: '1.5' }}>{reply.content}</div>
@@ -951,6 +1029,14 @@ const Forum = ({ user, navigationOptions }) => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* User Profile Modal */}
+      {viewingProfile && (
+        <UserProfile 
+          username={viewingProfile} 
+          onClose={() => setViewingProfile(null)} 
+        />
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { forumService } from '../api/forumService';
+import UserProfile from './UserProfile';
 
 const Friends = ({ user, navigationOptions }) => {
   const [friends, setFriends] = useState([]);
@@ -14,6 +15,7 @@ const Friends = ({ user, navigationOptions }) => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({});
   const messagesEndRef = React.useRef(null);
+  const [viewingProfile, setViewingProfile] = useState(null);
 
   useEffect(() => {
     // Use logged-in user or saved name
@@ -275,7 +277,27 @@ const Friends = ({ user, navigationOptions }) => {
           </button>
           <div className="dm-friend-info">
             <div className="friend-avatar">
-              {selectedFriend.charAt(0).toUpperCase()}
+              {(() => {
+                const friend = friends.find(f => (f.display_name || f.friend_name) === selectedFriend);
+                return friend?.profile_picture ? (
+                  <img 
+                    src={forumService.getFileUrl(friend.profile_picture)} 
+                    alt={selectedFriend}
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      borderRadius: '50%', 
+                      objectFit: 'cover' 
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.textContent = selectedFriend.charAt(0).toUpperCase();
+                    }}
+                  />
+                ) : (
+                  selectedFriend.charAt(0).toUpperCase()
+                );
+              })()}
             </div>
             <span className="dm-friend-name">{selectedFriend}</span>
           </div>
@@ -349,7 +371,24 @@ const Friends = ({ user, navigationOptions }) => {
                 <div key={idx} className="friend-request-card">
                   <div className="friend-request-info">
                     <div className="friend-avatar">
-                      {request.from_user.charAt(0).toUpperCase()}
+                      {request.profile_picture ? (
+                        <img 
+                          src={forumService.getFileUrl(request.profile_picture)} 
+                          alt={request.from_user}
+                          style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            borderRadius: '50%', 
+                            objectFit: 'cover' 
+                          }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.textContent = request.from_user.charAt(0).toUpperCase();
+                          }}
+                        />
+                      ) : (
+                        request.from_user.charAt(0).toUpperCase()
+                      )}
                     </div>
                     <span className="friend-request-name">{request.from_user}</span>
                   </div>
@@ -384,7 +423,24 @@ const Friends = ({ user, navigationOptions }) => {
                     onClick={() => handleSelectFriend(friend)}
                   >
                     <div className="friend-avatar">
-                      {friendUsername.charAt(0).toUpperCase()}
+                      {friend.profile_picture ? (
+                        <img 
+                          src={forumService.getFileUrl(friend.profile_picture)} 
+                          alt={friendUsername}
+                          style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            borderRadius: '50%', 
+                            objectFit: 'cover' 
+                          }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.textContent = friendUsername.charAt(0).toUpperCase();
+                          }}
+                        />
+                      ) : (
+                        friendUsername.charAt(0).toUpperCase()
+                      )}
                     </div>
                     <div className="friend-info">
                       <span className="friend-name">{friendUsername}</span>
@@ -442,7 +498,54 @@ const Friends = ({ user, navigationOptions }) => {
                 <div className="search-results">
                   {searchResults.map((user) => (
                     <div key={user.username} className="search-result-item">
-                      <span className="user-name">{user.username}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                        <div className="friend-avatar" style={{ width: '40px', height: '40px', fontSize: '1rem' }}>
+                          {user.profile_picture ? (
+                            <img 
+                              src={forumService.getFileUrl(user.profile_picture)} 
+                              alt={user.username}
+                              style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                borderRadius: '50%', 
+                                objectFit: 'cover' 
+                              }}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.textContent = user.username.charAt(0).toUpperCase();
+                              }}
+                            />
+                          ) : (
+                            user.username.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div 
+                          style={{ display: 'flex', flexDirection: 'column', flex: 1, cursor: 'pointer' }}
+                          onClick={() => setViewingProfile(user.username)}
+                        >
+                          <span 
+                            className="user-name"
+                            style={{
+                              textDecoration: 'underline',
+                              textDecorationColor: 'transparent',
+                              transition: 'text-decoration-color 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.textDecorationColor = '#a68cab';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.textDecorationColor = 'transparent';
+                            }}
+                          >
+                            {user.username}
+                          </span>
+                          {user.bio && (
+                            <span style={{ fontSize: '0.75rem', color: '#666', fontStyle: 'italic', marginTop: '0.1rem' }}>
+                              {user.bio}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                       <button
                         className="add-friend-btn-small"
                         onClick={() => handleSendFriendRequest(user.username)}
@@ -460,6 +563,14 @@ const Friends = ({ user, navigationOptions }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* User Profile Modal */}
+      {viewingProfile && (
+        <UserProfile 
+          username={viewingProfile} 
+          onClose={() => setViewingProfile(null)} 
+        />
       )}
     </div>
   );

@@ -339,6 +339,21 @@ export const authService = {
       }
       throw new Error('Unable to connect to server. Please check if the backend is running.');
     }
+  },
+
+  // Get another user's public profile
+  getUserProfile: async (username) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/auth/profile/${username}`, {
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to get user profile');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
   }
 };
 

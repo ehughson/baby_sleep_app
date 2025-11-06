@@ -513,10 +513,13 @@ def get_posts(channel_id):
             return jsonify({'error': 'You do not have access to this private channel'}), 403
     
     # Return ALL posts in the channel - all members can see all posts regardless of who posted them
+    # Join with auth_users to get profile picture and bio
     cursor.execute('''
-        SELECT * FROM forum_posts 
-        WHERE channel_id = ? 
-        ORDER BY timestamp ASC
+        SELECT p.*, u.profile_picture, u.bio
+        FROM forum_posts p
+        LEFT JOIN auth_users u ON p.author_name = u.username
+        WHERE p.channel_id = ? 
+        ORDER BY p.timestamp ASC
     ''', (channel_id,))
     posts = cursor.fetchall()
     
@@ -1261,7 +1264,7 @@ def get_friends(username):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get accepted friendships
+        # Get accepted friendships with profile info
         cursor.execute('''
             SELECT 
                 CASE 
@@ -1269,7 +1272,9 @@ def get_friends(username):
                     ELSE user1_name
                 END as friend_name,
                 f.created_at,
-                u.display_name
+                u.display_name,
+                au.profile_picture,
+                au.bio
             FROM friendships f
             LEFT JOIN forum_users u ON (
                 CASE 
@@ -1277,10 +1282,16 @@ def get_friends(username):
                     ELSE u.username = f.user1_name
                 END
             )
+            LEFT JOIN auth_users au ON (
+                CASE 
+                    WHEN f.user1_name = ? THEN au.username = f.user2_name
+                    ELSE au.username = f.user1_name
+                END
+            )
             WHERE (user1_name = ? OR user2_name = ?)
             AND status = 'accepted'
             ORDER BY f.created_at DESC
-        ''', (username, username, username, username))
+        ''', (username, username, username, username, username))
         
         friends = cursor.fetchall()
         conn.close()
@@ -1300,14 +1311,17 @@ def get_friend_requests():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get pending requests where user is the recipient
+        # Get pending requests where user is the recipient with profile info
         cursor.execute('''
             SELECT 
-                user1_name as from_user,
-                created_at
-            FROM friendships
-            WHERE user2_name = ? AND status = 'pending'
-            ORDER BY created_at DESC
+                f.user1_name as from_user,
+                f.created_at,
+                au.profile_picture,
+                au.bio
+            FROM friendships f
+            LEFT JOIN auth_users au ON f.user1_name = au.username
+            WHERE f.user2_name = ? AND f.status = 'pending'
+            ORDER BY f.created_at DESC
         ''', (username,))
         
         requests = cursor.fetchall()
@@ -1408,12 +1422,14 @@ def search_users():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Search in both forum_users and auth_users to find all users
+        # Search in both forum_users and auth_users to find all users with profile info
         cursor.execute('''
             SELECT DISTINCT 
                 COALESCE(fu.username, au.username) as username,
                 COALESCE(fu.display_name, au.username) as display_name,
-                fu.last_seen
+                fu.last_seen,
+                au.profile_picture,
+                au.bio
             FROM auth_users au
             LEFT JOIN forum_users fu ON au.username = fu.username
             WHERE (au.username LIKE ? OR COALESCE(fu.display_name, au.username) LIKE ?)
@@ -1708,6 +1724,31 @@ def check_session():
         })
     except Exception as e:
         return jsonify({'authenticated': False, 'error': str(e)}), 500
+
+@app.route('/api/auth/profile/<username>', methods=['GET'])
+def get_user_profile(username):
+    """Get another user's public profile (username, profile_picture, bio)"""
+    from database import get_db_connection
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get public profile info
+        cursor.execute('''
+            SELECT username, profile_picture, bio
+            FROM auth_users
+            WHERE username = ?
+        ''', (username,))
+        user = cursor.fetchone()
+        
+        if not user:
+            conn.close()
+            return jsonify({'error': 'User not found'}), 404
+        
+        conn.close()
+        return jsonify(dict(user))
+    except Exception as e:
+        return jsonify({'error': f'Failed to get profile: {str(e)}'}), 500
 
 @app.route('/api/auth/profile', methods=['GET'])
 def get_profile():
