@@ -114,11 +114,13 @@ function App() {
   };
 
   const handleProfileUpdate = (updatedUser) => {
-    setUser(prev => ({ ...prev, ...updatedUser }));
-    // Update localStorage if username changed
-    if (updatedUser.username && updatedUser.username !== prev?.username) {
-      localStorage.setItem('username', updatedUser.username);
-    }
+    setUser(prev => {
+      // Update localStorage if username changed
+      if (updatedUser.username && updatedUser.username !== prev?.username) {
+        localStorage.setItem('username', updatedUser.username);
+      }
+      return { ...prev, ...updatedUser };
+    });
   };
 
   const handleLogout = async () => {

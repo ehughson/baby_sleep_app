@@ -12,14 +12,24 @@ const Profile = ({ user, onUpdate, onClose }) => {
     profile_picture: user?.profile_picture || ''
   });
   const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(
+    user?.profile_picture ? forumService.getFileUrl(user.profile_picture) : null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    loadProfile();
+    if (user) {
+      loadProfile();
+      // Also update previewUrl from user prop immediately
+      if (user.profile_picture) {
+        setPreviewUrl(forumService.getFileUrl(user.profile_picture));
+      } else {
+        setPreviewUrl(null);
+      }
+    }
   }, [user]);
 
   const loadProfile = async () => {
@@ -39,6 +49,8 @@ const Profile = ({ user, onUpdate, onClose }) => {
       
       if (data.profile_picture) {
         setPreviewUrl(forumService.getFileUrl(data.profile_picture));
+      } else {
+        setPreviewUrl(null);
       }
     } catch (error) {
       console.error('Error loading profile:', error);
