@@ -19,7 +19,7 @@ export const authService = {
         last_name: lastName,
         email,
         password,
-        username: useRandomUsername ? '' : username,
+        username: username || '', // Send the username even if useRandomUsername is true, so backend can use it if available
         use_random_username: useRandomUsername,
         remember_me: rememberMe
       }, {

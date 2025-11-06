@@ -1352,16 +1352,31 @@ def signup():
         
         # Generate or validate username
         if use_random_username:
-            # Generate a unique random username
-            max_attempts = 10
-            for _ in range(max_attempts):
-                username = generate_random_username()
-                cursor.execute('SELECT * FROM auth_users WHERE username = ?', (username,))
+            # If a username was provided and matches the random pattern, try to use it first
+            if username and username.strip() and username.strip().match(r'^[a-z]+_[a-z]+_\d+$'):
+                # Check if the provided username is available
+                cursor.execute('SELECT * FROM auth_users WHERE username = ?', (username.strip(),))
                 if not cursor.fetchone():
-                    break
+                    # Use the provided username
+                    username = username.strip()
+                else:
+                    # Provided username is taken, generate a new one
+                    username = None
             else:
-                conn.close()
-                return jsonify({'error': 'Could not generate a unique username. Please try again.'}), 500
+                # No valid username provided, generate a new one
+                username = None
+            
+            # If we still need to generate a username
+            if not username:
+                max_attempts = 10
+                for _ in range(max_attempts):
+                    username = generate_random_username()
+                    cursor.execute('SELECT * FROM auth_users WHERE username = ?', (username,))
+                    if not cursor.fetchone():
+                        break
+                else:
+                    conn.close()
+                    return jsonify({'error': 'Could not generate a unique username. Please try again.'}), 500
         else:
             # User provided username
             if not username:
