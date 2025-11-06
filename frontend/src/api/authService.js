@@ -140,6 +140,62 @@ export const authService = {
       }
       throw new Error('Unable to connect to server. Please check if the backend is running.');
     }
+  },
+
+  // Get profile
+  getProfile: async () => {
+    try {
+      const token = localStorage.getItem('session_token');
+      const response = await axios.get(`${API_BASE_URL}/auth/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to get profile');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
+  },
+
+  // Update profile
+  updateProfile: async (profileData) => {
+    try {
+      const token = localStorage.getItem('session_token');
+      const response = await axios.put(`${API_BASE_URL}/auth/profile`, profileData, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to update profile');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
+  },
+
+  // Upload profile picture
+  uploadProfilePicture: async (file) => {
+    try {
+      const token = localStorage.getItem('session_token');
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await axios.post(`${API_BASE_URL}/auth/profile-picture`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`
+        },
+        timeout: 30000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to upload profile picture');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
   }
 };
 

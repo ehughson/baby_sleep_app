@@ -5,8 +5,10 @@ import Forum from './components/Forum';
 import Friends from './components/Friends';
 import LoginPage from './components/LoginPage';
 import Notifications from './components/Notifications';
+import Profile from './components/Profile';
 import { chatService } from './api/chatService';
 import { authService } from './api/authService';
+import { forumService } from './api/forumService';
 
 function App() {
   const [activeTab, setActiveTab] = useState('chat'); // 'chat', 'forum', or 'friends'
@@ -20,6 +22,7 @@ function App() {
   // Authentication state
   const [user, setUser] = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [showProfile, setShowProfile] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -41,7 +44,12 @@ function App() {
         try {
           const session = await authService.checkSession(token);
           if (session && session.authenticated) {
-            setUser({ username: session.username, user_id: session.user_id });
+            setUser({ 
+              username: session.username, 
+              user_id: session.user_id,
+              profile_picture: session.profile_picture,
+              bio: session.bio
+            });
           } else {
             // Only clear session if it's explicitly invalid (not a network error)
             // If remember_me was set, keep the user logged in even if session check fails
@@ -97,7 +105,16 @@ function App() {
   }, []);
 
   const handleLoginSuccess = (authData) => {
-    setUser({ username: authData.username, user_id: authData.user_id });
+    setUser({ 
+      username: authData.username, 
+      user_id: authData.user_id,
+      profile_picture: authData.profile_picture,
+      bio: authData.bio
+    });
+  };
+
+  const handleProfileUpdate = (updatedUser) => {
+    setUser(prev => ({ ...prev, ...updatedUser }));
   };
 
   const handleLogout = async () => {
@@ -281,7 +298,15 @@ function App() {
             </button>
           )}
           <div className="header-title">
-            <span className="sleep-icon">🌙</span>
+            {user?.profile_picture ? (
+              <img 
+                src={forumService.getFileUrl(user.profile_picture)} 
+                alt="Profile" 
+                className="header-profile-picture"
+              />
+            ) : (
+              <span className="sleep-icon">🌙</span>
+            )}
             <h1>REMi</h1>
           </div>
           <p className="header-subtitle">Shaping sleep, one night at a time</p>
@@ -289,17 +314,24 @@ function App() {
         <div className="header-actions">
           {user && (
             <>
-              <Notifications 
-                user={user} 
-                onNavigate={(tab, options) => {
-                  setActiveTab(tab);
-                  // Store navigation options for child components
-                  if (options) {
-                    sessionStorage.setItem('notification_nav', JSON.stringify(options));
-                  }
-                }}
-              />
               <div className="user-menu">
+                <Notifications 
+                  user={user} 
+                  onNavigate={(tab, options) => {
+                    setActiveTab(tab);
+                    // Store navigation options for child components
+                    if (options) {
+                      sessionStorage.setItem('notification_nav', JSON.stringify(options));
+                    }
+                  }}
+                />
+                <button
+                  className="profile-btn"
+                  onClick={() => setShowProfile(true)}
+                  title="Profile"
+                >
+                  👤
+                </button>
                 <span className="user-name">{user.username}</span>
                 <button
                   className="logout-btn"
@@ -419,6 +451,13 @@ function App() {
         <Friends user={user} navigationOptions={activeTab === 'friends' ? JSON.parse(sessionStorage.getItem('notification_nav') || 'null') : null} />
       )}
 
+      {showProfile && user && (
+        <Profile 
+          user={user} 
+          onUpdate={handleProfileUpdate}
+          onClose={() => setShowProfile(false)}
+        />
+      )}
     </div>
   );
 }

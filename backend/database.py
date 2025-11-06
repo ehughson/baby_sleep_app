@@ -117,6 +117,8 @@ def init_db():
             last_name TEXT,
             email TEXT NOT NULL,
             password_hash TEXT NOT NULL,
+            profile_picture TEXT,
+            bio TEXT,
             reset_token TEXT,
             reset_token_expires TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

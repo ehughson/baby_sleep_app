@@ -1152,6 +1152,10 @@ def signup():
             VALUES (?, ?, ?)
         ''', (user_id, session_token, expires_at))
         
+        # Get created user to return profile data
+        cursor.execute('SELECT profile_picture, bio FROM auth_users WHERE id = ?', (user_id,))
+        user_data = cursor.fetchone()
+        
         conn.commit()
         conn.close()
         
@@ -1159,7 +1163,9 @@ def signup():
             'message': 'Account created successfully',
             'session_token': session_token,
             'username': username,
-            'user_id': user_id
+            'user_id': user_id,
+            'profile_picture': user_data.get('profile_picture') if user_data else None,
+            'bio': user_data.get('bio') if user_data else None
         })
     except Exception as e:
         print(f'Signup error: {str(e)}')  # Debug logging
@@ -1218,7 +1224,9 @@ def login():
             'message': 'Login successful',
             'session_token': session_token,
             'username': username,
-            'user_id': user['id']
+            'user_id': user['id'],
+            'profile_picture': user.get('profile_picture'),
+            'bio': user.get('bio')
         })
     except Exception as e:
         return jsonify({'error': f'Failed to login: {str(e)}'}), 500
@@ -1238,7 +1246,7 @@ def check_session():
         
         # Find session
         cursor.execute('''
-            SELECT s.*, u.username, u.id as user_id
+            SELECT s.*, u.username, u.id as user_id, u.profile_picture, u.bio
             FROM sessions s
             JOIN auth_users u ON s.user_id = u.id
             WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
@@ -1253,10 +1261,170 @@ def check_session():
         return jsonify({
             'authenticated': True,
             'username': session['username'],
-            'user_id': session['user_id']
+            'user_id': session['user_id'],
+            'profile_picture': session.get('profile_picture'),
+            'bio': session.get('bio')
         })
     except Exception as e:
         return jsonify({'authenticated': False, 'error': str(e)}), 500
+
+@app.route('/api/auth/profile', methods=['GET'])
+def get_profile():
+    """Get user profile"""
+    from database import get_db_connection
+    try:
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not session_token:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user from session
+        cursor.execute('''
+            SELECT u.id, u.username, u.first_name, u.last_name, u.email, u.profile_picture, u.bio
+            FROM sessions s
+            JOIN auth_users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
+        ''', (session_token,))
+        user = cursor.fetchone()
+        
+        if not user:
+            conn.close()
+            return jsonify({'error': 'Invalid session'}), 401
+        
+        conn.close()
+        return jsonify(dict(user))
+    except Exception as e:
+        return jsonify({'error': f'Failed to get profile: {str(e)}'}), 500
+
+@app.route('/api/auth/profile', methods=['PUT'])
+def update_profile():
+    """Update user profile (bio and profile picture)"""
+    from database import get_db_connection
+    try:
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not session_token:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user from session
+        cursor.execute('''
+            SELECT u.id
+            FROM sessions s
+            JOIN auth_users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
+        ''', (session_token,))
+        session = cursor.fetchone()
+        
+        if not session:
+            conn.close()
+            return jsonify({'error': 'Invalid session'}), 401
+        
+        user_id = session['id']
+        data = request.get_json()
+        bio = data.get('bio', '').strip()
+        profile_picture = data.get('profile_picture', '').strip()
+        
+        # Update profile
+        updates = []
+        values = []
+        
+        if bio is not None:
+            updates.append('bio = ?')
+            values.append(bio)
+        
+        if profile_picture is not None:
+            updates.append('profile_picture = ?')
+            values.append(profile_picture)
+        
+        if updates:
+            values.append(user_id)
+            cursor.execute(f'''
+                UPDATE auth_users 
+                SET {', '.join(updates)}
+                WHERE id = ?
+            ''', values)
+            conn.commit()
+        
+        # Get updated user
+        cursor.execute('''
+            SELECT id, username, first_name, last_name, email, profile_picture, bio
+            FROM auth_users
+            WHERE id = ?
+        ''', (user_id,))
+        user = cursor.fetchone()
+        
+        conn.close()
+        return jsonify(dict(user))
+    except Exception as e:
+        return jsonify({'error': f'Failed to update profile: {str(e)}'}), 500
+
+@app.route('/api/auth/profile-picture', methods=['POST'])
+def upload_profile_picture():
+    """Upload profile picture"""
+    from database import get_db_connection
+    try:
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not session_token:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user from session
+        cursor.execute('''
+            SELECT u.id
+            FROM sessions s
+            JOIN auth_users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
+        ''', (session_token,))
+        session = cursor.fetchone()
+        
+        if not session:
+            conn.close()
+            return jsonify({'error': 'Invalid session'}), 401
+        
+        if 'file' not in request.files:
+            conn.close()
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            conn.close()
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            # Add unique prefix to avoid conflicts
+            unique_filename = f"profile_{session['id']}_{uuid.uuid4().hex}_{filename}"
+            filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+            file.save(filepath)
+            
+            # Update user's profile picture
+            cursor.execute('''
+                UPDATE auth_users 
+                SET profile_picture = ?
+                WHERE id = ?
+            ''', (unique_filename, session['id']))
+            
+            conn.commit()
+            conn.close()
+            
+            return jsonify({
+                'profile_picture': unique_filename,
+                'url': f'/api/forum/files/{unique_filename}'
+            })
+        else:
+            conn.close()
+            return jsonify({'error': 'File type not allowed. Please upload an image.'}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to upload profile picture: {str(e)}'}), 500
 
 @app.route('/api/auth/forgot-password', methods=['POST'])
 def forgot_password():
