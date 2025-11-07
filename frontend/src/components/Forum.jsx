@@ -27,6 +27,8 @@ const Forum = ({ user, navigationOptions }) => {
   const [replyContent, setReplyContent] = useState('');
   const [viewingProfile, setViewingProfile] = useState(null);
 
+  const currentUsername = user?.username || authorName || '';
+
 
   useEffect(() => {
     // Load channels from backend
@@ -61,9 +63,15 @@ const Forum = ({ user, navigationOptions }) => {
   }, [navigationOptions, channels]);
 
   useEffect(() => {
+    if (currentUsername) {
+      loadChannels();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUsername]);
+
+  useEffect(() => {
     if (selectedChannel && !isLoadingChannels) {
-      const username = user?.username || authorName || '';
-      loadPosts(selectedChannel.id, username);
+      loadPosts(selectedChannel.id, currentUsername);
       loadChannelMembers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -80,7 +88,7 @@ const Forum = ({ user, navigationOptions }) => {
     } catch (error) {
       console.error('Error loading posts:', error);
       if (error.response?.status === 403) {
-        alert('You do not have access to this private channel');
+        alert(error.response?.data?.error || 'You do not have access to this channel');
         setSelectedChannel(null);
       }
       setPosts([]);
@@ -169,29 +177,56 @@ const Forum = ({ user, navigationOptions }) => {
     }
 
     try {
-      const username = user?.username || authorName || '';
+      const username = currentUsername;
       if (!username) {
         alert('You must be logged in to delete a channel');
         return;
       }
       await forumService.deleteChannel(selectedChannel.id, username);
       setSelectedChannel(null);
-      loadChannels();
+      await loadChannels();
       alert('Channel deleted successfully');
     } catch (error) {
       alert(error.message || 'Failed to delete channel');
     }
   };
 
+  const handleLeaveChannel = async () => {
+    if (!selectedChannel) return;
+
+    if (!currentUsername) {
+      alert('You must be logged in to leave a channel');
+      return;
+    }
+
+    if (!confirm(`Leave the "${selectedChannel.name}" channel? You can rejoin later if invited or the topic becomes public.`)) {
+      return;
+    }
+
+    try {
+      await forumService.leaveChannel(selectedChannel.id, currentUsername);
+      setSelectedChannel(null);
+      setPosts([]);
+      await loadChannels();
+      alert('You have left the channel');
+    } catch (error) {
+      alert(error.message || 'Failed to leave channel');
+    }
+  };
+
   const handleTogglePrivacy = async () => {
     if (!selectedChannel) return;
     try {
-      const username = user?.username || authorName;
+      const username = currentUsername;
+      if (!username) {
+        alert('You must be logged in to update privacy');
+        return;
+      }
       const newPrivacy = !selectedChannel.is_private;
       await forumService.updateChannelPrivacy(selectedChannel.id, newPrivacy, username);
       // Update local channel state
       setSelectedChannel({ ...selectedChannel, is_private: newPrivacy ? 1 : 0 });
-      loadChannels();
+      await loadChannels();
       alert(`Channel is now ${newPrivacy ? 'private' : 'public'}`);
     } catch (error) {
       alert(error.message || 'Failed to update privacy');
@@ -203,7 +238,7 @@ const Forum = ({ user, navigationOptions }) => {
     if (!inviteUsername.trim()) return;
 
     try {
-      const username = user?.username || authorName;
+      const username = currentUsername || authorName;
       await forumService.inviteToChannel(selectedChannel.id, username, inviteUsername);
       setInviteUsername('');
       setShowInviteModal(false);
@@ -233,8 +268,7 @@ const Forum = ({ user, navigationOptions }) => {
   const loadChannels = async () => {
     setIsLoadingChannels(true);
     try {
-      const username = user?.username || authorName || '';
-      const data = await forumService.getChannels(username);
+      const data = await forumService.getChannels(currentUsername);
       setChannels(data);
     } catch (error) {
       console.error('Error loading channels:', error);
@@ -259,7 +293,11 @@ const Forum = ({ user, navigationOptions }) => {
     if (!newChannelName.trim()) return;
 
     try {
-      const username = user?.username || authorName;
+      const username = currentUsername;
+      if (!username) {
+        alert('You must be logged in to create a channel');
+        return;
+      }
       const newChannel = await forumService.createChannel({
         name: newChannelName,
         icon: newChannelIcon,
@@ -477,7 +515,7 @@ const Forum = ({ user, navigationOptions }) => {
           )}
         </div>
         <div className="topic-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
-          {(!selectedChannel.owner_name || selectedChannel.owner_name === (user?.username || authorName)) && (
+          {selectedChannel.owner_name && selectedChannel.owner_name === currentUsername && (
             <>
               <button
                 className="topic-action-btn"
@@ -502,13 +540,22 @@ const Forum = ({ user, navigationOptions }) => {
               </button>
             </>
           )}
-          {selectedChannel.is_private === 1 && selectedChannel.owner_name !== (user?.username || authorName) && (
+          {selectedChannel.is_private === 1 && selectedChannel.owner_name !== currentUsername && (
             <button
               className="topic-action-btn"
               onClick={() => setShowInviteModal(true)}
               title="Invite Members"
             >
               👥
+            </button>
+          )}
+          {currentUsername && selectedChannel.owner_name !== currentUsername && (
+            <button
+              className="topic-action-btn"
+              onClick={handleLeaveChannel}
+              title="Leave Topic"
+            >
+              🚪
             </button>
           )}
         </div>

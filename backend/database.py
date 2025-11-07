@@ -63,6 +63,18 @@ def init_db():
             UNIQUE(channel_id, username)
         )
     ''')
+
+    # Create channel opt-out table (tracks users who leave/hide channels)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS channel_opt_out (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(channel_id, username),
+            FOREIGN KEY (channel_id) REFERENCES forum_channels (id) ON DELETE CASCADE
+        )
+    ''')
     
     # Create channel invites table
     cursor.execute('''

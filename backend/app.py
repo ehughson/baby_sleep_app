@@ -135,6 +135,15 @@ init_db()
 # Load API key from environment variable
 gemini_api_key = os.getenv('GEMINI_API_KEY')
 
+DEFAULT_CHANNEL_NAMES = {
+    'general',
+    'night-wakings',
+    'bedtime-routines',
+    'nap-schedules',
+    'gentle-methods',
+    'support'
+}
+
 def get_gemini_response(message, conversation_history=None, user_context=None, stream=False):
     """Get response from Gemini API with sleep training specialization"""
     if not gemini_api_key:
@@ -503,14 +512,17 @@ def get_channels():
     cursor = conn.cursor()
     
     if username:
-        # Get public channels + private channels user is member of
+        # Get public channels + private channels user is member of, excluding channels they've opted out of
         cursor.execute('''
             SELECT DISTINCT c.*
             FROM forum_channels c
             LEFT JOIN channel_members cm ON c.id = cm.channel_id AND cm.username = ?
-            WHERE c.is_private = 0 OR (c.is_private = 1 AND cm.username = ?)
+            LEFT JOIN channel_opt_out coo ON c.id = coo.channel_id AND coo.username = ?
+            WHERE coo.id IS NULL AND (
+                c.is_private = 0 OR (c.is_private = 1 AND cm.username = ?)
+            )
             ORDER BY c.name ASC
-        ''', (username, username))
+        ''', (username, username, username))
     else:
         # Only public channels if no username
         cursor.execute('SELECT * FROM forum_channels WHERE is_private = 0 ORDER BY name ASC')
@@ -563,6 +575,14 @@ def get_posts(channel_id):
         conn.close()
         return jsonify({'error': 'Channel not found'}), 404
     
+    # If user has opted out of this channel, block access
+    if username:
+        cursor.execute('SELECT 1 FROM channel_opt_out WHERE channel_id = ? AND username = ?', (channel_id, username))
+        left_record = cursor.fetchone()
+        if left_record:
+            conn.close()
+            return jsonify({'error': 'You have left this channel'}), 403
+
     # For private channels, verify user is a member (owner or invited member)
     if channel['is_private']:
         if not username:
@@ -762,24 +782,45 @@ def delete_channel(channel_id):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Check if user is owner
-        cursor.execute('SELECT owner_name FROM forum_channels WHERE id = ?', (channel_id,))
+        # Check if user is owner and channel is not permanent
+        cursor.execute('SELECT name, owner_name FROM forum_channels WHERE id = ?', (channel_id,))
         channel = cursor.fetchone()
         
         if not channel:
             conn.close()
             return jsonify({'error': 'Channel not found'}), 404
         
-        # Allow deletion if user is owner OR if channel has no owner (for backward compatibility)
+        channel_name = channel['name']
         owner_name = channel['owner_name'] if channel['owner_name'] else ''
-        if owner_name and owner_name != username:
+
+        # Prevent deletion of permanent/system channels
+        if channel_name in DEFAULT_CHANNEL_NAMES:
             conn.close()
-            return jsonify({'error': 'Only channel owner can delete the channel'}), 403
+            return jsonify({'error': 'This channel is permanent and cannot be deleted'}), 403
+
+        # Determine ownership - allow delete if explicit owner matches or user has owner role in channel_members
+        is_owner = False
+        if owner_name:
+            is_owner = owner_name == username
+        else:
+            # Fallback: check channel_members for owner role (for legacy data)
+            cursor.execute('''
+                SELECT role FROM channel_members
+                WHERE channel_id = ? AND username = ?
+            ''', (channel_id, username))
+            member = cursor.fetchone()
+            is_owner = bool(member and member['role'] == 'owner')
+
+        if not is_owner:
+            conn.close()
+            return jsonify({'error': 'Only the channel owner can delete the channel'}), 403
         
         # Delete channel members
         cursor.execute('DELETE FROM channel_members WHERE channel_id = ?', (channel_id,))
         # Delete channel invites
         cursor.execute('DELETE FROM channel_invites WHERE channel_id = ?', (channel_id,))
+        # Delete opt-out records
+        cursor.execute('DELETE FROM channel_opt_out WHERE channel_id = ?', (channel_id,))
         # Delete posts
         cursor.execute('DELETE FROM forum_posts WHERE channel_id = ?', (channel_id,))
         # Delete channel
@@ -791,6 +832,49 @@ def delete_channel(channel_id):
         return jsonify({'message': 'Channel deleted successfully'})
     except Exception as e:
         return jsonify({'error': f'Failed to delete channel: {str(e)}'}), 500
+
+@app.route('/api/forum/channels/<int:channel_id>/leave', methods=['POST'])
+def leave_channel(channel_id):
+    """Allow a user to leave a channel"""
+    from database import get_db_connection
+    try:
+        data = request.get_json() or {}
+        username = (data.get('username') or '').strip()
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT name, owner_name, is_private FROM forum_channels WHERE id = ?', (channel_id,))
+        channel = cursor.fetchone()
+
+        if not channel:
+            conn.close()
+            return jsonify({'error': 'Channel not found'}), 404
+
+        channel_name = channel['name']
+        owner_name = channel['owner_name']
+
+        if owner_name == username:
+            conn.close()
+            return jsonify({'error': 'Channel owners must delete the channel before leaving'}), 403
+
+        # Remove membership if present (for private channels)
+        cursor.execute('DELETE FROM channel_members WHERE channel_id = ? AND username = ?', (channel_id, username))
+
+        # Record opt-out so channel is hidden for this user (works for public and private)
+        cursor.execute('''
+            INSERT OR REPLACE INTO channel_opt_out (channel_id, username)
+            VALUES (?, ?)
+        ''', (channel_id, username))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': f'You have left the "{channel_name}" channel'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to leave channel: {str(e)}'}), 500
 
 @app.route('/api/forum/channels/<int:channel_id>/privacy', methods=['PUT'])
 def update_channel_privacy(channel_id):
@@ -868,6 +952,9 @@ def invite_to_channel(channel_id):
             INSERT OR IGNORE INTO channel_members (channel_id, username, role, invited_by)
             VALUES (?, ?, 'member', ?)
         ''', (channel_id, invitee_username, invited_by))
+
+        # Remove opt-out record if user previously left
+        cursor.execute('DELETE FROM channel_opt_out WHERE channel_id = ? AND username = ?', (channel_id, invitee_username))
         
         conn.commit()
         conn.close()

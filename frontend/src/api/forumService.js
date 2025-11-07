@@ -146,6 +146,17 @@ export const forumService = {
     }
   },
 
+  leaveChannel: async (channelId, username) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/forum/channels/${channelId}/leave`, {
+        username
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to leave channel');
+    }
+  },
+
   updateChannelPrivacy: async (channelId, isPrivate, username) => {
     try {
       const response = await axios.put(`${API_BASE_URL}/forum/channels/${channelId}/privacy`, {
