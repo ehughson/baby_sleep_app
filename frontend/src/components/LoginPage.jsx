@@ -885,7 +885,6 @@ const LoginPage = ({ onLoginSuccess }) => {
                     />
                   </div>
 
-                  </div>
 
                 </>
               )
