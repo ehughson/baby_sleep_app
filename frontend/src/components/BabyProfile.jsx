@@ -7,7 +7,6 @@ const BabyProfile = ({ user, onClose }) => {
   const [newBaby, setNewBaby] = useState({
     name: '',
     birth_date: '',
-    age_months: '',
     sleep_issues: '',
     current_schedule: '',
     notes: ''
@@ -59,7 +58,6 @@ const BabyProfile = ({ user, onClose }) => {
         setNewBaby({
           name: '',
           birth_date: '',
-          age_months: '',
           sleep_issues: '',
           current_schedule: '',
           notes: ''
@@ -180,7 +178,6 @@ const BabyProfile = ({ user, onClose }) => {
                 onCancel={() => setNewBaby({
                   name: '',
                   birth_date: '',
-                  age_months: '',
                   sleep_issues: '',
                   current_schedule: '',
                   notes: ''
@@ -202,12 +199,6 @@ const BabyView = ({ baby }) => (
       <div className="profile-info-item">
         <label>Birth Date</label>
         <div>{baby.birth_date}</div>
-      </div>
-    )}
-    {baby.age_months && (
-      <div className="profile-info-item">
-        <label>Age</label>
-        <div>{baby.age_months} months</div>
       </div>
     )}
     {baby.sleep_issues && (
@@ -235,7 +226,6 @@ const BabyForm = ({ baby, onSave, onCancel, isSaving, isNew = false }) => {
   const [formData, setFormData] = useState({
     name: baby.name || '',
     birth_date: baby.birth_date || '',
-    age_months: baby.age_months || '',
     sleep_issues: baby.sleep_issues || '',
     current_schedule: baby.current_schedule || '',
     notes: baby.notes || ''
@@ -249,7 +239,6 @@ const BabyForm = ({ baby, onSave, onCancel, isSaving, isNew = false }) => {
     onSave({
       name: formData.name.trim(),
       birth_date: formData.birth_date || null,
-      age_months: formData.age_months ? parseInt(formData.age_months) : null,
       sleep_issues: formData.sleep_issues.trim() || null,
       current_schedule: formData.current_schedule.trim() || null,
       notes: formData.notes.trim() || null
@@ -277,19 +266,6 @@ const BabyForm = ({ baby, onSave, onCancel, isSaving, isNew = false }) => {
           type="date"
           value={formData.birth_date}
           onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
-        />
-      </div>
-
-      <div className="profile-info-item">
-        <label htmlFor={`baby-age-months-${baby.id || 'new'}`}>Age (in months)</label>
-        <input
-          id={`baby-age-months-${baby.id || 'new'}`}
-          type="number"
-          min="0"
-          max="60"
-          value={formData.age_months}
-          onChange={(e) => setFormData({ ...formData, age_months: e.target.value })}
-          placeholder="e.g., 6"
         />
       </div>
 

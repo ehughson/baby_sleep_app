@@ -21,7 +21,6 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [babies, setBabies] = useState([{
     name: '',
     birth_date: '',
-    age_months: '',
     sleep_issues: '',
     current_schedule: '',
     notes: ''
@@ -31,8 +30,6 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [goal1, setGoal1] = useState('');
   const [goal2, setGoal2] = useState('');
   const [goal3, setGoal3] = useState('');
-  const [goal4, setGoal4] = useState('');
-  const [goal5, setGoal5] = useState('');
   
   // Login fields
   const [loginUsername, setLoginUsername] = useState('');
@@ -130,10 +127,9 @@ const LoginPage = ({ onLoginSuccess }) => {
         username,
         shouldUseRandom,
         rememberMe,
-        babies.filter(baby => baby.name.trim() || baby.birth_date || baby.age_months || baby.sleep_issues || baby.current_schedule || baby.notes).map(baby => ({
+        babies.filter(baby => baby.name.trim() || baby.birth_date || baby.sleep_issues || baby.current_schedule || baby.notes).map(baby => ({
           name: baby.name.trim(),
           birth_date: baby.birth_date || null,
-          age_months: baby.age_months ? parseInt(baby.age_months) : null,
           sleep_issues: baby.sleep_issues.trim() || null,
           current_schedule: baby.current_schedule.trim() || null,
           notes: baby.notes.trim() || null
@@ -141,9 +137,7 @@ const LoginPage = ({ onLoginSuccess }) => {
         {
           goal_1: goal1,
           goal_2: goal2,
-          goal_3: goal3,
-          goal_4: goal4,
-          goal_5: goal5
+          goal_3: goal3
         }
       );
       
@@ -320,7 +314,6 @@ const LoginPage = ({ onLoginSuccess }) => {
     setBabies([{
       name: '',
       birth_date: '',
-      age_months: '',
       sleep_issues: '',
       current_schedule: '',
       notes: ''
@@ -328,8 +321,6 @@ const LoginPage = ({ onLoginSuccess }) => {
     setGoal1('');
     setGoal2('');
     setGoal3('');
-    setGoal4('');
-    setGoal5('');
     setLoginUsername('');
     setLoginPassword('');
     setLoginRememberMe(false);
@@ -610,17 +601,16 @@ const LoginPage = ({ onLoginSuccess }) => {
                   />
                 </div>
 
-                <div className="form-group">
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
                   <label 
                     htmlFor="random-username-checkbox" 
                     style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
-                      gap: '0.5rem', 
-                      marginBottom: '0.5rem',
-                      cursor: 'pointer',
-                      fontWeight: 400,
-                      fontSize: '0.95rem'
+                      gap: '0.75rem', 
+                      cursor: 'pointer', 
+                      fontWeight: 400, 
+                      fontSize: '0.95rem' 
                     }}
                   >
                     <input
@@ -644,7 +634,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                     <span style={{ whiteSpace: 'nowrap' }}>Generate random username</span>
                   </label>
                   
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <input
                       id="signup-username"
                       type="text"
@@ -717,7 +707,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                   <p style={{ marginBottom: '0.1rem', color: '#666', fontSize: '0.9rem', lineHeight: '1.3' }}>Tell us about your little one(s) (all fields are optional)</p>
                   
                   {babies.map((baby, index) => (
-                    <div key={index} style={{ marginBottom: '2rem', padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#f9f9f9' }}>
+                    <div key={index} style={{ marginBottom: '1.75rem', padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#f9f9f9', display: 'grid', gap: '1.25rem' }}>
                       {babies.length > 1 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                           <h4 style={{ margin: 0, color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Baby {index + 1}</h4>
@@ -771,24 +761,6 @@ const LoginPage = ({ onLoginSuccess }) => {
                             newBabies[index].birth_date = e.target.value;
                             setBabies(newBabies);
                           }}
-                          disabled={isLoading}
-                        />
-                      </div>
-
-                      <div className="form-group">
-                        <label htmlFor={`age-months-${index}`}>Age (in months)</label>
-                        <input
-                          id={`age-months-${index}`}
-                          type="number"
-                          min="0"
-                          max="60"
-                          value={baby.age_months}
-                          onChange={(e) => {
-                            const newBabies = [...babies];
-                            newBabies[index].age_months = e.target.value;
-                            setBabies(newBabies);
-                          }}
-                          placeholder="e.g., 6"
                           disabled={isLoading}
                         />
                       </div>
@@ -849,7 +821,6 @@ const LoginPage = ({ onLoginSuccess }) => {
                       setBabies([...babies, {
                         name: '',
                         birth_date: '',
-                        age_months: '',
                         sleep_issues: '',
                         current_schedule: '',
                         notes: ''
@@ -865,7 +836,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                       cursor: 'pointer',
                       fontSize: '0.9rem',
                       fontWeight: 500,
-                      marginTop: '1rem'
+                      marginTop: '0.75rem'
                     }}
                     disabled={isLoading}
                   >
@@ -914,29 +885,8 @@ const LoginPage = ({ onLoginSuccess }) => {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label htmlFor="goal-4">Sleep Goal 4</label>
-                    <textarea
-                      id="goal-4"
-                      value={goal4}
-                      onChange={(e) => setGoal4(e.target.value)}
-                      placeholder="e.g., Help baby fall asleep independently"
-                      rows={2}
-                      disabled={isLoading}
-                    />
                   </div>
 
-                  <div className="form-group">
-                    <label htmlFor="goal-5">Sleep Goal 5</label>
-                    <textarea
-                      id="goal-5"
-                      value={goal5}
-                      onChange={(e) => setGoal5(e.target.value)}
-                      placeholder="e.g., Create a peaceful sleep environment"
-                      rows={2}
-                      disabled={isLoading}
-                    />
-                  </div>
                 </>
               )
             ) : (
