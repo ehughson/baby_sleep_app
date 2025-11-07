@@ -21,6 +21,19 @@ export const notificationService = {
         new_friend_requests: []
       };
     }
+  },
+
+  markNotificationsRead: async (username, options = {}) => {
+    try {
+      await axios.post(`${API_BASE_URL}/notifications/read`, {
+        username,
+        ...options
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to mark notifications as read:', error);
+      return false;
+    }
   }
 };
 

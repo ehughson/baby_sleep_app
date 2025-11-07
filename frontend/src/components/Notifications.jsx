@@ -115,13 +115,16 @@ const Notifications = ({ user, onNavigate }) => {
             {totalCount > 0 && (
               <button
                 className="clear-notifications-btn"
-                onClick={() => {
+                onClick={async () => {
                   setNotifications({
                     new_posts: [],
                     new_messages: 0,
                     new_friend_requests: []
                   });
                   lastCheckRef.current = new Date().toISOString();
+                  if (user?.username) {
+                    await notificationService.markNotificationsRead(user.username, { mark_all: true });
+                  }
                 }}
               >
                 Clear all
@@ -233,13 +236,19 @@ const Notifications = ({ user, onNavigate }) => {
                       <div 
                         key={post.id} 
                         className="notification-item clickable"
-                        onClick={() => {
+                        onClick={async () => {
                           // Clear this post notification
                           lastCheckRef.current = new Date().toISOString();
                           setNotifications(prev => ({
                             ...prev,
                             new_posts: prev.new_posts.filter(p => p.id !== post.id)
                           }));
+                          if (user?.username) {
+                            const markPayload = post.notification_id 
+                              ? { notification_ids: [post.notification_id] }
+                              : { post_ids: [post.id] };
+                            await notificationService.markNotificationsRead(user.username, markPayload);
+                          }
                           if (onNavigate) {
                             onNavigate('forum', { channelId: post.channel_id, postId: post.id });
                             setShowDropdown(false);

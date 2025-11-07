@@ -118,6 +118,27 @@ def init_db():
             UNIQUE(post_id, username, emoji)
         )
     ''')
+
+    # Create channel post notifications table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS channel_post_notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id INTEGER NOT NULL,
+            post_id INTEGER NOT NULL,
+            recipient_username TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_read INTEGER DEFAULT 0,
+            read_at TIMESTAMP,
+            FOREIGN KEY (channel_id) REFERENCES forum_channels (id) ON DELETE CASCADE,
+            FOREIGN KEY (post_id) REFERENCES forum_posts (id) ON DELETE CASCADE,
+            UNIQUE(post_id, recipient_username)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_channel_post_notifications_recipient
+        ON channel_post_notifications(recipient_username, is_read, created_at DESC)
+    ''')
     
     # Create message reactions table (for direct messages)
     cursor.execute('''

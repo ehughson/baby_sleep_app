@@ -802,7 +802,7 @@ def create_post():
         cursor = conn.cursor()
         
         # Check if channel is private and verify author is a member
-        cursor.execute('SELECT is_private, owner_name FROM forum_channels WHERE id = ?', (channel_id,))
+        cursor.execute('SELECT name, is_private, owner_name FROM forum_channels WHERE id = ?', (channel_id,))
         channel = cursor.fetchone()
         
         if channel and channel['is_private']:
@@ -844,14 +844,44 @@ def create_post():
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (channel_id, author_name, content, file_path, file_type, file_name, parent_post_id))
         post_id = cursor.lastrowid
+        # Create notifications for channel members (excluding the author)
+        recipients = set()
+        channel_name = None
+        
+        if channel:
+            channel_name = channel['name'] if 'name' in channel.keys() else None
+            owner_name = channel['owner_name'] if 'owner_name' in channel.keys() else None
+            if owner_name:
+                recipients.add(owner_name)
+        
+        cursor.execute('''
+            SELECT username FROM channel_members
+            WHERE channel_id = ?
+        ''', (channel_id,))
+        members = cursor.fetchall()
+        for member in members:
+            recipients.add(member['username'])
+        
+        # Do not notify the author of their own post
+        recipients.discard(author_name)
+        
+        for recipient in recipients:
+            cursor.execute('''
+                INSERT OR IGNORE INTO channel_post_notifications (channel_id, post_id, recipient_username)
+                VALUES (?, ?, ?)
+            ''', (channel_id, post_id, recipient))
+        
         conn.commit()
         
         # Get the created post
         cursor.execute('SELECT * FROM forum_posts WHERE id = ?', (post_id,))
         post = cursor.fetchone()
+        post_dict = dict(post)
+        if channel_name:
+            post_dict['channel_name'] = channel_name
         conn.close()
         
-        return jsonify(dict(post))
+        return jsonify(post_dict)
     except Exception as e:
         return jsonify({'error': f'Failed to create post: {str(e)}'}), 500
 
@@ -1462,10 +1492,41 @@ def get_notifications():
             'new_message_senders': [],
             'new_friend_requests': []
         }
+
+        # Fetch unread channel post notifications
+        cursor.execute('''
+            SELECT 
+                n.id as notification_id,
+                p.id as post_id,
+                p.channel_id,
+                p.author_name,
+                p.content,
+                p.timestamp,
+                c.name as channel_name
+            FROM channel_post_notifications n
+            JOIN forum_posts p ON p.id = n.post_id
+            JOIN forum_channels c ON c.id = p.channel_id
+            WHERE n.recipient_username = ? AND n.is_read = 0
+            ORDER BY p.timestamp DESC
+            LIMIT 50
+        ''', (username,))
+        channel_notifications = cursor.fetchall()
+
+        notified_post_ids = set()
+        for row in channel_notifications:
+            notified_post_ids.add(row['post_id'])
+            notifications['new_posts'].append({
+                'id': row['post_id'],
+                'channel_id': row['channel_id'],
+                'channel_name': row['channel_name'],
+                'author_name': row['author_name'],
+                'content': row['content'],
+                'timestamp': row['timestamp'],
+                'notification_id': row['notification_id']
+            })
         
-        # Check for new posts in channels user has access to
+        # Fallback to time-based check for posts (e.g., for public channels without explicit memberships)
         if last_check:
-            # Get channels user has access to (public or private where user is member/owner)
             cursor.execute('''
                 SELECT DISTINCT c.id, c.name
                 FROM forum_channels c
@@ -1482,7 +1543,6 @@ def get_notifications():
             
             if channel_ids:
                 placeholders = ','.join(['?'] * len(channel_ids))
-                # Get new posts since last check (excluding user's own posts)
                 cursor.execute(f'''
                     SELECT p.id, p.channel_id, p.author_name, p.content, p.timestamp, c.name as channel_name
                     FROM forum_posts p
@@ -1495,7 +1555,12 @@ def get_notifications():
                 ''', channel_ids + [username, last_check])
                 
                 new_posts = cursor.fetchall()
-                notifications['new_posts'] = [dict(post) for post in new_posts]
+                for post in new_posts:
+                    if post['id'] in notified_post_ids:
+                        continue
+                    post_dict = dict(post)
+                    post_dict['notification_id'] = None
+                    notifications['new_posts'].append(post_dict)
         
         # Check for new unread messages
         cursor.execute('''
@@ -1532,6 +1597,65 @@ def get_notifications():
         return jsonify(notifications)
     except Exception as e:
         return jsonify({'error': f'Failed to get notifications: {str(e)}'}), 500
+
+
+@app.route('/api/notifications/read', methods=['POST'])
+def mark_notifications_read():
+    """Mark channel post notifications as read for a user"""
+    from database import get_db_connection
+    data = request.get_json() or {}
+    username = data.get('username', '')
+    notification_ids = data.get('notification_ids') or []
+    post_ids = data.get('post_ids') or []
+    mark_all = data.get('mark_all', False)
+
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+
+    if not mark_all and not notification_ids and not post_ids:
+        return jsonify({'error': 'No notifications specified to mark as read'}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        affected = 0
+        if mark_all:
+            cursor.execute('''
+                UPDATE channel_post_notifications
+                SET is_read = 1, read_at = CURRENT_TIMESTAMP
+                WHERE recipient_username = ? AND is_read = 0
+            ''', (username,))
+            affected = cursor.rowcount
+        elif notification_ids:
+            if not isinstance(notification_ids, (list, tuple)):
+                notification_ids = [notification_ids]
+            placeholders = ','.join(['?'] * len(notification_ids))
+            query = f'''
+                UPDATE channel_post_notifications
+                SET is_read = 1, read_at = CURRENT_TIMESTAMP
+                WHERE recipient_username = ? AND id IN ({placeholders})
+            '''
+            cursor.execute(query, [username, *notification_ids])
+            affected = cursor.rowcount
+        elif post_ids:
+            if not isinstance(post_ids, (list, tuple)):
+                post_ids = [post_ids]
+            placeholders = ','.join(['?'] * len(post_ids))
+            query = f'''
+                UPDATE channel_post_notifications
+                SET is_read = 1, read_at = CURRENT_TIMESTAMP
+                WHERE recipient_username = ? AND post_id IN ({placeholders})
+            '''
+            cursor.execute(query, [username, *post_ids])
+            affected = cursor.rowcount
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'updated': affected})
+    except Exception as e:
+        return jsonify({'error': f'Failed to mark notifications as read: {str(e)}'}), 500
 
 # Friends endpoints
 @app.route('/api/forum/users/<username>', methods=['POST'])
