@@ -10,16 +10,19 @@ By default, Railway uses ephemeral storage. Every time your app redeploys, the f
 
 Railway provides persistent storage through **Volumes**. Here's how to set it up:
 
-### Step 1: Create a Volume in Railway
+### Step 1: Attach a Volume to Your Service
 
 1. Go to your Railway project dashboard
-2. Click on your backend service
-3. Go to the **"Volumes"** tab (or **"Storage"** tab)
-4. Click **"Create Volume"** or **"Add Volume"**
+2. Click on your **backend service** (the Python/Flask service)
+3. Go to the **"Volumes"** tab (or look for **"Storage"** or **"Volumes"** in the service settings)
+4. Click **"Attach Volume"** or **"Add Volume"** or **"New Volume"**
 5. Configure the volume:
-   - **Mount Path**: `/data`
+   - **Mount Path**: `/data` (this is what the code expects)
    - **Name**: `persistent-storage` (or any name you prefer)
-   - **Size**: Start with 1GB (you can increase later)
+   - **Size**: Start with 1GB (you can increase later if needed)
+6. Click **"Create"** or **"Attach"**
+
+**Important**: The mount path must be exactly `/data` - this is what the code is configured to use.
 
 ### Step 2: Verify the Setup
 
@@ -29,10 +32,12 @@ The code has been updated to automatically:
 - Use `/data/chatbot.db` for the database (if `/data` exists)
 - Fall back to `chatbot.db` in the current directory for local development
 
-### Step 3: Restart Your Service
+### Step 3: Verify and Restart
 
-1. Go to your service settings
-2. Click **"Restart"** or **"Redeploy"**
+1. After attaching the volume, verify it shows as attached/mounted in the Volumes tab
+2. The service should automatically redeploy, but if not:
+   - Go to your service settings
+   - Click **"Restart"** or **"Redeploy"**
 3. Wait for the deployment to complete
 
 ### Step 4: Verify It's Working
