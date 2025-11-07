@@ -471,6 +471,8 @@ function App() {
     );
   }
 
+  const messagesClassName = messages.length === 0 ? 'messages messages--welcome' : 'messages';
+
   return (
     <div className="app">
       <header className="header">
@@ -621,7 +623,7 @@ function App() {
 
       {activeTab === 'chat' ? (
       <div className="chat-container">
-        <div className="messages">
+        <div className={messagesClassName}>
           {messages.length === 0 ? (
             <div className="welcome-section">
               <div className="welcome-content">
@@ -643,19 +645,19 @@ function App() {
                     className="chip" 
                     onClick={() => handleSendMessage("Tell me about night wakings")}
                   >
-                    night wakings
+                    Night Wakings
                   </button>
                   <button 
                     className="chip" 
                     onClick={() => handleSendMessage("Tell me about bedtime resistance")}
                   >
-                    bedtime resistance
+                    Bedtime Resistance
                   </button>
                   <button 
                     className="chip" 
                     onClick={() => handleSendMessage("Tell me about short naps")}
                   >
-                    short naps
+                    Short Naps
                   </button>
                 </div>
               </div>
@@ -664,11 +666,6 @@ function App() {
             messages.map((message) => (
               <ChatMessage key={message.id} message={message} />
             ))
-          )}
-          {isLoading && (
-            <div className="loading">
-              <span>REMi is thinking...</span>
-            </div>
           )}
           {error && (
             <div className="error">
