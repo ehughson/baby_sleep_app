@@ -392,7 +392,7 @@ const Forum = ({ user, navigationOptions }) => {
                   <span className="topic-icon">{channel.icon}</span>
                   <span className="topic-name">{channel.name}</span>
                 </div>
-                <p className="topic-description">{channel.description || 'Join the conversation'}</p>
+                <p className="topic-description">{channel.description ? channel.description : (channel.name === 'bedtime-routines' ? 'Share your thoughts on bedtime routines' : 'Join the conversation')}</p>
                 <div className="topic-stats">
                   {channel.is_private === 1 && (
                     <span className="topic-stat" style={{ color: '#a68cab' }}>🔒 Private</span>
@@ -514,9 +514,11 @@ const Forum = ({ user, navigationOptions }) => {
               <span style={{ fontSize: '0.85rem', color: '#a68cab', fontWeight: 600 }}>🔒 Private</span>
             )}
           </div>
-          {selectedChannel.description && (
+          {selectedChannel.description ? (
             <p className="topic-view-description">{selectedChannel.description}</p>
-          )}
+          ) : selectedChannel.name === 'bedtime-routines' ? (
+            <p className="topic-view-description">Share your thoughts on bedtime routines</p>
+          ) : null}
         </div>
         <div className="topic-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
           {selectedChannel.owner_name && selectedChannel.owner_name === currentUsername && (
