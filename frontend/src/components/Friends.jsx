@@ -308,7 +308,7 @@ const Friends = ({ user, navigationOptions }) => {
       if (!justSentMessageRef.current) {
         loadMessages(selectedFriend, false); // Don't show loading during polling
       }
-    }, 3000); // Poll every 3 seconds
+    }, 1500); // Poll every 1.5 seconds
 
     return () => {
       if (pollingIntervalRef.current) {
@@ -385,6 +385,30 @@ const Friends = ({ user, navigationOptions }) => {
       console.error('Error refreshing friend data:', error);
     }
   };
+
+  useEffect(() => {
+    if (!authorName || !authorName.trim()) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const refresh = async () => {
+      if (!isMounted) {
+        return;
+      }
+      await refreshFriendData();
+    };
+
+    refresh();
+    const interval = setInterval(refresh, 2000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authorName]);
 
 
   const handleSearchUsers = async (query) => {
