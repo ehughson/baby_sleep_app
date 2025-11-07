@@ -13,16 +13,27 @@ Railway provides persistent storage through **Volumes**. Here's how to set it up
 ### Step 1: Attach a Volume to Your Service
 
 1. Go to your Railway project dashboard
-2. Click on your **backend service** (the Python/Flask service)
-3. Go to the **"Volumes"** tab (or look for **"Storage"** or **"Volumes"** in the service settings)
-4. Click **"Attach Volume"** or **"Add Volume"** or **"New Volume"**
+2. Click on your **backend service** (the Python/Flask service) - it should be visible in your project
+3. Look for one of these options:
+   - A **"Volumes"** tab at the top (next to Deployments, Metrics, etc.)
+   - A **"Storage"** section in the sidebar
+   - An **"Add Volume"** or **"Attach Volume"** button somewhere on the service page
+   - Or go to the service → Look for **"Settings"** → Then look for **"Volumes"** or **"Storage"**
+
+4. Once you find the Volumes section, click **"New Volume"** or **"Attach Volume"** or **"Add"**
 5. Configure the volume:
-   - **Mount Path**: `/data` (this is what the code expects)
+   - **Mount Path**: `/data` (this is what the code expects - must be exactly `/data`)
    - **Name**: `persistent-storage` (or any name you prefer)
    - **Size**: Start with 1GB (you can increase later if needed)
-6. Click **"Create"** or **"Attach"**
+6. Click **"Create"** or **"Attach"** or **"Add"**
 
 **Important**: The mount path must be exactly `/data` - this is what the code is configured to use.
+
+**If you can't find Volumes:**
+- Try clicking on the service name/icon to see all available tabs
+- Look in the right sidebar or bottom panel
+- Check if there's a "More" or "..." menu with additional options
+- Railway's UI may vary - volumes might be under "Resources" or "Add-ons"
 
 ### Step 2: Verify the Setup
 
