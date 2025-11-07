@@ -1158,6 +1158,7 @@ def get_notifications():
         notifications = {
             'new_posts': [],
             'new_messages': 0,
+            'new_message_senders': [],
             'new_friend_requests': []
         }
         
@@ -1201,6 +1202,17 @@ def get_notifications():
         ''', (username,))
         result = cursor.fetchone()
         notifications['new_messages'] = result['count'] if result else 0
+
+        # Get details of unread message senders (for navigation)
+        cursor.execute('''
+            SELECT sender_name, COUNT(*) as unread_count, MAX(created_at) as last_message_time
+            FROM direct_messages
+            WHERE receiver_name = ? AND is_read = 0
+            GROUP BY sender_name
+            ORDER BY last_message_time DESC
+        ''', (username,))
+        message_senders = cursor.fetchall()
+        notifications['new_message_senders'] = [dict(sender) for sender in message_senders]
         
         # Check for new friend requests
         cursor.execute('''
@@ -1268,28 +1280,24 @@ def get_friends(username):
         cursor.execute('''
             SELECT 
                 CASE 
-                    WHEN user1_name = ? THEN user2_name
-                    ELSE user1_name
+                    WHEN f.user1_name = ? THEN f.user2_name
+                    ELSE f.user1_name
                 END as friend_name,
                 f.created_at,
-                u.display_name,
+                fu.display_name,
                 au.profile_picture,
                 au.bio
             FROM friendships f
-            LEFT JOIN forum_users u ON (
-                CASE 
-                    WHEN f.user1_name = ? THEN u.username = f.user2_name
-                    ELSE u.username = f.user1_name
-                END
-            )
-            LEFT JOIN auth_users au ON (
-                CASE 
-                    WHEN f.user1_name = ? THEN au.username = f.user2_name
-                    ELSE au.username = f.user1_name
-                END
-            )
-            WHERE (user1_name = ? OR user2_name = ?)
-            AND status = 'accepted'
+            LEFT JOIN auth_users au ON au.username = CASE 
+                WHEN f.user1_name = ? THEN f.user2_name
+                ELSE f.user1_name
+            END
+            LEFT JOIN forum_users fu ON fu.username = CASE 
+                WHEN f.user1_name = ? THEN f.user2_name
+                ELSE f.user1_name
+            END
+            WHERE (f.user1_name = ? OR f.user2_name = ?)
+              AND f.status = 'accepted'
             ORDER BY f.created_at DESC
         ''', (username, username, username, username, username))
         

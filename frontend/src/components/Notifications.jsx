@@ -5,6 +5,7 @@ const Notifications = ({ user, onNavigate }) => {
   const [notifications, setNotifications] = useState({
     new_posts: [],
     new_messages: 0,
+    new_message_senders: [],
     new_friend_requests: []
   });
   const [showDropdown, setShowDropdown] = useState(false);
@@ -25,6 +26,7 @@ const Notifications = ({ user, onNavigate }) => {
           setNotifications({
             new_posts: data.new_posts || [],
             new_messages: data.new_messages || 0,
+            new_message_senders: data.new_message_senders || [],
             new_friend_requests: data.new_friend_requests || []
           });
           
@@ -150,26 +152,61 @@ const Notifications = ({ user, onNavigate }) => {
                 {notifications.new_messages > 0 && (
                   <div className="notification-section">
                     <h4 className="notification-section-title">Messages</h4>
-                    <div 
-                      className="notification-item clickable"
-                      onClick={() => {
-                        // Clear message notifications by updating last check time
-                        lastCheckRef.current = new Date().toISOString();
-                        setNotifications(prev => ({
-                          ...prev,
-                          new_messages: 0
-                        }));
-                        if (onNavigate) {
-                          onNavigate('friends', { showMessages: true });
-                          setShowDropdown(false);
-                        }
-                      }}
-                    >
-                      <span className="notification-icon">💬</span>
-                      <div className="notification-content">
-                        <p>You have <strong>{notifications.new_messages}</strong> new message{notifications.new_messages !== 1 ? 's' : ''}</p>
+                    {(notifications.new_message_senders || []).length > 0 ? (
+                      notifications.new_message_senders.map((sender, idx) => (
+                        <div 
+                          key={`${sender.sender_name}-${idx}`}
+                          className="notification-item clickable"
+                          onClick={() => {
+                            // Clear message notifications for this sender
+                            lastCheckRef.current = new Date().toISOString();
+                            setNotifications(prev => {
+                              const remainingSenders = prev.new_message_senders.filter((_, i) => i !== idx);
+                              const remainingCount = remainingSenders.reduce((sum, s) => sum + (s.unread_count || 0), 0);
+                              return {
+                                ...prev,
+                                new_message_senders: remainingSenders,
+                                new_messages: remainingSenders.length > 0 ? remainingCount : 0
+                              };
+                            });
+                            if (onNavigate) {
+                              onNavigate('friends', { showMessages: true, focusFriend: sender.sender_name });
+                              setShowDropdown(false);
+                            }
+                          }}
+                        >
+                          <span className="notification-icon">💬</span>
+                          <div className="notification-content">
+                            <p>
+                              <strong>{sender.sender_name}</strong> sent you {sender.unread_count} new message{sender.unread_count !== 1 ? 's' : ''}
+                            </p>
+                            {sender.last_message_time && (
+                              <span className="notification-time">{formatTime(sender.last_message_time)}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div 
+                        className="notification-item clickable"
+                        onClick={() => {
+                          lastCheckRef.current = new Date().toISOString();
+                          setNotifications(prev => ({
+                            ...prev,
+                            new_messages: 0
+                          }));
+                          if (onNavigate) {
+                            onNavigate('friends', { showMessages: true });
+                            setShowDropdown(false);
+                          }
+                        }}
+                      >
+                        <span className="notification-icon">💬</span>
+                        <div className="notification-content">
+                          <p>You have <strong>{notifications.new_messages}</strong> new message{notifications.new_messages !== 1 ? 's' : ''}</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
 

@@ -224,6 +224,12 @@ const LoginPage = ({ onLoginSuccess }) => {
         if (response.first_name) {
           localStorage.setItem('first_name', response.first_name);
         }
+        if (response.profile_picture) {
+          localStorage.setItem('profile_picture', response.profile_picture);
+        }
+        if (response.bio !== undefined) {
+          localStorage.setItem('bio', response.bio || '');
+        }
         if (loginRememberMe) {
           localStorage.setItem('remember_me', 'true');
         } else {

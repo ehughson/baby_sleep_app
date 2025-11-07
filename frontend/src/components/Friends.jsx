@@ -19,6 +19,22 @@ const Friends = ({ user, navigationOptions }) => {
   const justSentMessageRef = React.useRef(false);
   const pollingIntervalRef = React.useRef(null);
 
+  const extractFriendUsername = (friend) => {
+    if (!friend) return '';
+    return friend.friend_name || friend.username || friend.display_name || '';
+  };
+
+  const extractFriendDisplayName = (friend) => {
+    if (!friend) return '';
+    return friend.display_name || extractFriendUsername(friend);
+  };
+
+  const getDisplayNameForUsername = (username) => {
+    if (!username) return '';
+    const friend = friends.find((f) => extractFriendUsername(f) === username);
+    return extractFriendDisplayName(friend) || username;
+  };
+
   useEffect(() => {
     // Use logged-in user or saved name
     console.log('Friends component - user object:', user);
@@ -119,14 +135,20 @@ const Friends = ({ user, navigationOptions }) => {
       } else if (navigationOptions.showMessages) {
         // Find first friend with unread messages and open that conversation
         setShowAddFriend(false);
-        const friendWithUnread = friends.find(friend => {
-          const friendUsername = friend.display_name || friend.friend_name || friend.username;
-          return unreadCounts[friendUsername] > 0;
-        });
-        if (friendWithUnread) {
-          const friendUsername = friendWithUnread.display_name || friendWithUnread.friend_name;
-          setSelectedFriend(friendUsername);
-          loadMessages(friendUsername);
+        const targetFriendUsername = navigationOptions.focusFriend || (() => {
+          const friendWithUnread = friends.find(friend => unreadCounts[extractFriendUsername(friend)] > 0);
+          return friendWithUnread ? extractFriendUsername(friendWithUnread) : null;
+        })();
+
+        if (targetFriendUsername) {
+          setSelectedFriend(targetFriendUsername);
+          loadMessages(targetFriendUsername, true);
+        } else if (friends.length > 0) {
+          const fallbackFriend = extractFriendUsername(friends[0]);
+          if (fallbackFriend) {
+            setSelectedFriend(fallbackFriend);
+            loadMessages(fallbackFriend, true);
+          }
         }
         // Clear navigation options after handling
         sessionStorage.removeItem('notification_nav');
@@ -189,8 +211,9 @@ const Friends = ({ user, navigationOptions }) => {
       e.stopPropagation();
     }
     
-    const friendUsername = friend.display_name || friend.friend_name || friend.username;
-    console.log('Selecting friend:', friendUsername, 'from friend object:', friend);
+    const friendUsername = extractFriendUsername(friend);
+    const friendDisplayName = extractFriendDisplayName(friend);
+    console.log('Selecting friend:', { friendUsername, friendDisplayName, friend });
     
     if (!friendUsername) {
       console.error('Friend username is missing:', friend);
@@ -450,11 +473,12 @@ const Friends = ({ user, navigationOptions }) => {
           <div className="dm-friend-info">
             <div className="friend-avatar">
               {(() => {
-                const friend = friends.find(f => (f.display_name || f.friend_name) === selectedFriend);
+                const friend = friends.find(f => extractFriendUsername(f) === selectedFriend);
+                const displayName = extractFriendDisplayName(friend) || selectedFriend;
                 return friend?.profile_picture ? (
                   <img 
                     src={forumService.getFileUrl(friend.profile_picture)} 
-                    alt={selectedFriend}
+                    alt={displayName}
                     style={{ 
                       width: '100%', 
                       height: '100%', 
@@ -463,15 +487,15 @@ const Friends = ({ user, navigationOptions }) => {
                     }}
                     onError={(e) => {
                       e.target.style.display = 'none';
-                      e.target.parentElement.textContent = selectedFriend.charAt(0).toUpperCase();
+                      e.target.parentElement.textContent = displayName.charAt(0).toUpperCase();
                     }}
                   />
                 ) : (
-                  selectedFriend.charAt(0).toUpperCase()
+                  displayName.charAt(0).toUpperCase()
                 );
               })()}
             </div>
-            <span className="dm-friend-name">{selectedFriend}</span>
+            <span className="dm-friend-name">{getDisplayNameForUsername(selectedFriend)}</span>
           </div>
         </div>
 
@@ -586,7 +610,8 @@ const Friends = ({ user, navigationOptions }) => {
           ) : (
             <div className="friends-grid">
               {friends.map((friend, idx) => {
-                const friendUsername = friend.display_name || friend.friend_name;
+                const friendUsername = extractFriendUsername(friend);
+                const friendDisplayName = extractFriendDisplayName(friend);
                 const unreadCount = unreadCounts[friendUsername] || 0;
                 return (
                   <div 
@@ -600,7 +625,7 @@ const Friends = ({ user, navigationOptions }) => {
                       {friend.profile_picture ? (
                         <img 
                           src={forumService.getFileUrl(friend.profile_picture)} 
-                          alt={friendUsername}
+                          alt={friendDisplayName}
                           style={{ 
                             width: '100%', 
                             height: '100%', 
@@ -609,15 +634,15 @@ const Friends = ({ user, navigationOptions }) => {
                           }}
                           onError={(e) => {
                             e.target.style.display = 'none';
-                            e.target.parentElement.textContent = friendUsername.charAt(0).toUpperCase();
+                            e.target.parentElement.textContent = friendDisplayName.charAt(0).toUpperCase();
                           }}
                         />
                       ) : (
-                        friendUsername.charAt(0).toUpperCase()
+                        friendDisplayName.charAt(0).toUpperCase()
                       )}
                     </div>
                     <div className="friend-info">
-                      <span className="friend-name">{friendUsername}</span>
+                      <span className="friend-name">{friendDisplayName}</span>
                       <div className="friend-status">
                         <span className="status-dot online"></span>
                         <span>Online</span>
