@@ -1209,6 +1209,11 @@ body {
   color: #666;
 }
 
+.topic-online-count {
+  font-size: 0.85rem;
+  color: #666;
+}
+
 .post-card {
   background: white;
   border-radius: 12px;
@@ -1409,6 +1414,14 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+.dm-friend-status-text {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #999;
 }
 
 .dm-friend-name {
@@ -1960,6 +1973,10 @@ body {
 
 .status-dot.online {
   background: #43b581;
+}
+
+.status-dot.offline {
+  background: #ccc;
 }
 
 /* Modal Styles */

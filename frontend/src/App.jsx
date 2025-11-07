@@ -83,6 +83,36 @@ function App() {
     return () => clearInterval(checkInterval);
   }, []);
 
+  // Keep activity heartbeat while logged in
+  useEffect(() => {
+    if (!user?.username) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const pingActivity = async () => {
+      if (!user?.username) return;
+      try {
+        await authService.pingActivity(user.username);
+      } catch (error) {
+        console.error('Activity ping failed:', error?.message || error);
+      }
+    };
+
+    pingActivity();
+    const interval = setInterval(() => {
+      if (isMounted) {
+        pingActivity();
+      }
+    }, 60000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [user?.username]);
+
   // Check authentication on mount
   useEffect(() => {
     const checkAuth = async () => {

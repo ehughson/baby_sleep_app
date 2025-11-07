@@ -144,6 +144,23 @@ DEFAULT_CHANNEL_NAMES = {
     'support'
 }
 
+ONLINE_THRESHOLD_SECONDS = 120
+ONLINE_THRESHOLD_SQL = f'-{ONLINE_THRESHOLD_SECONDS} seconds'
+
+
+def touch_forum_user(cursor, username):
+    if not username:
+        return
+    cursor.execute(
+        '''
+        INSERT INTO forum_users (username, display_name, last_seen)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(username) DO UPDATE SET last_seen = CURRENT_TIMESTAMP
+        ''',
+        (username, username)
+    )
+
+
 def get_gemini_response(message, conversation_history=None, user_context=None, stream=False):
     """Get response from Gemini API with sleep training specialization"""
     if not gemini_api_key:
@@ -549,8 +566,10 @@ def get_channels():
     
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+
     if username:
+        touch_forum_user(cursor, username)
+        conn.commit()
         # Get public channels + private channels user is member of, excluding channels they've opted out of
         cursor.execute('''
             SELECT DISTINCT c.*
@@ -576,20 +595,22 @@ def get_channels():
         is_private = channel_dict.get('is_private', 0)
         
         if is_private:
-            # For private channels, count members
+            # For private channels, count members who are currently online
             cursor.execute('''
-                SELECT COUNT(DISTINCT username) as count
-                FROM channel_members
-                WHERE channel_id = ?
-            ''', (channel_id,))
+                SELECT COUNT(DISTINCT cm.username) as count
+                FROM channel_members cm
+                JOIN forum_users fu ON fu.username = cm.username
+                WHERE cm.channel_id = ?
+                  AND fu.last_seen >= datetime('now', ?)
+            ''', (channel_id, ONLINE_THRESHOLD_SQL))
         else:
-            # For public channels, count distinct users who have posted
+            # For public channels, count users currently online in the app
             cursor.execute('''
-                SELECT COUNT(DISTINCT author_name) as count
-                FROM forum_posts
-                WHERE channel_id = ?
-            ''', (channel_id,))
-        
+                SELECT COUNT(*) as count
+                FROM forum_users
+                WHERE last_seen >= datetime('now', ?)
+            ''', (ONLINE_THRESHOLD_SQL,))
+
         result = cursor.fetchone()
         channel_dict['active_users'] = result['count'] if result else 0
         channels_with_counts.append(channel_dict)
@@ -1457,10 +1478,7 @@ def create_or_get_user(username):
             user = cursor.fetchone()
         else:
             # Update last_seen
-            cursor.execute('''
-                UPDATE forum_users SET last_seen = CURRENT_TIMESTAMP
-                WHERE username = ?
-            ''', (username,))
+            touch_forum_user(cursor, username)
             conn.commit()
             cursor.execute('SELECT * FROM forum_users WHERE username = ?', (username,))
             user = cursor.fetchone()
@@ -1477,8 +1495,11 @@ def get_friends(username):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+
+        touch_forum_user(cursor, username)
+        conn.commit()
         
-        # Get accepted friendships with profile info
+        # Get accepted friendships with profile info and online status
         cursor.execute('''
             SELECT 
                 CASE 
@@ -1488,7 +1509,12 @@ def get_friends(username):
                 f.created_at,
                 fu.display_name,
                 au.profile_picture,
-                au.bio
+                au.bio,
+                fu.last_seen,
+                CASE 
+                    WHEN fu.last_seen IS NOT NULL AND fu.last_seen >= datetime('now', ?) THEN 1
+                    ELSE 0
+                END AS is_online
             FROM friendships f
             LEFT JOIN auth_users au ON au.username = CASE 
                 WHEN f.user1_name = ? THEN f.user2_name
@@ -1501,7 +1527,7 @@ def get_friends(username):
             WHERE (f.user1_name = ? OR f.user2_name = ?)
               AND f.status = 'accepted'
             ORDER BY f.created_at DESC
-        ''', (username, username, username, username, username))
+        ''', (username, ONLINE_THRESHOLD_SQL, username, username, username, username))
         
         friends = cursor.fetchall()
         friend_list = [dict(friend) for friend in friends]
@@ -2015,11 +2041,8 @@ def login():
         ''', (user['id'], session_token, expires_at))
         
         # Update forum user last_seen
-        cursor.execute('''
-            UPDATE forum_users SET last_seen = CURRENT_TIMESTAMP
-            WHERE username = ?
-        ''', (username,))
-        
+        touch_forum_user(cursor, username)
+
         conn.commit()
         conn.close()
         
@@ -2078,6 +2101,27 @@ def check_session():
         })
     except Exception as e:
         return jsonify({'authenticated': False, 'error': str(e)}), 500
+
+@app.route('/api/activity/ping', methods=['POST'])
+def activity_ping():
+    """Update the user's last seen timestamp"""
+    from database import get_db_connection
+    try:
+        data = request.get_json() or {}
+        username = (data.get('username') or '').strip()
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        touch_forum_user(cursor, username)
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to update activity: {str(e)}'}), 500
+
 
 @app.route('/api/auth/profile/<username>', methods=['GET'])
 def get_user_profile(username):

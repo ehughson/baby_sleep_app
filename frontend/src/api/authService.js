@@ -366,6 +366,15 @@ export const authService = {
     }
   },
 
+  pingActivity: async (username) => {
+    if (!username) return;
+    try {
+      await axios.post(`${API_BASE_URL}/activity/ping`, { username }, { timeout: 5000 });
+    } catch (error) {
+      console.error('Activity ping failed:', error?.response?.data?.error || error.message || error);
+    }
+  },
+
   // Get another user's public profile
   getUserProfile: async (username) => {
     try {

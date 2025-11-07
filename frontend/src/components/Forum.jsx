@@ -77,6 +77,19 @@ const Forum = ({ user, navigationOptions }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChannel, isLoadingChannels]);
 
+  useEffect(() => {
+    if (!currentUsername) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      loadChannels();
+    }, 60000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUsername, selectedChannel?.id]);
+
   const loadPosts = async (channelId, username = '') => {
     setIsLoading(true);
     try {
@@ -270,6 +283,12 @@ const Forum = ({ user, navigationOptions }) => {
     try {
       const data = await forumService.getChannels(currentUsername);
       setChannels(data);
+      if (selectedChannel) {
+        const updatedSelected = data.find(channel => channel.id === selectedChannel.id);
+        if (updatedSelected) {
+          setSelectedChannel(prev => prev ? { ...prev, ...updatedSelected } : updatedSelected);
+        }
+      }
     } catch (error) {
       console.error('Error loading channels:', error);
       setChannels([]);
@@ -398,7 +417,7 @@ const Forum = ({ user, navigationOptions }) => {
                     <span className="topic-stat" style={{ color: '#a68cab' }}>🔒 Private</span>
                   )}
                   <span className="topic-stat" style={{ color: '#666' }}>
-                    👥 {channel.active_users || 0} {channel.active_users === 1 ? 'member' : 'members'}
+                    👥 {channel.active_users || 0} online
                   </span>
                 </div>
               </div>
@@ -519,6 +538,7 @@ const Forum = ({ user, navigationOptions }) => {
           ) : selectedChannel.name === 'bedtime-routines' ? (
             <p className="topic-view-description">Share your thoughts on bedtime routines</p>
           ) : null}
+          <div className="topic-online-count">👥 {selectedChannel.active_users || 0} online</div>
         </div>
         <div className="topic-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
           {selectedChannel.owner_name && selectedChannel.owner_name === currentUsername && (

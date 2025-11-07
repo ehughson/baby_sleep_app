@@ -35,6 +35,27 @@ const Friends = ({ user, navigationOptions }) => {
     return extractFriendDisplayName(friend) || username;
   };
 
+  const formatRelativeTime = (timestamp) => {
+    if (!timestamp) return 'a while ago';
+    let parsed = new Date(timestamp);
+    if (Number.isNaN(parsed.getTime())) {
+      parsed = new Date(`${timestamp.replace(' ', 'T')}Z`);
+    }
+    if (Number.isNaN(parsed.getTime())) {
+      return 'a while ago';
+    }
+    const diffMs = Date.now() - parsed.getTime();
+    if (diffMs < 0) return 'just now';
+    const diffMinutes = Math.floor(diffMs / 60000);
+    if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return parsed.toLocaleDateString();
+  };
+
   useEffect(() => {
     // Use logged-in user or saved name
     console.log('Friends component - user object:', user);
@@ -496,6 +517,17 @@ const Friends = ({ user, navigationOptions }) => {
               })()}
             </div>
             <span className="dm-friend-name">{getDisplayNameForUsername(selectedFriend)}</span>
+            {(() => {
+              const friend = friends.find(f => extractFriendUsername(f) === selectedFriend);
+              const isOnline = !!friend?.is_online;
+              const lastSeenText = !isOnline ? formatRelativeTime(friend?.last_seen) : null;
+              return (
+                <span className="dm-friend-status-text">
+                  <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
+                  {isOnline ? 'Online now' : `Last seen ${lastSeenText}`}
+                </span>
+              );
+            })()}
           </div>
         </div>
 
@@ -609,14 +641,18 @@ const Friends = ({ user, navigationOptions }) => {
             </div>
           ) : (
             <div className="friends-grid">
-              {friends.map((friend, idx) => {
-                const friendUsername = extractFriendUsername(friend);
-                const friendDisplayName = extractFriendDisplayName(friend);
-                const unreadCount = unreadCounts[friendUsername] || 0;
-                return (
-                  <div 
-                    key={idx} 
-                    className="friend-card clickable"
+              {[...friends]
+                .sort((a, b) => (b?.is_online ? 1 : 0) - (a?.is_online ? 1 : 0))
+                .map((friend, idx) => {
+                  const friendUsername = extractFriendUsername(friend);
+                  const friendDisplayName = extractFriendDisplayName(friend);
+                  const unreadCount = unreadCounts[friendUsername] || 0;
+                  const isOnline = !!friend?.is_online;
+                  const lastSeenText = !isOnline ? formatRelativeTime(friend?.last_seen) : null;
+                  return (
+                    <div 
+                      key={idx} 
+                      className="friend-card clickable"
                     onClick={(e) => handleSelectFriend(friend, e)}
                     onMouseDown={(e) => e.stopPropagation()}
                     style={{ cursor: 'pointer', userSelect: 'none' }}
@@ -644,8 +680,8 @@ const Friends = ({ user, navigationOptions }) => {
                     <div className="friend-info">
                       <span className="friend-name">{friendDisplayName}</span>
                       <div className="friend-status">
-                        <span className="status-dot online"></span>
-                        <span>Online</span>
+                        <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
+                        <span>{isOnline ? 'Online now' : `Last seen ${lastSeenText}`}</span>
                       </div>
                     </div>
                     {unreadCount > 0 && (
