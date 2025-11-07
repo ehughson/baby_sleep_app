@@ -826,7 +826,11 @@ def get_channel_members(channel_id):
         return jsonify({'error': f'Failed to get members: {str(e)}'}), 500
 
 # File upload configuration
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+# Use persistent storage for uploads if available (Railway volumes), otherwise use local directory
+if os.path.exists('/data'):
+    UPLOAD_FOLDER = '/data/uploads'
+else:
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'txt'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
