@@ -1787,7 +1787,8 @@ def login():
             return jsonify({'error': 'Invalid username or password'}), 401
         
         # Check if account is active
-        is_active = user.get('is_active', 1)
+        user_keys = user.keys() if hasattr(user, 'keys') else []
+        is_active = user['is_active'] if 'is_active' in user_keys else 1
         print(f"User found, is_active: {is_active}")
         if is_active == 0:
             conn.close()
@@ -1859,7 +1860,8 @@ def check_session():
             return jsonify({'authenticated': False}), 401
         
         # Check if account is active
-        if session.get('is_active', 1) == 0:
+        session_keys = session.keys() if hasattr(session, 'keys') else []
+        if ('is_active' in session_keys and session['is_active'] == 0):
             conn.close()
             return jsonify({'authenticated': False, 'error': 'Account has been deactivated'}), 403
         
