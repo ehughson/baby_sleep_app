@@ -352,7 +352,11 @@ const Forum = ({ user, navigationOptions }) => {
     }
   };
 
-  const iconOptions = ['💬', '🌙', '🛌', '😴', '💤', '💙', '⭐', '🎯', '📚', '💡', '🤗'];
+  const extendedIconOptions = [
+    '💬', '🌙', '🛌', '😴', '💤', '💙', '⭐', '🎯', '📚', '💡', '🤗',
+    '🍼', '🌟', '🧸', '🎵', '☕️', '🦉', '🌈', '🧘', '🕰️', '🧠', '🍃', '🥰',
+    '📅', '✨', '🪄', '🪺', '🛁', '🧴', '🧦', '🪄'
+  ];
 
   // Show topic selection view (grid of topics)
   if (!selectedChannel) {
@@ -434,7 +438,7 @@ const Forum = ({ user, navigationOptions }) => {
                 <div className="form-group">
                   <label htmlFor="channel-icon">Icon</label>
                   <div className="icon-selector">
-                    {iconOptions.map((icon) => (
+                    {extendedIconOptions.map((icon) => (
                       <button
                         key={icon}
                         type="button"
@@ -561,7 +565,7 @@ const Forum = ({ user, navigationOptions }) => {
         </div>
       </div>
 
-      <div className="topic-posts">
+      <div className={(!isLoading && posts.length === 0) ? 'topic-posts topic-posts--empty' : 'topic-posts'}>
         {isLoading ? (
           <div className="forum-loading">Loading posts...</div>
         ) : posts.length === 0 ? (
@@ -986,7 +990,7 @@ const Forum = ({ user, navigationOptions }) => {
           <form className="post-input-form" onSubmit={handleCreatePost}>
             <textarea
               className="post-input"
-              placeholder={`Share your thoughts in ${selectedChannel.name}...`}
+              placeholder={selectedChannel.name === 'bedtime-routines' ? 'Share your thoughts on bedtime routines' : `Share your thoughts in ${selectedChannel.name}...`}
               value={newPostContent}
               onChange={(e) => setNewPostContent(e.target.value)}
               rows={3}

@@ -1174,6 +1174,10 @@ body {
   background: #fafafa;
 }
 
+.topic-posts--empty {
+  overflow-y: hidden;
+}
+
 .topic-view-header {
   background: white;
   padding: 1.5rem 2rem;
