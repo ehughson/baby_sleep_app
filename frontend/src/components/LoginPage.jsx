@@ -169,8 +169,12 @@ const LoginPage = ({ onLoginSuccess }) => {
         return false;
       }
 
-      if (baby.birth_date) {
-        const ageMonths = calculateAgeInMonths(baby.birth_date);
+      const birthDateCandidate = baby.birth_date || (baby.birth_year && baby.birth_month && baby.birth_day
+        ? formatBirthDateParts(parseInt(baby.birth_year, 10), parseInt(baby.birth_month, 10), parseInt(baby.birth_day, 10))
+        : '');
+
+      if (birthDateCandidate) {
+        const ageMonths = calculateAgeInMonths(birthDateCandidate);
         if (ageMonths === null) {
           setError('Please select a valid birth date for your baby.');
           return false;
@@ -191,23 +195,68 @@ const LoginPage = ({ onLoginSuccess }) => {
 
   const handleBirthDatePartChange = (babyIndex, part, rawValue) => {
     const newBabies = [...babies];
-    const parts = parseBirthDateParts(newBabies[babyIndex].birth_date);
+    const baby = { ...newBabies[babyIndex] };
 
-    if (!rawValue) {
-      parts[part] = '';
+    const existingParts = parseBirthDateParts(baby.birth_date);
+    let birthYear = (baby.birth_year ?? '').toString();
+    let birthMonth = (baby.birth_month ?? '').toString();
+    let birthDay = (baby.birth_day ?? '').toString();
+
+    if (!birthYear && existingParts.year) {
+      birthYear = existingParts.year.toString();
+    }
+    if (!birthMonth && existingParts.month) {
+      birthMonth = existingParts.month.toString().padStart(2, '0');
+    }
+    if (!birthDay && existingParts.day) {
+      birthDay = existingParts.day.toString().padStart(2, '0');
+    }
+
+    const value = rawValue ? rawValue.toString() : '';
+
+    if (part === 'year') {
+      birthYear = value.replace(/[^0-9]/g, '').slice(0, 4);
+    } else if (part === 'month') {
+      birthMonth = value ? value.toString().padStart(2, '0') : '';
+    } else if (part === 'day') {
+      birthDay = value ? value.toString().padStart(2, '0') : '';
+    }
+
+    const yearNum = birthYear ? parseInt(birthYear, 10) : null;
+    const monthNum = birthMonth ? parseInt(birthMonth, 10) : null;
+
+    if (yearNum && monthNum) {
+      const maxDay = getDaysInMonth(yearNum, monthNum);
+      if (birthDay) {
+        let dayNum = parseInt(birthDay, 10);
+        if (Number.isNaN(dayNum)) {
+          dayNum = 1;
+        }
+        if (dayNum > maxDay) {
+          dayNum = maxDay;
+        }
+        birthDay = dayNum.toString().padStart(2, '0');
+      }
+    } else if (part === 'month') {
+      birthDay = '';
+    }
+
+    baby.birth_year = birthYear;
+    baby.birth_month = birthMonth;
+    baby.birth_day = birthDay;
+
+    if (yearNum && monthNum && birthDay) {
+      const dayNum = parseInt(birthDay, 10);
+      if (!Number.isNaN(dayNum)) {
+        baby.birth_date = formatBirthDateParts(yearNum, monthNum, dayNum);
+      } else {
+        baby.birth_date = '';
+      }
     } else {
-      const parsed = parseInt(rawValue, 10);
-      parts[part] = Number.isNaN(parsed) ? '' : parsed;
+      baby.birth_date = '';
     }
 
-    const maxDay = parts.year && parts.month ? getDaysInMonth(parts.year, parts.month) : null;
-    if (!maxDay) {
-      parts.day = '';
-    } else if (parts.day && parts.day > maxDay) {
-      parts.day = maxDay;
-    }
-
-    newBabies[babyIndex].birth_date = formatBirthDateParts(parts.year, parts.month, parts.day);
+    newBabies[babyIndex] = baby;
     setBabies(newBabies);
   };
 
@@ -305,7 +354,10 @@ const LoginPage = ({ onLoginSuccess }) => {
           .filter((baby) => baby.name.trim() || baby.birth_date || baby.sleep_issues || baby.current_schedule || baby.notes)
           .map((baby) => {
             const trimmedName = baby.name.trim();
-            const birthDate = baby.birth_date || null;
+            const birthDateCandidate = baby.birth_date || (baby.birth_year && baby.birth_month && baby.birth_day
+              ? formatBirthDateParts(parseInt(baby.birth_year, 10), parseInt(baby.birth_month, 10), parseInt(baby.birth_day, 10))
+              : null);
+            const birthDate = birthDateCandidate || null;
             const ageMonths = birthDate ? calculateAgeInMonths(birthDate) : null;
 
             return {
@@ -497,6 +549,9 @@ const LoginPage = ({ onLoginSuccess }) => {
     setBabies([{
       name: '',
       birth_date: '',
+      birth_year: '',
+      birth_month: '',
+      birth_day: '',
       sleep_issues: '',
       current_schedule: '',
       notes: ''
@@ -890,13 +945,18 @@ const LoginPage = ({ onLoginSuccess }) => {
                   <p style={{ marginBottom: '0.1rem', color: '#666', fontSize: '0.9rem', lineHeight: '1.3' }}>Tell us about your little one(s) (all fields are optional)</p>
                   
                   {babies.map((baby, index) => {
-                    const birthParts = parseBirthDateParts(baby.birth_date);
-                    const selectedMonth = birthParts.month ? birthParts.month.toString().padStart(2, '0') : '';
-                    const selectedDay = birthParts.day ? birthParts.day.toString().padStart(2, '0') : '';
-                    const selectedYear = birthParts.year ? birthParts.year.toString() : '';
-                    const daysInMonth = birthParts.year && birthParts.month ? getDaysInMonth(birthParts.year, birthParts.month) : 31;
-                    const dayOptions = Array.from({ length: daysInMonth }, (_, dayIndex) => dayIndex + 1);
-                    const disableDaySelect = !birthParts.year || !birthParts.month;
+                    const parsedFromDate = parseBirthDateParts(baby.birth_date);
+                    const birthYear = (baby.birth_year || (parsedFromDate.year ? parsedFromDate.year.toString() : '')).toString();
+                    const birthMonth = (baby.birth_month || (parsedFromDate.month ? parsedFromDate.month.toString().padStart(2, '0') : '')).toString();
+                    const birthDay = (baby.birth_day || (parsedFromDate.day ? parsedFromDate.day.toString().padStart(2, '0') : '')).toString();
+                    const numericYear = birthYear ? parseInt(birthYear, 10) : null;
+                    const numericMonth = birthMonth ? parseInt(birthMonth, 10) : null;
+                    const daysInMonth = numericYear && numericMonth ? getDaysInMonth(numericYear, numericMonth) : 31;
+                    const dayOptions = Array.from({ length: daysInMonth }, (_, dayIndex) => (dayIndex + 1).toString().padStart(2, '0'));
+                    const disableDaySelect = !birthYear || !birthMonth;
+                    const selectedYear = birthYear;
+                    const selectedMonth = birthMonth;
+                    const selectedDay = disableDaySelect ? '' : birthDay;
 
                     return (
                       <div key={index} style={{ marginBottom: '1.75rem', padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#f9f9f9', display: 'grid', gap: '1.25rem' }}>
@@ -966,8 +1026,8 @@ const LoginPage = ({ onLoginSuccess }) => {
                           >
                             <option value="">Day</option>
                             {dayOptions.map((dayOption) => (
-                              <option key={dayOption} value={dayOption.toString().padStart(2, '0')}>
-                                {dayOption}
+                              <option key={dayOption} value={dayOption}>
+                                {parseInt(dayOption, 10)}
                               </option>
                             ))}
                           </select>
@@ -1044,6 +1104,9 @@ const LoginPage = ({ onLoginSuccess }) => {
                       setBabies([...babies, {
                         name: '',
                         birth_date: '',
+                        birth_year: '',
+                        birth_month: '',
+                        birth_day: '',
                         sleep_issues: '',
                         current_schedule: '',
                         notes: ''
