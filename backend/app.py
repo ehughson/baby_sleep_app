@@ -5,6 +5,7 @@ import os
 import secrets
 import uuid
 import json
+import re
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -146,6 +147,63 @@ DEFAULT_CHANNEL_NAMES = {
 
 ONLINE_THRESHOLD_SECONDS = 120
 ONLINE_THRESHOLD_SQL = f'-{ONLINE_THRESHOLD_SECONDS} seconds'
+
+
+BAD_NAME_WORDS = {
+    'fuck',
+    'shit',
+    'bitch',
+    'cunt',
+    'asshole',
+    'bastard',
+    'dick',
+    'damn',
+    'slut',
+    'whore',
+    'nigger',
+    'spic',
+    'kike',
+    'faggot',
+    'hitler',
+    'nazi',
+    'retard'
+}
+
+MAX_BABY_AGE_MONTHS = 60
+
+
+def contains_banned_language(value):
+    if not value:
+        return False
+    normalized = re.sub(r'[^a-z0-9]', '', value.lower())
+    return any(word in normalized for word in BAD_NAME_WORDS)
+
+
+def calculate_age_months(birth_date):
+    today = datetime.utcnow().date()
+    months = (today.year - birth_date.year) * 12 + (today.month - birth_date.month)
+    if today.day < birth_date.day:
+        months -= 1
+    return months
+
+
+def validate_baby_birthdate(birth_date_str):
+    try:
+        birth_date = datetime.strptime(birth_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        raise ValueError('Invalid birth date. Please select a valid date.')
+
+    today = datetime.utcnow().date()
+    if birth_date > today:
+        raise ValueError('Birth date cannot be in the future.')
+
+    age_months = calculate_age_months(birth_date)
+    if age_months < 0:
+        raise ValueError('Birth date cannot be in the future.')
+    if age_months > MAX_BABY_AGE_MONTHS:
+        raise ValueError('Baby age must be 5 years old or younger.')
+
+    return birth_date, age_months
 
 
 def touch_forum_user(cursor, username):
@@ -792,7 +850,6 @@ def create_channel():
             return jsonify({'error': 'Channel name is required'}), 400
         
         # Validate name (no spaces, lowercase, alphanumeric and hyphens)
-        import re
         if not re.match(r'^[a-z0-9-]+$', name.lower()):
             return jsonify({'error': 'Channel name can only contain lowercase letters, numbers, and hyphens'}), 400
         
@@ -1840,14 +1897,16 @@ def signup():
         
         if len(password) < 6:
             return jsonify({'error': 'Password must be at least 6 characters'}), 400
-        
+
+        if contains_banned_language(first_name) or contains_banned_language(last_name):
+            return jsonify({'error': 'Please use respectful language in your name.'}), 400
+
         conn = get_db_connection()
         cursor = conn.cursor()
         
         # Generate or validate username
         if use_random_username:
             # If a username was provided and matches the random pattern, try to use it first
-            import re
             if username and username.strip() and re.match(r'^[a-z]+_[a-z]+_\d+$', username.strip()):
                 # Check if the provided username is available
                 cursor.execute('SELECT * FROM auth_users WHERE username = ?', (username.strip(),))
@@ -1931,12 +1990,32 @@ def signup():
         if baby_profiles and isinstance(baby_profiles, list):
             for baby_profile in baby_profiles:
                 baby_name = (baby_profile.get('name') or '').strip()
-                birth_date = (baby_profile.get('birth_date') or '').strip() or None
+                birth_date_raw = (baby_profile.get('birth_date') or '').strip()
+                birth_date = birth_date_raw or None
                 age_months = baby_profile.get('age_months')
                 sleep_issues = (baby_profile.get('sleep_issues') or '').strip() or None
                 current_schedule = (baby_profile.get('current_schedule') or '').strip() or None
                 notes = (baby_profile.get('notes') or '').strip() or None
-                
+
+                if baby_name and contains_banned_language(baby_name):
+                    conn.close()
+                    return jsonify({'error': 'Please use respectful language in baby names.'}), 400
+
+                if birth_date:
+                    try:
+                        birth_date_obj, computed_age_months = validate_baby_birthdate(birth_date)
+                    except ValueError as ve:
+                        conn.close()
+                        return jsonify({'error': str(ve)}), 400
+
+                    birth_date = birth_date_obj.isoformat()
+                    age_months = computed_age_months
+                elif age_months is not None:
+                    try:
+                        age_months = int(age_months)
+                    except (TypeError, ValueError):
+                        age_months = None
+
                 # Create if at least name is provided or if any other field has data
                 if baby_name or birth_date or age_months or sleep_issues or current_schedule or notes:
                     cursor.execute('''
@@ -2221,7 +2300,15 @@ def update_profile():
         profile_picture = (data.get('profile_picture') or '').strip() if data.get('profile_picture') is not None else ''
         
         print(f"Parsed values - username: '{username}', first_name: '{first_name}', last_name: '{last_name}', email: '{email}', bio: '{bio}', profile_picture: '{profile_picture}'")
-        
+        if 'first_name' in data and first_name and contains_banned_language(first_name):
+            conn.close()
+            return jsonify({'error': 'Please use respectful language in your name.'}), 400
+
+        if 'last_name' in data and last_name and contains_banned_language(last_name):
+            conn.close()
+            return jsonify({'error': 'Please use respectful language in your name.'}), 400
+
+
         # Validate username if changed
         if username and username != current_username:
             if len(username) < 3:
@@ -2505,13 +2592,32 @@ def create_baby_profile():
         if not name:
             conn.close()
             return jsonify({'error': 'Baby name is required'}), 400
-        
+
+        if contains_banned_language(name):
+            conn.close()
+            return jsonify({'error': 'Please use respectful language in baby names.'}), 400
+
+        if birth_date:
+            try:
+                birth_date_obj, computed_age_months = validate_baby_birthdate(birth_date)
+            except ValueError as ve:
+                conn.close()
+                return jsonify({'error': str(ve)}), 400
+
+            birth_date = birth_date_obj.isoformat()
+            age_months = computed_age_months
+        elif age_months is not None:
+            try:
+                age_months = int(age_months)
+            except (TypeError, ValueError):
+                age_months = None
+
         # Create new profile
         cursor.execute('''
             INSERT INTO baby_profiles (user_id, name, birth_date, age_months, sleep_issues, current_schedule, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (user_id, name, birth_date, age_months, sleep_issues, current_schedule, notes))
-        
+
         baby_id = cursor.lastrowid
         conn.commit()
         
@@ -2571,7 +2677,26 @@ def update_baby_profile(baby_id):
         if not name:
             conn.close()
             return jsonify({'error': 'Baby name is required'}), 400
-        
+
+        if contains_banned_language(name):
+            conn.close()
+            return jsonify({'error': 'Please use respectful language in baby names.'}), 400
+
+        if birth_date:
+            try:
+                birth_date_obj, computed_age_months = validate_baby_birthdate(birth_date)
+            except ValueError as ve:
+                conn.close()
+                return jsonify({'error': str(ve)}), 400
+
+            birth_date = birth_date_obj.isoformat()
+            age_months = computed_age_months
+        elif age_months is not None:
+            try:
+                age_months = int(age_months)
+            except (TypeError, ValueError):
+                age_months = None
+
         # Update profile
         cursor.execute('''
             UPDATE baby_profiles

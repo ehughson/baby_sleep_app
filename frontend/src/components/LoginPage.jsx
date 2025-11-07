@@ -1,6 +1,94 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authService } from '../api/authService';
 
+const PROFANITY_LIST = [
+  'fuck',
+  'shit',
+  'bitch',
+  'cunt',
+  'asshole',
+  'bastard',
+  'dick',
+  'damn',
+  'slut',
+  'whore',
+  'nigger',
+  'spic',
+  'kike',
+  'faggot',
+  'hitler',
+  'nazi',
+  'retard'
+];
+
+const MAX_BABY_AGE_MONTHS = 60;
+
+const containsBannedWord = (value) => {
+  if (!value) return false;
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+  return PROFANITY_LIST.some((word) => normalized.includes(word));
+};
+
+const getDaysInMonth = (year, month) => {
+  if (!year || !month) return 31;
+  return new Date(year, month, 0).getDate();
+};
+
+const parseBirthDateParts = (birthDate) => {
+  if (!birthDate) {
+    return { year: '', month: '', day: '' };
+  }
+  const [year, month, day] = birthDate.split('-');
+  return {
+    year: year ? parseInt(year, 10) : '',
+    month: month ? parseInt(month, 10) : '',
+    day: day ? parseInt(day, 10) : ''
+  };
+};
+
+const formatBirthDateParts = (year, month, day) => {
+  if (!year || !month || !day) {
+    return '';
+  }
+  const y = parseInt(year, 10);
+  const m = parseInt(month, 10);
+  const d = parseInt(day, 10);
+
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) {
+    return '';
+  }
+
+  return `${y.toString().padStart(4, '0')}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
+};
+
+const calculateAgeInMonths = (birthDateStr) => {
+  if (!birthDateStr) return null;
+  const [year, month, day] = birthDateStr.split('-').map((part) => parseInt(part, 10));
+  if ([year, month, day].some((part) => Number.isNaN(part))) {
+    return null;
+  }
+  const birthDate = new Date(Date.UTC(year, month - 1, day));
+  const today = new Date();
+  const todayUtc = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+
+  if (birthDate > todayUtc) {
+    return -1;
+  }
+
+  let months =
+    (todayUtc.getUTCFullYear() - birthDate.getUTCFullYear()) * 12 +
+    (todayUtc.getUTCMonth() - birthDate.getUTCMonth());
+
+  if (todayUtc.getUTCDate() < birthDate.getUTCDate()) {
+    months -= 1;
+  }
+
+  return months;
+};
+
+
 const LoginPage = ({ onLoginSuccess }) => {
   const [isSignup, setIsSignup] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -30,7 +118,24 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [goal1, setGoal1] = useState('');
   const [goal2, setGoal2] = useState('');
   const [goal3, setGoal3] = useState('');
-  
+
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: Math.floor(MAX_BABY_AGE_MONTHS / 12) + 1 }, (_, idx) => currentYear - idx);
+  const monthOptions = [
+    { value: '01', label: 'January' },
+    { value: '02', label: 'February' },
+    { value: '03', label: 'March' },
+    { value: '04', label: 'April' },
+    { value: '05', label: 'May' },
+    { value: '06', label: 'June' },
+    { value: '07', label: 'July' },
+    { value: '08', label: 'August' },
+    { value: '09', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' }
+  ];
+
   // Login fields
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -56,21 +161,76 @@ const LoginPage = ({ onLoginSuccess }) => {
     return `${adjective}_${noun}_${number}`;
   };
 
+  const validateBabyEntries = () => {
+    for (const baby of babies) {
+      const trimmedName = (baby.name || '').trim();
+      if (trimmedName && containsBannedWord(trimmedName)) {
+        setError('Baby names cannot include inappropriate language.');
+        return false;
+      }
+
+      if (baby.birth_date) {
+        const ageMonths = calculateAgeInMonths(baby.birth_date);
+        if (ageMonths === null) {
+          setError('Please select a valid birth date for your baby.');
+          return false;
+        }
+        if (ageMonths < 0) {
+          setError('Birth date cannot be in the future.');
+          return false;
+        }
+        if (ageMonths > MAX_BABY_AGE_MONTHS) {
+          setError('Baby age must be 5 years old or younger.');
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+
+  const handleBirthDatePartChange = (babyIndex, part, rawValue) => {
+    const newBabies = [...babies];
+    const parts = parseBirthDateParts(newBabies[babyIndex].birth_date);
+
+    if (!rawValue) {
+      parts[part] = '';
+    } else {
+      const parsed = parseInt(rawValue, 10);
+      parts[part] = Number.isNaN(parsed) ? '' : parsed;
+    }
+
+    const maxDay = parts.year && parts.month ? getDaysInMonth(parts.year, parts.month) : null;
+    if (!maxDay) {
+      parts.day = '';
+    } else if (parts.day && parts.day > maxDay) {
+      parts.day = maxDay;
+    }
+
+    newBabies[babyIndex].birth_date = formatBirthDateParts(parts.year, parts.month, parts.day);
+    setBabies(newBabies);
+  };
+
   const handleSignupStep1 = (e) => {
     e.preventDefault();
     setError('');
     
     // Validate step 1 fields
-    if (!firstName || !lastName || !email || !password) {
+    if (!firstName.trim() || !lastName.trim() || !email || !password) {
       setError('Please fill in all required fields');
       return;
     }
-    
+
+    if (containsBannedWord(firstName.trim()) || containsBannedWord(lastName.trim())) {
+      setError('Please use respectful language in your name.');
+      return;
+    }
+
     if (!username && !useRandomUsername) {
       setError('Please enter a username or select "Generate random username"');
       return;
     }
-    
+
     // Move to step 2
     setSignupStep(2);
     // Scroll to top after render
@@ -91,7 +251,11 @@ const LoginPage = ({ onLoginSuccess }) => {
   const handleSignupStep2 = (e) => {
     e.preventDefault();
     setError('');
-    
+
+    if (!validateBabyEntries()) {
+      return;
+    }
+
     // Move to step 3 (baby info is optional)
     setSignupStep(3);
     // Scroll to top after render
@@ -113,6 +277,16 @@ const LoginPage = ({ onLoginSuccess }) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    if (containsBannedWord(firstName.trim()) || containsBannedWord(lastName.trim())) {
+      setError('Please use respectful language in your name.');
+      return;
+    }
+
+    if (!validateBabyEntries()) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -120,20 +294,29 @@ const LoginPage = ({ onLoginSuccess }) => {
       const shouldUseRandom = useRandomUsername && username && username.match(/^[a-z]+_[a-z]+_\d+$/);
       
       const response = await authService.signup(
-        firstName,
-        lastName,
+        firstName.trim(),
+        lastName.trim(),
         email,
         password,
         username,
         shouldUseRandom,
         rememberMe,
-        babies.filter(baby => baby.name.trim() || baby.birth_date || baby.sleep_issues || baby.current_schedule || baby.notes).map(baby => ({
-          name: baby.name.trim(),
-          birth_date: baby.birth_date || null,
-          sleep_issues: baby.sleep_issues.trim() || null,
-          current_schedule: baby.current_schedule.trim() || null,
-          notes: baby.notes.trim() || null
-        })),
+        babies
+          .filter((baby) => baby.name.trim() || baby.birth_date || baby.sleep_issues || baby.current_schedule || baby.notes)
+          .map((baby) => {
+            const trimmedName = baby.name.trim();
+            const birthDate = baby.birth_date || null;
+            const ageMonths = birthDate ? calculateAgeInMonths(birthDate) : null;
+
+            return {
+              name: trimmedName,
+              birth_date: birthDate,
+              age_months: birthDate && ageMonths !== null && ageMonths >= 0 ? ageMonths : null,
+              sleep_issues: baby.sleep_issues.trim() || null,
+              current_schedule: baby.current_schedule.trim() || null,
+              notes: baby.notes.trim() || null
+            };
+          }),
         {
           goal_1: goal1,
           goal_2: goal2,
@@ -706,8 +889,17 @@ const LoginPage = ({ onLoginSuccess }) => {
                   <h3 style={{ marginBottom: '0.1rem', color: '#a68cab', fontFamily: 'Nunito, sans-serif', lineHeight: '1.2' }}>Baby Information</h3>
                   <p style={{ marginBottom: '0.1rem', color: '#666', fontSize: '0.9rem', lineHeight: '1.3' }}>Tell us about your little one(s) (all fields are optional)</p>
                   
-                  {babies.map((baby, index) => (
-                    <div key={index} style={{ marginBottom: '1.75rem', padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#f9f9f9', display: 'grid', gap: '1.25rem' }}>
+                  {babies.map((baby, index) => {
+                    const birthParts = parseBirthDateParts(baby.birth_date);
+                    const selectedMonth = birthParts.month ? birthParts.month.toString().padStart(2, '0') : '';
+                    const selectedDay = birthParts.day ? birthParts.day.toString().padStart(2, '0') : '';
+                    const selectedYear = birthParts.year ? birthParts.year.toString() : '';
+                    const daysInMonth = birthParts.year && birthParts.month ? getDaysInMonth(birthParts.year, birthParts.month) : 31;
+                    const dayOptions = Array.from({ length: daysInMonth }, (_, dayIndex) => dayIndex + 1);
+                    const disableDaySelect = !birthParts.year || !birthParts.month;
+
+                    return (
+                      <div key={index} style={{ marginBottom: '1.75rem', padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#f9f9f9', display: 'grid', gap: '1.25rem' }}>
                       {babies.length > 1 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                           <h4 style={{ margin: 0, color: '#a68cab', fontFamily: 'Nunito, sans-serif' }}>Baby {index + 1}</h4>
@@ -752,17 +944,47 @@ const LoginPage = ({ onLoginSuccess }) => {
 
                       <div className="form-group">
                         <label htmlFor={`birth-date-${index}`}>Birth Date</label>
-                        <input
-                          id={`birth-date-${index}`}
-                          type="date"
-                          value={baby.birth_date}
-                          onChange={(e) => {
-                            const newBabies = [...babies];
-                            newBabies[index].birth_date = e.target.value;
-                            setBabies(newBabies);
-                          }}
-                          disabled={isLoading}
-                        />
+                        <div className="birthdate-selects">
+                          <select
+                            id={`birth-month-${index}`}
+                            value={selectedMonth}
+                            onChange={(e) => handleBirthDatePartChange(index, 'month', e.target.value)}
+                            disabled={isLoading}
+                          >
+                            <option value="">Month</option>
+                            {monthOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            id={`birth-day-${index}`}
+                            value={selectedDay}
+                            onChange={(e) => handleBirthDatePartChange(index, 'day', e.target.value)}
+                            disabled={isLoading || disableDaySelect}
+                          >
+                            <option value="">Day</option>
+                            {dayOptions.map((dayOption) => (
+                              <option key={dayOption} value={dayOption.toString().padStart(2, '0')}>
+                                {dayOption}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            id={`birth-year-${index}`}
+                            value={selectedYear}
+                            onChange={(e) => handleBirthDatePartChange(index, 'year', e.target.value)}
+                            disabled={isLoading}
+                          >
+                            <option value="">Year</option>
+                            {yearOptions.map((yearOption) => (
+                              <option key={yearOption} value={yearOption}>
+                                {yearOption}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
 
                       <div className="form-group">
@@ -813,7 +1035,8 @@ const LoginPage = ({ onLoginSuccess }) => {
                         />
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                   
                   <button
                     type="button"

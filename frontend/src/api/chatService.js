@@ -2,6 +2,15 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
+const supportsStreaming = () => {
+  if (typeof window === 'undefined') return true;
+  const hasReadableStream = typeof ReadableStream !== 'undefined' && !!ReadableStream.prototype?.getReader;
+  const userAgent = navigator.userAgent || '';
+  const isSafari = /Safari/i.test(userAgent) && !/Chrome/i.test(userAgent);
+  const isIOS = /iP(ad|hone|od)/i.test(userAgent);
+  return hasReadableStream && !isSafari && !isIOS;
+};
+
 // Note: axios is still used for non-streaming endpoints (conversations, health check)
 
 // Log API URL on load for debugging
@@ -10,18 +19,44 @@ console.log('API Base URL:', API_BASE_URL);
 export const chatService = {
   // Send message and get streaming response
   sendMessage: async (message, conversationId = null, onChunk = null) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('session_token') : null;
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
+
+    const sendNonStreamingRequest = async () => {
+      const fallbackResponse = await axios.post(
+        `${API_BASE_URL}/chat`,
+        {
+          message,
+          conversation_id: conversationId,
+          stream: false
+        },
+        { headers, timeout: 30000 }
+      );
+
+      const data = fallbackResponse.data || {};
+      const textResponse = data.response || '';
+
+      if (textResponse && onChunk) {
+        onChunk(textResponse, textResponse);
+      }
+
+      return {
+        response: textResponse,
+        conversation_id: data.conversation_id ?? conversationId
+      };
+    };
+
     try {
       console.log('Sending message to:', `${API_BASE_URL}/chat`);
-      
-      // Use streaming by default
-      const token = localStorage.getItem('session_token');
-      const headers = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+
+      if (!supportsStreaming()) {
+        console.log('Streaming not supported; using non-streaming fallback immediately.');
+        return await sendNonStreamingRequest();
       }
-      
+
       const response = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
         headers,
@@ -124,34 +159,7 @@ export const chatService = {
 
       if (isNetworkError && !error.__retried) {
         try {
-          const token = localStorage.getItem('session_token');
-          const fallbackResponse = await axios.post(
-            `${API_BASE_URL}/chat`,
-            {
-              message,
-              conversation_id: conversationId,
-              stream: false
-            },
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {})
-              },
-              timeout: 30000
-            }
-          );
-
-          const data = fallbackResponse.data || {};
-          const textResponse = data.response || '';
-
-          if (textResponse && onChunk) {
-            onChunk(textResponse, textResponse);
-          }
-
-          return {
-            response: textResponse,
-            conversation_id: data.conversation_id ?? conversationId
-          };
+          return await sendNonStreamingRequest();
         } catch (fallbackError) {
           console.error('Fallback request failed:', fallbackError);
           const fallbackMessage = fallbackError?.response?.data?.error || fallbackError.message || 'Failed to send message';
