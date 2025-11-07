@@ -19,7 +19,7 @@ body {
 }
 
 #root {
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -27,14 +27,13 @@ body {
 .app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
   max-width: 900px;
   margin: 20px auto;
   background: white;
   border-radius: 20px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  min-height: 0;
+  overflow: visible;
 }
 
 .app:has(.update-banner) .header {
@@ -2285,7 +2284,7 @@ body {
   .app {
     margin: 0;
     border-radius: 0;
-    height: 100vh;
+    min-height: 100vh;
   }
 
   .header {
