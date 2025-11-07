@@ -24,8 +24,10 @@ Railway provides persistent storage through **Volumes**. Here's how to set it up
 5. Configure the volume:
    - **Mount Path**: `/data` (this is what the code expects - must be exactly `/data`)
    - **Name**: `persistent-storage` (or any name you prefer)
-   - **Size**: Start with 1GB (you can increase later if needed)
+   - **Size**: Railway may set this automatically based on your plan, or it might not be configurable. That's fine - you can increase it later if needed.
 6. Click **"Create"** or **"Attach"** or **"Add"**
+
+**Note**: If you don't see a size option, Railway will automatically allocate storage based on your plan. You can always increase it later if needed.
 
 **Important**: The mount path must be exactly `/data` - this is what the code is configured to use.
 
