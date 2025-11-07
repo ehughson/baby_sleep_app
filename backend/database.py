@@ -2,7 +2,15 @@ import sqlite3
 import os
 from datetime import datetime
 
-DATABASE_PATH = 'chatbot.db'
+# Use persistent storage path if available (Railway volumes), otherwise use current directory
+# Railway volumes are mounted at /data by default
+if os.path.exists('/data'):
+    DATABASE_PATH = '/data/chatbot.db'
+    # Ensure /data directory exists and is writable
+    os.makedirs('/data', exist_ok=True)
+else:
+    # Fallback to current directory for local development
+    DATABASE_PATH = 'chatbot.db'
 
 def init_db():
     """Initialize the database with required tables"""
