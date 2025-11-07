@@ -953,10 +953,10 @@ const LoginPage = ({ onLoginSuccess }) => {
                     const numericMonth = birthMonth ? parseInt(birthMonth, 10) : null;
                     const daysInMonth = numericYear && numericMonth ? getDaysInMonth(numericYear, numericMonth) : 31;
                     const dayOptions = Array.from({ length: daysInMonth }, (_, dayIndex) => (dayIndex + 1).toString().padStart(2, '0'));
-                    const disableDaySelect = !birthYear || !birthMonth;
+                    const disableDaySelect = !birthMonth;
                     const selectedYear = birthYear;
                     const selectedMonth = birthMonth;
-                    const selectedDay = disableDaySelect ? '' : birthDay;
+                    const selectedDay = birthDay;
 
                     return (
                       <div key={index} style={{ marginBottom: '1.75rem', padding: '1.5rem', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#f9f9f9', display: 'grid', gap: '1.25rem' }}>
