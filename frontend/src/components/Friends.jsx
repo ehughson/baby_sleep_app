@@ -371,6 +371,22 @@ const Friends = ({ user, navigationOptions }) => {
     }
   };
 
+  const refreshFriendData = async () => {
+    if (!authorName || !authorName.trim()) {
+      return;
+    }
+    try {
+      await Promise.all([
+        loadFriends(authorName),
+        loadFriendRequests(authorName),
+        loadUnreadCounts(authorName)
+      ]);
+    } catch (error) {
+      console.error('Error refreshing friend data:', error);
+    }
+  };
+
+
   const handleSearchUsers = async (query) => {
     if (!query.trim() || !authorName.trim()) {
       setSearchResults([]);
@@ -407,14 +423,11 @@ const Friends = ({ user, navigationOptions }) => {
     try {
       const result = await forumService.sendFriendRequest(authorName, toUser);
       console.log('Friend request sent successfully:', result);
-      alert('Friend request sent!');
       setFriendSearchQuery('');
       setSearchResults([]);
       setShowAddFriend(false);
-      // Reload friend requests to show the sent request
-      if (authorName) {
-        loadFriendRequests(authorName);
-      }
+      await refreshFriendData();
+      alert('Friend request sent!');
     } catch (error) {
       console.error('Error sending friend request:', error);
       alert(error.message || 'Failed to send friend request');
@@ -424,9 +437,8 @@ const Friends = ({ user, navigationOptions }) => {
   const handleAcceptFriendRequest = async (fromUser) => {
     try {
       await forumService.acceptFriendRequest(fromUser, authorName);
-      // Reload friends and requests
-      loadFriends(authorName);
-      loadFriendRequests(authorName);
+      setFriendRequests((prev) => prev.filter((req) => req.from_user !== fromUser));
+      await refreshFriendData();
     } catch (error) {
       alert(error.message || 'Failed to accept friend request');
     }
@@ -620,13 +632,26 @@ const Friends = ({ user, navigationOptions }) => {
                     </div>
                     <span className="friend-request-name">{request.from_user}</span>
                   </div>
-                  <button
-                    className="accept-friend-btn"
-                    onClick={() => handleAcceptFriendRequest(request.from_user)}
-                    title="Accept"
-                  >
-                    Accept
-                  </button>
+                  <div className="friend-request-actions">
+                    <button
+                      type="button"
+                      className="view-profile-btn"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setViewingProfile(request.from_user);
+                      }}
+                    >
+                      View Profile
+                    </button>
+                    <button
+                      className="accept-friend-btn"
+                      onClick={() => handleAcceptFriendRequest(request.from_user)}
+                      title="Accept"
+                    >
+                      Accept
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -684,9 +709,22 @@ const Friends = ({ user, navigationOptions }) => {
                         <span>{isOnline ? 'Online now' : `Last seen ${lastSeenText}`}</span>
                       </div>
                     </div>
-                    {unreadCount > 0 && (
-                      <div className="unread-badge">{unreadCount}</div>
-                    )}
+                    <div className="friend-card-actions">
+                      <button
+                        type="button"
+                        className="view-profile-btn"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setViewingProfile(friendUsername);
+                        }}
+                      >
+                        View Profile
+                      </button>
+                      {unreadCount > 0 && (
+                        <div className="unread-badge">{unreadCount}</div>
+                      )}
+                    </div>
                   </div>
                 );
               })}

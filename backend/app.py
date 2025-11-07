@@ -670,7 +670,28 @@ def get_channels():
             ''', (ONLINE_THRESHOLD_SQL,))
 
         result = cursor.fetchone()
-        channel_dict['active_users'] = result['count'] if result else 0
+        active_count = result['count'] if result else 0
+
+        if username and active_count > 0:
+            if is_private:
+                cursor.execute('''
+                    SELECT 1
+                    FROM channel_members
+                    WHERE channel_id = ? AND username = ?
+                ''', (channel_id, username))
+                if cursor.fetchone():
+                    active_count -= 1
+            else:
+                # For public channels, subtract the current user if they're online
+                cursor.execute('''
+                    SELECT 1
+                    FROM forum_users
+                    WHERE username = ? AND last_seen >= datetime('now', ?)
+                ''', (username, ONLINE_THRESHOLD_SQL))
+                if cursor.fetchone():
+                    active_count -= 1
+
+        channel_dict['active_users'] = active_count if active_count > 0 else 0
         channels_with_counts.append(channel_dict)
     
     conn.close()
