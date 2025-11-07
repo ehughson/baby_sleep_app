@@ -1964,10 +1964,14 @@ def signup():
         user_id = cursor.lastrowid
         
         # Create forum user entry
+        sanitized_display_name = f"{first_name} {last_name}".strip()
+        if contains_banned_language(sanitized_display_name):
+            sanitized_display_name = username
+
         cursor.execute('''
             INSERT OR IGNORE INTO forum_users (username, display_name)
             VALUES (?, ?)
-        ''', (username, f"{first_name} {last_name}"))
+        ''', (username, sanitized_display_name or username))
         
         # Create session
         session_token = secrets.token_urlsafe(32)
@@ -2383,7 +2387,13 @@ def update_profile():
                     UPDATE forum_users 
                     SET username = ?, display_name = ?
                     WHERE username = ?
-                ''', (username, f"{first_name or ''} {last_name or ''}".strip() or username, current_username))
+                ''', (
+                    username,
+                    (f"{first_name or ''} {last_name or ''}".strip() or username)
+                    if not contains_banned_language(f"{first_name or ''} {last_name or ''}")
+                    else username,
+                    current_username
+                ))
             
             conn.commit()
         
