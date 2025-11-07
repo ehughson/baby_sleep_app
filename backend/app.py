@@ -1953,6 +1953,48 @@ def signup():
             conn.close()
             return jsonify({'error': 'Email already registered. Please use a different email or login.'}), 400
         
+        # Validate and normalize baby profiles before creating user
+        baby_profiles_input = data.get('baby_profiles', [])
+        processed_baby_profiles = []
+        if baby_profiles_input and isinstance(baby_profiles_input, list):
+            for baby_profile in baby_profiles_input:
+                baby_name = (baby_profile.get('name') or '').strip()
+                birth_date_raw = (baby_profile.get('birth_date') or '').strip() or None
+                age_months = baby_profile.get('age_months')
+                sleep_issues = (baby_profile.get('sleep_issues') or '').strip() or None
+                current_schedule = (baby_profile.get('current_schedule') or '').strip() or None
+                notes = (baby_profile.get('notes') or '').strip() or None
+
+                if baby_name and contains_banned_language(baby_name):
+                    conn.close()
+                    return jsonify({'error': 'Please use respectful language in baby names.'}), 400
+
+                birth_date_iso = None
+                computed_age_months = None
+
+                if birth_date_raw:
+                    try:
+                        birth_date_obj, computed_age_months = validate_baby_birthdate(birth_date_raw)
+                    except ValueError as ve:
+                        conn.close()
+                        return jsonify({'error': str(ve)}), 400
+
+                    birth_date_iso = birth_date_obj.isoformat()
+                elif age_months is not None:
+                    try:
+                        age_months = int(age_months)
+                    except (TypeError, ValueError):
+                        age_months = None
+
+                processed_baby_profiles.append({
+                    'name': baby_name or None,
+                    'birth_date': birth_date_iso,
+                    'age_months': computed_age_months if birth_date_iso else (age_months if isinstance(age_months, int) else None),
+                    'sleep_issues': sleep_issues,
+                    'current_schedule': current_schedule,
+                    'notes': notes
+                })
+
         # Hash password
         password_hash = generate_password_hash(password)
         
@@ -1990,42 +2032,21 @@ def signup():
         user_data = cursor.fetchone()
         
         # Create baby profiles if provided (supports multiple babies)
-        baby_profiles = data.get('baby_profiles', [])
-        if baby_profiles and isinstance(baby_profiles, list):
-            for baby_profile in baby_profiles:
-                baby_name = (baby_profile.get('name') or '').strip()
-                birth_date_raw = (baby_profile.get('birth_date') or '').strip()
-                birth_date = birth_date_raw or None
-                age_months = baby_profile.get('age_months')
-                sleep_issues = (baby_profile.get('sleep_issues') or '').strip() or None
-                current_schedule = (baby_profile.get('current_schedule') or '').strip() or None
-                notes = (baby_profile.get('notes') or '').strip() or None
-
-                if baby_name and contains_banned_language(baby_name):
-                    conn.close()
-                    return jsonify({'error': 'Please use respectful language in baby names.'}), 400
-
-                if birth_date:
-                    try:
-                        birth_date_obj, computed_age_months = validate_baby_birthdate(birth_date)
-                    except ValueError as ve:
-                        conn.close()
-                        return jsonify({'error': str(ve)}), 400
-
-                    birth_date = birth_date_obj.isoformat()
-                    age_months = computed_age_months
-                elif age_months is not None:
-                    try:
-                        age_months = int(age_months)
-                    except (TypeError, ValueError):
-                        age_months = None
-
-                # Create if at least name is provided or if any other field has data
-                if baby_name or birth_date or age_months or sleep_issues or current_schedule or notes:
+        if processed_baby_profiles:
+            for baby_profile in processed_baby_profiles:
+                if baby_profile['name'] or baby_profile['birth_date'] or baby_profile['age_months'] or baby_profile['sleep_issues'] or baby_profile['current_schedule'] or baby_profile['notes']:
                     cursor.execute('''
                         INSERT INTO baby_profiles (user_id, name, birth_date, age_months, sleep_issues, current_schedule, notes)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (user_id, baby_name or None, birth_date, age_months, sleep_issues, current_schedule, notes))
+                    ''', (
+                        user_id,
+                        baby_profile['name'],
+                        baby_profile['birth_date'],
+                        baby_profile['age_months'],
+                        baby_profile['sleep_issues'],
+                        baby_profile['current_schedule'],
+                        baby_profile['notes']
+                    ))
         
         # Create sleep goals if provided
         sleep_goals = data.get('sleep_goals')
@@ -2068,6 +2089,13 @@ def signup():
         })
     except Exception as e:
         print(f'Signup error: {str(e)}')  # Debug logging
+        try:
+            if 'conn' in locals():
+                conn.rollback()
+        except Exception:
+            pass
+        if 'conn' in locals():
+            conn.close()
         return jsonify({'error': f'Failed to create account: {str(e)}'}), 500
 
 @app.route('/api/auth/login', methods=['POST'])
