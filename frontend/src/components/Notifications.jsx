@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { notificationService } from '../api/notificationService';
 
 const Notifications = ({ user, onNavigate }) => {
@@ -12,40 +12,56 @@ const Notifications = ({ user, onNavigate }) => {
   const lastCheckRef = useRef(new Date().toISOString());
   const dropdownRef = useRef(null);
 
-  // Poll for notifications every 30 seconds
+  const checkNotifications = useCallback(async () => {
+    if (!user || !user.username) return;
+
+    try {
+      const lastCheck = lastCheckRef.current;
+      const data = await notificationService.getNotifications(user.username, lastCheck);
+
+      if (data) {
+        setNotifications({
+          new_posts: data.new_posts || [],
+          new_messages: data.new_messages || 0,
+          new_message_senders: data.new_message_senders || [],
+          new_friend_requests: data.new_friend_requests || []
+        });
+        lastCheckRef.current = new Date().toISOString();
+      }
+    } catch (error) {
+      console.error('Error checking notifications:', error);
+    }
+  }, [user]);
+
+  // Poll for notifications every 10 seconds
   useEffect(() => {
     if (!user || !user.username) return;
 
-    const checkNotifications = async () => {
-      try {
-        const lastCheck = lastCheckRef.current;
-        const data = await notificationService.getNotifications(user.username, lastCheck);
-        
-        // Ensure data structure is correct
-        if (data) {
-          setNotifications({
-            new_posts: data.new_posts || [],
-            new_messages: data.new_messages || 0,
-            new_message_senders: data.new_message_senders || [],
-            new_friend_requests: data.new_friend_requests || []
-          });
-          
-          // Update last check time after successfully getting notifications
-          lastCheckRef.current = new Date().toISOString();
-        }
-      } catch (error) {
-        console.error('Error checking notifications:', error);
+    checkNotifications();
+    const interval = setInterval(checkNotifications, 10000);
+
+    return () => clearInterval(interval);
+  }, [user, checkNotifications]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkNotifications();
       }
     };
 
-    // Check immediately
-    checkNotifications();
+    const handleWindowFocus = () => {
+      checkNotifications();
+    };
 
-    // Then check every 30 seconds
-    const interval = setInterval(checkNotifications, 30000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
 
-    return () => clearInterval(interval);
-  }, [user]);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [checkNotifications]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

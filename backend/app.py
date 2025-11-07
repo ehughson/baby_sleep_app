@@ -1470,10 +1470,12 @@ def get_notifications():
                 SELECT DISTINCT c.id, c.name
                 FROM forum_channels c
                 LEFT JOIN channel_members cm ON c.id = cm.channel_id AND cm.username = ?
-                WHERE c.is_private = 0 
+                LEFT JOIN channel_opt_out coo ON coo.channel_id = c.id AND coo.username = ?
+                WHERE coo.id IS NULL
+                  AND (c.is_private = 0 
                    OR c.owner_name = ?
-                   OR cm.username = ?
-            ''', (username, username, username))
+                   OR cm.username = ?)
+            ''', (username, username, username, username))
             
             accessible_channels = cursor.fetchall()
             channel_ids = [ch['id'] for ch in accessible_channels]
