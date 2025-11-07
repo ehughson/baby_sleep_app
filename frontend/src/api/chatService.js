@@ -38,7 +38,10 @@ export const chatService = {
       }
 
       // Handle streaming response
-      const reader = response.body.getReader();
+      const reader = response.body && response.body.getReader ? response.body.getReader() : null;
+      if (!reader) {
+        throw new TypeError('Streaming not supported by this browser for this endpoint.');
+      }
       const decoder = new TextDecoder();
       let buffer = '';
       let fullResponse = '';
@@ -110,7 +113,52 @@ export const chatService = {
     } catch (error) {
       console.error('API Error:', error);
       console.error('API URL:', API_BASE_URL);
-      
+
+      const isNetworkError =
+        error instanceof TypeError ||
+        (typeof error.message === 'string' && (
+          error.message.includes('Failed to fetch') ||
+          error.message.includes('Load failed') ||
+          error.message.includes('NetworkError')
+        ));
+
+      if (isNetworkError && !error.__retried) {
+        try {
+          const token = localStorage.getItem('session_token');
+          const fallbackResponse = await axios.post(
+            `${API_BASE_URL}/chat`,
+            {
+              message,
+              conversation_id: conversationId,
+              stream: false
+            },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+              },
+              timeout: 30000
+            }
+          );
+
+          const data = fallbackResponse.data || {};
+          const textResponse = data.response || '';
+
+          if (textResponse && onChunk) {
+            onChunk(textResponse, textResponse);
+          }
+
+          return {
+            response: textResponse,
+            conversation_id: data.conversation_id ?? conversationId
+          };
+        } catch (fallbackError) {
+          console.error('Fallback request failed:', fallbackError);
+          const fallbackMessage = fallbackError?.response?.data?.error || fallbackError.message || 'Failed to send message';
+          throw new Error(fallbackMessage);
+        }
+      }
+
       // More detailed error messages
       if (error.message) {
         throw error;
