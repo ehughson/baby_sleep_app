@@ -1204,7 +1204,8 @@ const Forum = ({ user, navigationOptions }) => {
                   placeholder="Enter username to invite..."
                   autoFocus
                   required
-                  autoComplete="off"
+                  autoComplete="new-password"
+                  name="invite-username"
                 />
               </div>
               {channelMembers.length > 0 && (
