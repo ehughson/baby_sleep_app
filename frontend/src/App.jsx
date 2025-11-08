@@ -50,6 +50,7 @@ function App() {
   const [showSleepGoals, setShowSleepGoals] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showUpdateBanner, setShowUpdateBanner] = useState(false);
+  const [showConversationMenu, setShowConversationMenu] = useState(false);
   const currentVersionRef = useRef(null);
   const loadConversations = useCallback(async () => {
     if (!user) {
@@ -148,10 +149,10 @@ function App() {
   }, [user, loadConversations]);
 
   useEffect(() => {
-    if (showUserMenu) {
+    if (showUserMenu || showConversationMenu) {
       loadConversations();
     }
-  }, [showUserMenu, loadConversations]);
+  }, [showUserMenu, showConversationMenu, loadConversations]);
 
   // Check authentication on mount
   useEffect(() => {
@@ -411,6 +412,7 @@ function App() {
 
       setActiveTab('chat');
       setShowUserMenu(false);
+      setShowConversationMenu(false);
       window.history.replaceState(
         { view: 'conversation', hasMessages: normalizedMessages.length > 0 },
         '',
@@ -562,6 +564,8 @@ function App() {
   };
 
   const handleNewConversation = () => {
+    setShowUserMenu(false);
+    setShowConversationMenu(false);
     // Use browser history API to go back
     // This works with browser back button, trackpad swipe, and our back button
     const currentState = window.history.state;
@@ -605,15 +609,6 @@ function App() {
     <div className="app">
       <header className="header">
         <div className="header-content">
-          {activeTab === 'chat' && messages.length > 0 && (
-            <button
-              className="back-btn"
-              onClick={handleNewConversation}
-              title="Back to Welcome"
-            >
-              <span className="btn-icon">←</span>
-            </button>
-          )}
           <div className="header-title">
             {user?.profile_picture ? (
               <img 
@@ -643,39 +638,61 @@ function App() {
                     }
                   }}
                 />
+                <div className="conversation-menu">
+                  <button
+                    className={`conversation-menu-toggle ${showConversationMenu ? 'active' : ''}`}
+                    onClick={() => {
+                      const nextState = !showConversationMenu;
+                      setShowConversationMenu(nextState);
+                      if (nextState) {
+                        setShowUserMenu(false);
+                      }
+                    }}
+                    title="Previous Chats"
+                  >
+                    🗂
+                  </button>
+                  {showConversationMenu && (
+                    <div className="conversation-menu-dropdown">
+                      <div className="conversation-menu-header">Previous Chats</div>
+                      {isLoadingConversations ? (
+                        <div className="conversation-menu-empty">Loading history…</div>
+                      ) : conversations.length > 0 ? (
+                        <div className="conversation-menu-list">
+                          {conversations.map((conv) => (
+                            <button
+                              key={conv.id}
+                              className={`conversation-menu-item ${String(conversationId) === String(conv.id) ? 'active' : ''}`}
+                              onClick={() => handleSelectConversation(conv.id)}
+                              disabled={isSwitchingConversation || isLoading}
+                            >
+                              <span className="conversation-menu-icon">💤</span>
+                              <span className="conversation-menu-title">{conv.title}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="conversation-menu-empty">No saved chats yet</div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div className="user-menu-dropdown">
                   <button
                     className="user-menu-toggle"
-                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    onClick={() => {
+                      const nextState = !showUserMenu;
+                      setShowUserMenu(nextState);
+                      if (nextState) {
+                        setShowConversationMenu(false);
+                      }
+                    }}
                     title="Menu"
                   >
                     ⋯
                   </button>
                   {showUserMenu && (
                     <div className="user-menu-dropdown-content">
-                      <div className="user-menu-section">
-                        <div className="user-menu-section-title">Previous Chats</div>
-                        {isLoadingConversations ? (
-                          <div className="user-menu-conversation-empty">Loading history…</div>
-                        ) : conversations.length > 0 ? (
-                          <div className="user-menu-conversations">
-                            {conversations.map((conv) => (
-                              <button
-                                key={conv.id}
-                                className={`user-menu-item user-menu-item--conversation ${String(conversationId) === String(conv.id) ? 'active' : ''}`}
-                                onClick={() => handleSelectConversation(conv.id)}
-                                disabled={isSwitchingConversation || isLoading}
-                              >
-                                <span className="menu-icon">💤</span>
-                                <span className="conversation-title">{conv.title}</span>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="user-menu-conversation-empty">No saved chats yet</div>
-                        )}
-                      </div>
-                      <div className="user-menu-divider"></div>
                       <button
                         className="user-menu-item"
                         onClick={() => {
@@ -857,10 +874,13 @@ function App() {
       )}
       
       {/* Close dropdown when clicking outside */}
-      {showUserMenu && (
+      {(showUserMenu || showConversationMenu) && (
         <div 
           className="dropdown-overlay"
-          onClick={() => setShowUserMenu(false)}
+          onClick={() => {
+            setShowUserMenu(false);
+            setShowConversationMenu(false);
+          }}
         />
       )}
     </div>
