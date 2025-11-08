@@ -1218,6 +1218,74 @@ body {
   box-shadow: 0 4px 12px rgba(166, 140, 171, 0.3);
 }
 
+.topic-search-bar {
+  background: white;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+  margin: 1.5rem 2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  border: 1px solid #f0f0f0;
+}
+
+.topic-search-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f7f7f9;
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid transparent;
+  transition: border 0.2s ease, background 0.2s ease;
+}
+
+.topic-search-field:focus-within {
+  border-color: #a68cab;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(166, 140, 171, 0.12);
+}
+
+.topic-search-field input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.95rem;
+  font-family: 'Nunito', sans-serif;
+  color: #333;
+  outline: none;
+}
+
+.topic-search-field input::placeholder {
+  color: #999;
+}
+
+.topic-search-field svg {
+  color: #a68cab;
+}
+
+.topic-search-clear {
+  border: none;
+  background: none;
+  color: #a68cab;
+  cursor: pointer;
+  display: inline-flex;
+  padding: 0.2rem;
+  border-radius: 50%;
+  transition: background 0.2s ease;
+}
+
+.topic-search-clear:hover {
+  background: rgba(166, 140, 171, 0.12);
+}
+
+.topic-search-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #666;
+}
+
 .topics-grid {
   flex: 1;
   overflow-y: auto;
@@ -1270,15 +1338,41 @@ body {
 
 .topic-stats {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   font-size: 0.85rem;
   color: #999;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
 }
 
 .topic-stat {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+.topic-invite-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(166, 140, 171, 0.12);
+  color: #6d4f79;
+}
+
+.topic-invite-btn:hover {
+  background: rgba(166, 140, 171, 0.18);
+}
+
+.topic-invite-btn svg {
+  color: currentColor;
 }
 
 .topic-posts {
@@ -2337,11 +2431,15 @@ body {
 
 .create-channel-form,
 .add-friend-form {
-  padding: 1.5rem;
+  padding: 1.5rem 1.5rem 2rem;
 }
 
-.form-group {
-  margin-bottom: 0;
+.create-channel-form .form-group {
+  margin-bottom: 1.25rem;
+}
+
+.create-channel-form .modal-buttons {
+  margin-top: 1.5rem;
 }
 
 .form-group label {

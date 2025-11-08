@@ -28,6 +28,7 @@ const Forum = ({ user, navigationOptions }) => {
   const [replyContent, setReplyContent] = useState('');
   const [viewingProfile, setViewingProfile] = useState(null);
   const [activeReactionPicker, setActiveReactionPicker] = useState(null);
+  const [channelSearch, setChannelSearch] = useState('');
 
   const currentUsername = user?.username || authorName || '';
 
@@ -183,6 +184,7 @@ const Forum = ({ user, navigationOptions }) => {
       });
       
       // Update the post's reactions
+      setPosts(posts.map(post => {
       setPosts(posts.map(post => {
         if (post.id === postId) {
           const wasReacted = (post.user_reactions || []).includes(emoji);
@@ -509,6 +511,16 @@ const Forum = ({ user, navigationOptions }) => {
     );
   };
 
+  const filteredChannels = channels.filter((channel) => {
+    if (!channelSearch.trim()) {
+      return true;
+    }
+    const search = channelSearch.trim().toLowerCase();
+    const nameMatches = channel.name.toLowerCase().includes(search);
+    const descriptionMatches = (channel.description || '').toLowerCase().includes(search);
+    return (nameMatches || descriptionMatches) && channel.is_private !== 1;
+  });
+
   // Show topic selection view (grid of topics)
   if (!selectedChannel) {
     return (
@@ -522,20 +534,45 @@ const Forum = ({ user, navigationOptions }) => {
             + New Topic
           </button>
         </div>
+        <div className="topic-search-bar">
+          <div className="topic-search-field">
+            <MinimalIcon name="search" size={16} />
+            <input
+              type="text"
+              placeholder="Search for topics..."
+              value={channelSearch}
+              onChange={(e) => setChannelSearch(e.target.value)}
+              aria-label="Search topics"
+            />
+            {channelSearch && (
+              <button
+                type="button"
+                className="topic-search-clear"
+                onClick={() => setChannelSearch('')}
+                aria-label="Clear search"
+              >
+                <MinimalIcon name="close" size={14} />
+              </button>
+            )}
+          </div>
+          <p className="topic-search-hint">
+            Showing {filteredChannels.length} {filteredChannels.length === 1 ? 'topic' : 'topics'}{channelSearch.trim() ? ' that match your search' : ''}
+          </p>
+        </div>
         
         <div className="topics-grid">
           {isLoadingChannels ? (
             <div className="forum-loading">Loading topics...</div>
-          ) : channels.length === 0 ? (
+          ) : filteredChannels.length === 0 ? (
             <div className="empty-forum">
               <div className="empty-icon" aria-hidden="true">
                 <MinimalIcon name="forum" size={20} />
               </div>
-              <h3>No topics yet</h3>
-              <p>Be the first to create a topic!</p>
+              <h3>No topics found</h3>
+              <p>{channelSearch.trim() ? 'Try adjusting your search or create a new topic.' : 'Be the first to create a topic!'}</p>
             </div>
           ) : (
-            channels.map((channel) => (
+            filteredChannels.map((channel) => (
               <div
                 key={channel.id}
                 className="topic-card"
@@ -565,6 +602,21 @@ const Forum = ({ user, navigationOptions }) => {
                     <MinimalIcon name="users" size={14} />
                     {channel.active_users || 0} online
                   </span>
+                  <button
+                    type="button"
+                    className="topic-invite-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInviteUsername('');
+                      setShowInviteModal(true);
+                      setSelectedChannel(channel);
+                    }}
+                    title="Invite friends to join"
+                    aria-label={`Invite friends to ${channel.name}`}
+                  >
+                    <MinimalIcon name={channel.is_private === 1 ? 'lock' : 'userPlus'} size={14} />
+                    {channel.is_private === 1 ? 'Invite' : 'Share'}
+                  </button>
                 </div>
               </div>
             ))
