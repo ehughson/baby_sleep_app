@@ -631,139 +631,141 @@ function App() {
             <>
               <div className="user-menu">
                 <span className="user-name">{user.username}</span>
-                <Notifications 
-                  user={user} 
-                  onNavigate={(tab, options) => {
-                    setActiveTab(tab);
-                    // Store navigation options for child components
-                    if (options) {
-                      sessionStorage.setItem('notification_nav', JSON.stringify(options));
-                    }
-                  }}
-                />
-                <div className="conversation-menu">
-                  <button
-                    className={`conversation-menu-toggle ${showConversationMenu ? 'active' : ''}`}
-                    onClick={() => {
-                      const nextState = !showConversationMenu;
-                      setShowConversationMenu(nextState);
-                      if (nextState) {
-                        setShowUserMenu(false);
+                <div className="header-action-buttons">
+                  <Notifications 
+                    user={user} 
+                    onNavigate={(tab, options) => {
+                      setActiveTab(tab);
+                      // Store navigation options for child components
+                      if (options) {
+                        sessionStorage.setItem('notification_nav', JSON.stringify(options));
                       }
                     }}
-                    title="Previous Chats"
-                    aria-label="Previous Chats"
-                  >
-                    <MinimalIcon name="history" size={18} />
-                  </button>
-                  {showConversationMenu && (
-                    <div className="conversation-menu-dropdown">
-                      <div className="conversation-menu-header">Previous Chats</div>
-                      {isLoadingConversations ? (
-                        <div className="conversation-menu-empty">Loading history…</div>
-                      ) : conversations.length > 0 ? (
-                        <div className="conversation-menu-list">
-                          {conversations.map((conv) => (
-                            <button
-                              key={conv.id}
-                              className={`conversation-menu-item ${String(conversationId) === String(conv.id) ? 'active' : ''}`}
-                              onClick={() => handleSelectConversation(conv.id)}
-                              disabled={isSwitchingConversation || isLoading}
-                            >
-                              <span className="conversation-menu-icon" aria-hidden="true">
-                                <MinimalIcon name="sleep" size={16} />
-                              </span>
-                              <span className="conversation-menu-title">{conv.title}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="conversation-menu-empty">No saved chats yet</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="user-menu-dropdown">
-                  <button
-                    className="user-menu-toggle"
-                    onClick={() => {
-                      const nextState = !showUserMenu;
-                      setShowUserMenu(nextState);
-                      if (nextState) {
-                        setShowConversationMenu(false);
-                      }
-                    }}
-                    title="Menu"
-                    aria-label="Account menu"
-                  >
-                    <MinimalIcon name="options" size={16} />
-                  </button>
-                  {showUserMenu && (
-                    <div className="user-menu-dropdown-content">
-                      <button
-                        className="user-menu-item"
-                        onClick={() => {
-                          setShowProfile(true);
+                  />
+                  <div className="conversation-menu">
+                    <button
+                      className={`conversation-menu-toggle ${showConversationMenu ? 'active' : ''}`}
+                      onClick={() => {
+                        const nextState = !showConversationMenu;
+                        setShowConversationMenu(nextState);
+                        if (nextState) {
                           setShowUserMenu(false);
-                        }}
-                      >
-                        <span className="menu-icon" aria-hidden="true">
-                          <MinimalIcon name="profile" size={16} />
-                        </span>
-                        <span>Profile</span>
-                      </button>
-                      <button
-                        className="user-menu-item"
-                        onClick={() => {
-                          setShowBabyProfile(true);
-                          setShowUserMenu(false);
-                        }}
-                      >
-                        <span className="menu-icon" aria-hidden="true">
-                          <MinimalIcon name="baby" size={16} />
-                        </span>
-                        <span>Baby Profile</span>
-                      </button>
-                      <button
-                        className="user-menu-item"
-                        onClick={() => {
-                          setShowSleepGoals(true);
-                          setShowUserMenu(false);
-                        }}
-                      >
-                        <span className="menu-icon" aria-hidden="true">
-                          <MinimalIcon name="target" size={16} />
-                        </span>
-                        <span>Sleep Goals</span>
-                      </button>
-                      <div className="user-menu-divider"></div>
-                      <button
-                        className="user-menu-item"
-                        onClick={() => {
-                          handleDeactivate();
-                          setShowUserMenu(false);
-                        }}
-                        style={{ color: '#dc3545' }}
-                      >
-                        <span className="menu-icon" aria-hidden="true">
-                          <MinimalIcon name="warning" size={16} />
-                        </span>
-                        <span>Deactivate Account</span>
-                      </button>
-                      <button
-                        className="user-menu-item"
-                        onClick={() => {
-                          handleLogout();
-                          setShowUserMenu(false);
-                        }}
-                      >
-                        <span className="menu-icon" aria-hidden="true">
-                          <MinimalIcon name="exit" size={16} />
-                        </span>
-                        <span>Logout</span>
-                      </button>
-                    </div>
-                  )}
+                        }
+                      }}
+                      title="Previous Chats"
+                      aria-label="Previous Chats"
+                    >
+                      <MinimalIcon name="history" size={18} />
+                    </button>
+                    {showConversationMenu && (
+                      <div className="conversation-menu-dropdown">
+                        <div className="conversation-menu-header">Previous Chats</div>
+                        {isLoadingConversations ? (
+                          <div className="conversation-menu-empty">Loading history…</div>
+                        ) : conversations.length > 0 ? (
+                          <div className="conversation-menu-list">
+                            {conversations.map((conv) => (
+                              <button
+                                key={conv.id}
+                                className={`conversation-menu-item ${String(conversationId) === String(conv.id) ? 'active' : ''}`}
+                                onClick={() => handleSelectConversation(conv.id)}
+                                disabled={isSwitchingConversation || isLoading}
+                              >
+                                <span className="conversation-menu-icon" aria-hidden="true">
+                                  <MinimalIcon name="sleep" size={16} />
+                                </span>
+                                <span className="conversation-menu-title">{conv.title}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="conversation-menu-empty">No saved chats yet</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="user-menu-dropdown">
+                    <button
+                      className="user-menu-toggle"
+                      onClick={() => {
+                        const nextState = !showUserMenu;
+                        setShowUserMenu(nextState);
+                        if (nextState) {
+                          setShowConversationMenu(false);
+                        }
+                      }}
+                      title="Menu"
+                      aria-label="Account menu"
+                    >
+                      <MinimalIcon name="options" size={16} />
+                    </button>
+                    {showUserMenu && (
+                      <div className="user-menu-dropdown-content">
+                        <button
+                          className="user-menu-item"
+                          onClick={() => {
+                            setShowProfile(true);
+                            setShowUserMenu(false);
+                          }}
+                        >
+                          <span className="menu-icon" aria-hidden="true">
+                            <MinimalIcon name="profile" size={16} />
+                          </span>
+                          <span>Profile</span>
+                        </button>
+                        <button
+                          className="user-menu-item"
+                          onClick={() => {
+                            setShowBabyProfile(true);
+                            setShowUserMenu(false);
+                          }}
+                        >
+                          <span className="menu-icon" aria-hidden="true">
+                            <MinimalIcon name="baby" size={16} />
+                          </span>
+                          <span>Baby Profile</span>
+                        </button>
+                        <button
+                          className="user-menu-item"
+                          onClick={() => {
+                            setShowSleepGoals(true);
+                            setShowUserMenu(false);
+                          }}
+                        >
+                          <span className="menu-icon" aria-hidden="true">
+                            <MinimalIcon name="target" size={16} />
+                          </span>
+                          <span>Sleep Goals</span>
+                        </button>
+                        <div className="user-menu-divider"></div>
+                        <button
+                          className="user-menu-item"
+                          onClick={() => {
+                            handleDeactivate();
+                            setShowUserMenu(false);
+                          }}
+                          style={{ color: '#dc3545' }}
+                        >
+                          <span className="menu-icon" aria-hidden="true">
+                            <MinimalIcon name="warning" size={16} />
+                          </span>
+                          <span>Deactivate Account</span>
+                        </button>
+                        <button
+                          className="user-menu-item"
+                          onClick={() => {
+                            handleLogout();
+                            setShowUserMenu(false);
+                          }}
+                        >
+                          <span className="menu-icon" aria-hidden="true">
+                            <MinimalIcon name="exit" size={16} />
+                          </span>
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </>
