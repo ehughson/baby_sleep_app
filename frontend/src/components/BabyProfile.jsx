@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../api/authService';
-import MinimalIcon from './icons/MinimalIcon';
+import MinimalIcon from './icons/MinimalIcon.jsx';
 
 const BabyProfile = ({ user, onClose }) => {
   const [babies, setBabies] = useState([]);

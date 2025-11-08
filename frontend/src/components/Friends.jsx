@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { forumService } from '../api/forumService';
 import UserProfile from './UserProfile';
-import MinimalIcon from './icons/MinimalIcon';
+import MinimalIcon from './icons/MinimalIcon.jsx';
 
 const Friends = ({ user, navigationOptions }) => {
   const [friends, setFriends] = useState([]);

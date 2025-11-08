@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { notificationService } from '../api/notificationService';
-import MinimalIcon from './icons/MinimalIcon';
+import MinimalIcon from './icons/MinimalIcon.jsx';
 
 const Notifications = ({ user, onNavigate }) => {
   const [notifications, setNotifications] = useState({

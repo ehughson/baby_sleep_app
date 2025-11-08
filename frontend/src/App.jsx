@@ -5,7 +5,7 @@ import Forum from './components/Forum';
 import Friends from './components/Friends';
 import LoginPage from './components/LoginPage';
 import Notifications from './components/Notifications';
-import MinimalIcon from './components/icons/MinimalIcon';
+import MinimalIcon from './components/icons/MinimalIcon.jsx';
 import Profile from './components/Profile';
 import BabyProfile from './components/BabyProfile';
 import SleepGoals from './components/SleepGoals';

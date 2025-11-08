@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authService } from '../api/authService';
-import MinimalIcon from './icons/MinimalIcon';
+import MinimalIcon from './icons/MinimalIcon.jsx';
 
 const PROFANITY_LIST = [
   'fuck',

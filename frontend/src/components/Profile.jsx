@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../api/authService';
 import { forumService } from '../api/forumService';
-import MinimalIcon from './icons/MinimalIcon';
+import MinimalIcon from './icons/MinimalIcon.jsx';
 
 const Profile = ({ user, onUpdate, onClose }) => {
   const [profile, setProfile] = useState({
