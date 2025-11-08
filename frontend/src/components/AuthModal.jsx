@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { authService } from '../api/authService';
+import MinimalIcon from './icons/MinimalIcon';
 
 const AuthModal = ({ onClose, onSuccess, mode = 'login' }) => {
   const [isSignup, setIsSignup] = useState(mode === 'signup');
@@ -38,7 +39,9 @@ const AuthModal = ({ onClose, onSuccess, mode = 'login' }) => {
       <div className="modal-content-auth" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{isSignup ? 'Create Account' : 'Login'}</h2>
-          <button className="modal-close-btn" onClick={onClose}>×</button>
+        <button className="modal-close-btn" onClick={onClose} aria-label="Close">
+          <MinimalIcon name="close" size={16} />
+        </button>
         </div>
         
         <form onSubmit={handleSubmit} className="auth-form">

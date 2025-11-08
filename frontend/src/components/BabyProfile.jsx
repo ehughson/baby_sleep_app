@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../api/authService';
+import MinimalIcon from './icons/MinimalIcon';
 
 const BabyProfile = ({ user, onClose }) => {
   const [babies, setBabies] = useState([]);
@@ -105,7 +106,9 @@ const BabyProfile = ({ user, onClose }) => {
       <div className="profile-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="profile-modal-header">
           <h2>Baby Profiles</h2>
-          <button className="profile-close-btn" onClick={onClose}>×</button>
+        <button className="profile-close-btn" onClick={onClose} aria-label="Close">
+          <MinimalIcon name="close" size={16} />
+        </button>
         </div>
 
         <div className="profile-form" style={{ padding: '1.5rem' }}>

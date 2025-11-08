@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../api/authService';
 import { forumService } from '../api/forumService';
+import MinimalIcon from './icons/MinimalIcon';
 
 const Profile = ({ user, onUpdate, onClose }) => {
   const [profile, setProfile] = useState({
@@ -163,7 +164,9 @@ const Profile = ({ user, onUpdate, onClose }) => {
       <div className="profile-modal" onClick={(e) => e.stopPropagation()}>
         <div className="profile-modal-header">
           <h2>Edit Profile</h2>
-          <button className="profile-close-btn" onClick={onClose}>×</button>
+        <button className="profile-close-btn" onClick={onClose} aria-label="Close">
+          <MinimalIcon name="close" size={16} />
+        </button>
         </div>
 
         <form onSubmit={handleSave} className="profile-form">

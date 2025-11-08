@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { forumService } from '../api/forumService';
 import UserProfile from './UserProfile';
+import MinimalIcon from './icons/MinimalIcon';
 
 const Friends = ({ user, navigationOptions }) => {
   const [friends, setFriends] = useState([]);
@@ -525,7 +526,10 @@ const Friends = ({ user, navigationOptions }) => {
               setMessages([]);
             }}
           >
-            ← Back
+            <span aria-hidden="true" style={{ display: 'inline-flex', marginRight: '0.5rem' }}>
+              <MinimalIcon name="arrowLeft" size={16} />
+            </span>
+            Back
           </button>
           <div className="dm-friend-info">
             <div className="friend-avatar">
@@ -774,8 +778,9 @@ const Friends = ({ user, navigationOptions }) => {
                   setFriendSearchQuery('');
                   setSearchResults([]);
                 }}
+                aria-label="Close"
               >
-                ×
+                <MinimalIcon name="close" size={16} />
               </button>
             </div>
             <div className="add-friend-form">

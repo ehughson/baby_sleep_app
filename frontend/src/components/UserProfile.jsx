@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../api/authService';
 import { forumService } from '../api/forumService';
+import MinimalIcon from './icons/MinimalIcon';
 
 const UserProfile = ({ username, onClose }) => {
   const [profile, setProfile] = useState(null);
@@ -33,7 +34,9 @@ const UserProfile = ({ username, onClose }) => {
         <div className="modal-content profile-modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <h2>Profile</h2>
-            <button className="modal-close-btn" onClick={onClose}>×</button>
+            <button className="modal-close-btn" onClick={onClose} aria-label="Close">
+              <MinimalIcon name="close" size={16} />
+            </button>
           </div>
           <div style={{ padding: '2rem', textAlign: 'center' }}>Loading profile...</div>
         </div>
@@ -47,7 +50,9 @@ const UserProfile = ({ username, onClose }) => {
         <div className="modal-content profile-modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <h2>Profile</h2>
-            <button className="modal-close-btn" onClick={onClose}>×</button>
+            <button className="modal-close-btn" onClick={onClose} aria-label="Close">
+              <MinimalIcon name="close" size={16} />
+            </button>
           </div>
           <div style={{ padding: '2rem', textAlign: 'center', color: '#ff4444' }}>{error}</div>
         </div>
@@ -64,7 +69,9 @@ const UserProfile = ({ username, onClose }) => {
       <div className="modal-content profile-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Profile</h2>
-          <button className="modal-close-btn" onClick={onClose}>×</button>
+          <button className="modal-close-btn" onClick={onClose} aria-label="Close">
+              <MinimalIcon name="close" size={16} />
+            </button>
         </div>
 
         <div className="profile-view-content" style={{ padding: '2rem' }}>

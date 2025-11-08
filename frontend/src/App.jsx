@@ -5,6 +5,7 @@ import Forum from './components/Forum';
 import Friends from './components/Friends';
 import LoginPage from './components/LoginPage';
 import Notifications from './components/Notifications';
+import MinimalIcon from './components/icons/MinimalIcon';
 import Profile from './components/Profile';
 import BabyProfile from './components/BabyProfile';
 import SleepGoals from './components/SleepGoals';
@@ -617,7 +618,9 @@ function App() {
                 className="header-profile-picture"
               />
             ) : (
-              <span className="sleep-icon">🌙</span>
+              <span className="sleep-icon" aria-hidden="true">
+                <MinimalIcon name="moon" size={20} />
+              </span>
             )}
             <h1><span style={{ color: '#fff3d1' }}>REM</span>-i</h1>
           </div>
@@ -649,8 +652,9 @@ function App() {
                       }
                     }}
                     title="Previous Chats"
+                    aria-label="Previous Chats"
                   >
-                    🗂
+                    <MinimalIcon name="history" size={18} />
                   </button>
                   {showConversationMenu && (
                     <div className="conversation-menu-dropdown">
@@ -666,7 +670,9 @@ function App() {
                               onClick={() => handleSelectConversation(conv.id)}
                               disabled={isSwitchingConversation || isLoading}
                             >
-                              <span className="conversation-menu-icon">💤</span>
+                              <span className="conversation-menu-icon" aria-hidden="true">
+                                <MinimalIcon name="sleep" size={16} />
+                              </span>
                               <span className="conversation-menu-title">{conv.title}</span>
                             </button>
                           ))}
@@ -688,8 +694,9 @@ function App() {
                       }
                     }}
                     title="Menu"
+                    aria-label="Account menu"
                   >
-                    ⋯
+                    <MinimalIcon name="options" size={16} />
                   </button>
                   {showUserMenu && (
                     <div className="user-menu-dropdown-content">
@@ -700,7 +707,9 @@ function App() {
                           setShowUserMenu(false);
                         }}
                       >
-                        <span className="menu-icon">👤</span>
+                        <span className="menu-icon" aria-hidden="true">
+                          <MinimalIcon name="profile" size={16} />
+                        </span>
                         <span>Profile</span>
                       </button>
                       <button
@@ -710,7 +719,9 @@ function App() {
                           setShowUserMenu(false);
                         }}
                       >
-                        <span className="menu-icon">👶</span>
+                        <span className="menu-icon" aria-hidden="true">
+                          <MinimalIcon name="baby" size={16} />
+                        </span>
                         <span>Baby Profile</span>
                       </button>
                       <button
@@ -720,7 +731,9 @@ function App() {
                           setShowUserMenu(false);
                         }}
                       >
-                        <span className="menu-icon">🎯</span>
+                        <span className="menu-icon" aria-hidden="true">
+                          <MinimalIcon name="target" size={16} />
+                        </span>
                         <span>Sleep Goals</span>
                       </button>
                       <div className="user-menu-divider"></div>
@@ -732,7 +745,9 @@ function App() {
                         }}
                         style={{ color: '#dc3545' }}
                       >
-                        <span className="menu-icon">⚠️</span>
+                        <span className="menu-icon" aria-hidden="true">
+                          <MinimalIcon name="warning" size={16} />
+                        </span>
                         <span>Deactivate Account</span>
                       </button>
                       <button
@@ -742,7 +757,9 @@ function App() {
                           setShowUserMenu(false);
                         }}
                       >
-                        <span className="menu-icon">🚪</span>
+                        <span className="menu-icon" aria-hidden="true">
+                          <MinimalIcon name="exit" size={16} />
+                        </span>
                         <span>Logout</span>
                       </button>
                     </div>
@@ -757,7 +774,9 @@ function App() {
               onClick={handleNewConversation}
               title="Start New Conversation"
             >
-              <span className="btn-icon">💬</span>
+              <span className="btn-icon" aria-hidden="true">
+                <MinimalIcon name="chat" size={16} />
+              </span>
               New Chat
             </button>
           )}
@@ -770,21 +789,27 @@ function App() {
           className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
           onClick={() => setActiveTab('chat')}
         >
-          <span className="tab-icon">💬</span>
+          <span className="tab-icon" aria-hidden="true">
+            <MinimalIcon name="chat" size={16} />
+          </span>
           Sleep Assistant
         </button>
         <button
           className={`tab-btn ${activeTab === 'forum' ? 'active' : ''}`}
           onClick={() => setActiveTab('forum')}
         >
-          <span className="tab-icon">💭</span>
+          <span className="tab-icon" aria-hidden="true">
+            <MinimalIcon name="forum" size={16} />
+          </span>
           Village
         </button>
         <button
           className={`tab-btn ${activeTab === 'friends' ? 'active' : ''}`}
           onClick={() => setActiveTab('friends')}
         >
-          <span className="tab-icon">👥</span>
+          <span className="tab-icon" aria-hidden="true">
+            <MinimalIcon name="users" size={16} />
+          </span>
           Friends
         </button>
       </div>

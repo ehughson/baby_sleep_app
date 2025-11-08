@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../api/authService';
+import MinimalIcon from './icons/MinimalIcon';
 
 const SleepGoals = ({ user, onClose }) => {
   const [goals, setGoals] = useState({
@@ -93,7 +94,9 @@ const SleepGoals = ({ user, onClose }) => {
       <div className="profile-modal" onClick={(e) => e.stopPropagation()}>
         <div className="profile-modal-header">
           <h2>Sleep Goals</h2>
-          <button className="profile-close-btn" onClick={onClose}>×</button>
+        <button className="profile-close-btn" onClick={onClose} aria-label="Close">
+          <MinimalIcon name="close" size={16} />
+        </button>
         </div>
 
         <form onSubmit={handleSave} className="profile-form">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { forumService } from '../api/forumService';
 import UserProfile from './UserProfile';
+import MinimalIcon, { resolveIconName } from './icons/MinimalIcon';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
@@ -371,11 +372,40 @@ const Forum = ({ user, navigationOptions }) => {
     }
   };
 
-  const extendedIconOptions = [
-    '💬', '🌙', '🛌', '😴', '💤', '💙', '⭐', '🎯', '📚', '💡', '🤗',
-    '🍼', '🌟', '🧸', '🎵', '☕️', '🦉', '🌈', '🧘', '🕰️', '🧠', '🍃', '🥰',
-    '📅', '✨', '🪄', '🪺', '🛁', '🧴', '🧦', '🪄'
+  const iconOptions = [
+    { emoji: '💬', label: 'Chat' },
+    { emoji: '🌙', label: 'Night' },
+    { emoji: '🛌', label: 'Bedtime' },
+    { emoji: '😴', label: 'Sleep' },
+    { emoji: '💤', label: 'Rest' },
+    { emoji: '💙', label: 'Support' },
+    { emoji: '⭐', label: 'Shine' },
+    { emoji: '🎯', label: 'Goals' },
+    { emoji: '📚', label: 'Learning' },
+    { emoji: '💡', label: 'Ideas' },
+    { emoji: '🤗', label: 'Community' },
+    { emoji: '🍼', label: 'Feeding' },
+    { emoji: '🌟', label: 'Highlights' },
+    { emoji: '🧸', label: 'Play' },
+    { emoji: '🎵', label: 'Soothing' },
+    { emoji: '☕️', label: 'Caregivers' },
+    { emoji: '🦉', label: 'Late Night' },
+    { emoji: '🌈', label: 'Bright Spots' },
+    { emoji: '🧘', label: 'Calm' },
+    { emoji: '🕰️', label: 'Schedule' },
+    { emoji: '🧠', label: 'Growth' },
+    { emoji: '🍃', label: 'Fresh Air' },
+    { emoji: '🥰', label: 'Love' },
+    { emoji: '📅', label: 'Planning' },
+    { emoji: '✨', label: 'Spark' },
+    { emoji: '🪄', label: 'Magic' },
+    { emoji: '🪺', label: 'Nest' },
+    { emoji: '🛁', label: 'Bath' },
+    { emoji: '🧴', label: 'Care' },
+    { emoji: '🧦', label: 'Cozy' }
   ];
+
+  const getIconName = (token, fallback = 'chat') => resolveIconName(token, fallback) || fallback;
 
   // Show topic selection view (grid of topics)
   if (!selectedChannel) {
@@ -396,7 +426,9 @@ const Forum = ({ user, navigationOptions }) => {
             <div className="forum-loading">Loading topics...</div>
           ) : channels.length === 0 ? (
             <div className="empty-forum">
-              <div className="empty-icon">💭</div>
+              <div className="empty-icon" aria-hidden="true">
+                <MinimalIcon name="forum" size={20} />
+              </div>
               <h3>No topics yet</h3>
               <p>Be the first to create a topic!</p>
             </div>
@@ -408,16 +440,28 @@ const Forum = ({ user, navigationOptions }) => {
                 onClick={() => setSelectedChannel(channel)}
               >
                 <div className="topic-card-header">
-                  <span className="topic-icon">{channel.icon}</span>
+                  <span className="topic-icon" aria-hidden="true">
+                    <MinimalIcon name={getIconName(channel.icon)} size={18} />
+                  </span>
                   <span className="topic-name">{channel.name}</span>
                 </div>
                 <p className="topic-description">{channel.description ? channel.description : (channel.name === 'bedtime-routines' ? 'Share your thoughts on bedtime routines' : 'Join the conversation')}</p>
                 <div className="topic-stats">
                   {channel.is_private === 1 && (
-                    <span className="topic-stat" style={{ color: '#a68cab' }}>🔒 Private</span>
+                    <span
+                      className="topic-stat"
+                      style={{ color: '#a68cab', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <MinimalIcon name="lock" size={14} />
+                      Private
+                    </span>
                   )}
-                  <span className="topic-stat" style={{ color: '#666' }}>
-                    👥 {channel.active_users || 0} online
+                  <span
+                    className="topic-stat"
+                    style={{ color: '#666', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    <MinimalIcon name="users" size={14} />
+                    {channel.active_users || 0} online
                   </span>
                 </div>
               </div>
@@ -434,8 +478,9 @@ const Forum = ({ user, navigationOptions }) => {
                 <button
                   className="modal-close-btn"
                   onClick={() => setShowCreateChannel(false)}
+                  aria-label="Close"
                 >
-                  ×
+                  <MinimalIcon name="close" size={16} />
                 </button>
               </div>
               <form onSubmit={handleCreateChannel} className="create-channel-form">
@@ -457,16 +502,21 @@ const Forum = ({ user, navigationOptions }) => {
                 <div className="form-group">
                   <label htmlFor="channel-icon">Icon</label>
                   <div className="icon-selector">
-                    {extendedIconOptions.map((icon) => (
-                      <button
-                        key={icon}
-                        type="button"
-                        className={`icon-option ${newChannelIcon === icon ? 'selected' : ''}`}
-                        onClick={() => setNewChannelIcon(icon)}
-                      >
-                        {icon}
-                      </button>
-                    ))}
+                    {iconOptions.map((option) => {
+                      const iconName = getIconName(option.emoji);
+                      return (
+                        <button
+                          key={option.emoji}
+                          type="button"
+                          className={`icon-option ${newChannelIcon === option.emoji ? 'selected' : ''}`}
+                          onClick={() => setNewChannelIcon(option.emoji)}
+                          title={`${option.label} icon`}
+                          aria-label={`${option.label} icon`}
+                        >
+                          <MinimalIcon name={iconName} size={16} />
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 
@@ -521,16 +571,24 @@ const Forum = ({ user, navigationOptions }) => {
         <button
           className="back-to-topics-btn"
           onClick={() => setSelectedChannel(null)}
-          style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', padding: '0.5rem', color: '#333' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.35rem', color: '#333', display: 'inline-flex', alignItems: 'center' }}
+          aria-label="Back to topics"
         >
-          ←
+          <MinimalIcon name="arrowLeft" size={18} />
         </button>
-        <span className="topic-view-icon">{selectedChannel.icon}</span>
+        <span className="topic-view-icon" aria-hidden="true">
+          <MinimalIcon name={getIconName(selectedChannel.icon)} size={22} />
+        </span>
         <div className="topic-view-title">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <h2>{selectedChannel.name}</h2>
             {selectedChannel.is_private === 1 && (
-              <span style={{ fontSize: '0.85rem', color: '#a68cab', fontWeight: 600 }}>🔒 Private</span>
+              <span
+                style={{ fontSize: '0.85rem', color: '#a68cab', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <MinimalIcon name="lock" size={14} />
+                Private
+              </span>
             )}
           </div>
           {selectedChannel.description ? (
@@ -538,7 +596,13 @@ const Forum = ({ user, navigationOptions }) => {
           ) : selectedChannel.name === 'bedtime-routines' ? (
             <p className="topic-view-description">Share your thoughts on bedtime routines</p>
           ) : null}
-          <div className="topic-online-count">👥 {selectedChannel.active_users || 0} online</div>
+          <div
+            className="topic-online-count"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          >
+            <MinimalIcon name="users" size={16} />
+            {selectedChannel.active_users || 0} online
+          </div>
         </div>
         <div className="topic-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
           {selectedChannel.owner_name && selectedChannel.owner_name === currentUsername && (
@@ -547,22 +611,28 @@ const Forum = ({ user, navigationOptions }) => {
                 className="topic-action-btn"
                 onClick={handleTogglePrivacy}
                 title={selectedChannel.is_private ? 'Make Public' : 'Make Private'}
+                aria-label={selectedChannel.is_private ? 'Make Public' : 'Make Private'}
               >
-                {selectedChannel.is_private ? '🌐' : '🔒'}
+                <MinimalIcon
+                  name={selectedChannel.is_private ? 'globe' : 'lock'}
+                  size={18}
+                />
               </button>
               <button
                 className="topic-action-btn"
                 onClick={() => setShowInviteModal(true)}
                 title="Invite Members"
+                aria-label="Invite Members"
               >
-                👥
+                <MinimalIcon name="userPlus" size={18} />
               </button>
               <button
                 className="topic-action-btn delete-btn"
                 onClick={handleDeleteChannel}
                 title="Delete Topic"
+                aria-label="Delete Topic"
               >
-                🗑️
+                <MinimalIcon name="trash" size={18} />
               </button>
             </>
           )}
@@ -571,8 +641,9 @@ const Forum = ({ user, navigationOptions }) => {
               className="topic-action-btn"
               onClick={() => setShowInviteModal(true)}
               title="Invite Members"
+              aria-label="Invite Members"
             >
-              👥
+              <MinimalIcon name="userPlus" size={18} />
             </button>
           )}
           {currentUsername && selectedChannel.owner_name !== currentUsername && (
@@ -580,8 +651,9 @@ const Forum = ({ user, navigationOptions }) => {
               className="topic-action-btn"
               onClick={handleLeaveChannel}
               title="Leave Topic"
+              aria-label="Leave Topic"
             >
-              🚪
+              <MinimalIcon name="exit" size={18} />
             </button>
           )}
         </div>
@@ -592,7 +664,9 @@ const Forum = ({ user, navigationOptions }) => {
           <div className="forum-loading">Loading posts...</div>
         ) : posts.length === 0 ? (
           <div className="empty-forum">
-            <div className="empty-icon">💭</div>
+            <div className="empty-icon" aria-hidden="true">
+              <MinimalIcon name="forum" size={20} />
+            </div>
             <h3>No posts yet</h3>
             <p>Be the first to start a conversation!</p>
           </div>
@@ -691,7 +765,10 @@ const Forum = ({ user, navigationOptions }) => {
                       rel="noopener noreferrer"
                       className="file-link"
                     >
-                      📎 {post.file_name || post.file_path}
+                      <span aria-hidden="true" style={{ display: 'inline-flex', marginRight: '0.4rem' }}>
+                        <MinimalIcon name="paperclip" size={14} />
+                      </span>
+                      {post.file_name || post.file_path}
                     </a>
                   )}
                 </div>
@@ -863,7 +940,10 @@ const Forum = ({ user, navigationOptions }) => {
                                 rel="noopener noreferrer"
                                 className="file-link"
                               >
-                                📎 {reply.file_name || reply.file_path}
+                                <span aria-hidden="true" style={{ display: 'inline-flex', marginRight: '0.4rem' }}>
+                                  <MinimalIcon name="paperclip" size={14} />
+                                </span>
+                                {reply.file_name || reply.file_path}
                               </a>
                             )}
                           </div>
@@ -998,14 +1078,17 @@ const Forum = ({ user, navigationOptions }) => {
           {selectedFile && (
             <div className="file-preview" style={{ padding: '0.5rem 1rem', background: '#f8f8f8', borderTop: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '0.9rem', color: '#666' }}>
-                📎 {selectedFile.name}
+                <span aria-hidden="true" style={{ display: 'inline-flex', marginRight: '0.4rem' }}>
+                  <MinimalIcon name="paperclip" size={14} />
+                </span>
+                {selectedFile.name}
               </span>
               <button
                 type="button"
                 onClick={() => setSelectedFile(null)}
                 style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '1.2rem' }}
               >
-                ×
+                <MinimalIcon name="close" size={16} />
               </button>
             </div>
           )}
@@ -1019,7 +1102,10 @@ const Forum = ({ user, navigationOptions }) => {
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <label className="file-upload-btn" style={{ cursor: 'pointer', padding: '0.5rem 1rem', background: '#f0f0f0', borderRadius: '8px', fontSize: '0.9rem', alignSelf: 'flex-start' }}>
-                📎 Attach
+                <span aria-hidden="true" style={{ display: 'inline-flex', marginRight: '0.4rem' }}>
+                  <MinimalIcon name="paperclip" size={14} />
+                </span>
+                Attach
                 <input
                   type="file"
                   accept="image/*,.pdf,.doc,.docx,.txt"
@@ -1055,8 +1141,9 @@ const Forum = ({ user, navigationOptions }) => {
                   setShowInviteModal(false);
                   setInviteUsername('');
                 }}
+                aria-label="Close"
               >
-                ×
+                <MinimalIcon name="close" size={16} />
               </button>
             </div>
             <form onSubmit={handleInvite} className="add-friend-form">
@@ -1078,7 +1165,16 @@ const Forum = ({ user, navigationOptions }) => {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {channelMembers.map((member, idx) => (
                       <span key={idx} style={{ padding: '0.25rem 0.75rem', background: '#f0f0f0', borderRadius: '12px', fontSize: '0.85rem' }}>
-                        {member.username} {member.role === 'owner' && '👑'}
+                        {member.username} {member.role === 'owner' && (
+                          <span
+                            role="img"
+                            aria-label="Owner"
+                            title="Owner"
+                            style={{ display: 'inline-flex', marginLeft: '0.35rem' }}
+                          >
+                            <MinimalIcon name="crown" size={14} />
+                          </span>
+                        )}
                       </span>
                     ))}
                   </div>

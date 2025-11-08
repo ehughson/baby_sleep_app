@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authService } from '../api/authService';
+import MinimalIcon from './icons/MinimalIcon';
 
 const PROFANITY_LIST = [
   'fuck',
@@ -766,7 +767,10 @@ const LoginPage = ({ onLoginSuccess }) => {
                     fontSize: '0.85rem'
                   }}
                 >
-                  ← Back
+                  <span aria-hidden="true" style={{ display: 'inline-flex', marginRight: '0.5rem' }}>
+                    <MinimalIcon name="arrowLeft" size={14} />
+                  </span>
+                  Back
                 </button>
                 <div style={{ flex: 1, textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
                   Step {signupStep} of 3

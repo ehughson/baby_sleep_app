@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { notificationService } from '../api/notificationService';
+import MinimalIcon from './icons/MinimalIcon';
 
 const Notifications = ({ user, onNavigate }) => {
   const [notifications, setNotifications] = useState({
@@ -101,8 +102,9 @@ const Notifications = ({ user, onNavigate }) => {
         className="notifications-btn"
         onClick={() => setShowDropdown(!showDropdown)}
         title="Notifications"
+        aria-label="Notifications"
       >
-        🔔
+        <MinimalIcon name="bell" size={18} />
         {totalCount > 0 && (
           <span className="notification-badge">{totalCount > 99 ? '99+' : totalCount}</span>
         )}
@@ -158,7 +160,9 @@ const Notifications = ({ user, onNavigate }) => {
                           }
                         }}
                       >
-                        <span className="notification-icon">👤</span>
+                        <span className="notification-icon" aria-hidden="true">
+                          <MinimalIcon name="profile" size={16} />
+                        </span>
                         <div className="notification-content">
                           <p><strong>{req.from_user}</strong> sent you a friend request</p>
                           <span className="notification-time">{formatTime(req.created_at)}</span>
@@ -194,7 +198,9 @@ const Notifications = ({ user, onNavigate }) => {
                             }
                           }}
                         >
-                          <span className="notification-icon">💬</span>
+                          <span className="notification-icon" aria-hidden="true">
+                            <MinimalIcon name="chat" size={16} />
+                          </span>
                           <div className="notification-content">
                             <p>
                               <strong>{sender.sender_name}</strong> sent you {sender.unread_count} new message{sender.unread_count !== 1 ? 's' : ''}
@@ -220,7 +226,9 @@ const Notifications = ({ user, onNavigate }) => {
                           }
                         }}
                       >
-                        <span className="notification-icon">💬</span>
+                        <span className="notification-icon" aria-hidden="true">
+                          <MinimalIcon name="chat" size={16} />
+                        </span>
                         <div className="notification-content">
                           <p>You have <strong>{notifications.new_messages}</strong> new message{notifications.new_messages !== 1 ? 's' : ''}</p>
                         </div>
@@ -255,7 +263,9 @@ const Notifications = ({ user, onNavigate }) => {
                           }
                         }}
                       >
-                        <span className="notification-icon">📝</span>
+                        <span className="notification-icon" aria-hidden="true">
+                          <MinimalIcon name="document" size={16} />
+                        </span>
                         <div className="notification-content">
                           <p>
                             <strong>{post.author_name}</strong> posted in <strong>{post.channel_name}</strong>
