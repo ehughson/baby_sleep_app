@@ -185,7 +185,6 @@ const Forum = ({ user, navigationOptions }) => {
       
       // Update the post's reactions
       setPosts(posts.map(post => {
-      setPosts(posts.map(post => {
         if (post.id === postId) {
           const wasReacted = (post.user_reactions || []).includes(emoji);
           const newUserReactions = wasReacted 
