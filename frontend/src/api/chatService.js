@@ -45,7 +45,8 @@ export const chatService = {
 
       return {
         response: textResponse,
-        conversation_id: data.conversation_id ?? conversationId
+        conversation_id: data.conversation_id ?? conversationId,
+        conversation_title: data.conversation_title
       };
     };
 
@@ -81,6 +82,7 @@ export const chatService = {
       let buffer = '';
       let fullResponse = '';
       let conversationIdResult = conversationId;
+      let conversationTitleResult = null;
 
       console.log('Starting to read stream...');
 
@@ -114,6 +116,10 @@ export const chatService = {
                 throw new Error(data.error);
               }
               
+              if (data.conversation_title) {
+                conversationTitleResult = data.conversation_title;
+              }
+              
               if (data.chunk) {
                 fullResponse += data.chunk;
                 console.log('Calling onChunk with:', data.chunk.substring(0, 50));
@@ -127,9 +133,13 @@ export const chatService = {
                 if (data.conversation_id) {
                   conversationIdResult = data.conversation_id;
                 }
+                if (data.conversation_title) {
+                  conversationTitleResult = data.conversation_title;
+                }
                 return {
                   response: fullResponse,
-                  conversation_id: conversationIdResult
+                  conversation_id: conversationIdResult,
+                  conversation_title: conversationTitleResult
                 };
               }
             } catch (e) {
@@ -143,7 +153,8 @@ export const chatService = {
 
       return {
         response: fullResponse,
-        conversation_id: conversationIdResult
+        conversation_id: conversationIdResult,
+        conversation_title: conversationTitleResult
       };
     } catch (error) {
       console.error('API Error:', error);
@@ -181,10 +192,16 @@ export const chatService = {
   // Get all conversations
   getConversations: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/conversations`);
-      return response.data;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('session_token') : null;
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${API_BASE_URL}/conversations`, { headers });
+      return response.data || [];
     } catch (error) {
-      throw new Error('Failed to fetch conversations');
+      if (error?.response?.status === 401) {
+        return [];
+      }
+      console.error('Failed to fetch conversations', error);
+      throw new Error(error?.response?.data?.error || 'Failed to fetch conversations');
     }
   },
 
@@ -201,10 +218,13 @@ export const chatService = {
   // Get messages for a conversation
   getMessages: async (conversationId) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/conversations/${conversationId}/messages`);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('session_token') : null;
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${API_BASE_URL}/conversations/${conversationId}/messages`, { headers });
       return response.data;
     } catch (error) {
-      throw new Error('Failed to fetch messages');
+      const message = error?.response?.data?.error || 'Failed to fetch messages';
+      throw new Error(message);
     }
   },
 

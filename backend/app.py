@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
-from database import init_db
+from database import init_db, get_db_connection
 from models import Conversation, Message
 
 # Load environment variables
@@ -24,6 +24,78 @@ try:
 except ImportError:
     SENDGRID_AVAILABLE = False
     print("Warning: SendGrid not installed. Email functionality will be disabled.")
+
+
+def get_user_from_session_token(session_token):
+    """Return the authenticated user (sqlite Row) for a session token, or None."""
+    if not session_token:
+        return None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT u.*
+            FROM sessions s
+            JOIN auth_users u ON s.user_id = u.id
+            WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
+        ''', (session_token,))
+        user = cursor.fetchone()
+        conn.close()
+        return user
+    except Exception as e:
+        print(f"Error retrieving user from session: {str(e)}")
+        return None
+
+
+def generate_conversation_title(message, existing_titles=None):
+    """Generate a concise, descriptive title for a conversation based on the message."""
+    if existing_titles is None:
+        existing_titles = []
+    text = (message or '').strip()
+    if not text:
+        base_title = "Sleep Chat"
+    else:
+        normalized = text.lower()
+        keyword_rules = [
+            (("night", "wak"), "Night Waking Support"),
+            (("early", "wake"), "Early Rising Fix"),
+            (("contact", "nap"), "Contact Nap Transition"),
+            (("short", "nap"), "Short Nap Rescue"),
+            (("nap",), "Nap Routine Tune-Up"),
+            (("bedtime",), "Bedtime Wind-Down Plan"),
+            (("schedule",), "Schedule Reset Plan"),
+            (("regression",), "Sleep Regression Support"),
+            (("teeth",), "Teething Comfort Plan"),
+            (("feed",), "Night Feed Balancing"),
+            (("crib",), "Crib Transition Plan"),
+            (("swaddle",), "Swaddle Transition Support")
+        ]
+        base_title = None
+        for keywords, suggestion in keyword_rules:
+            if all(keyword in normalized for keyword in keywords):
+                base_title = suggestion
+                break
+        if not base_title:
+            segments = [seg.strip() for seg in re.split(r'[.!?\n]+', text) if seg.strip()]
+            candidate = segments[0] if segments else text
+            words = candidate.split()
+            words = words[:6]
+            candidate = ' '.join(words).strip(" ,;:-")
+            if not candidate:
+                base_title = "Sleep Chat"
+            else:
+                candidate = re.sub(r'\s+', ' ', candidate)
+                # Preserve capitalization for common sleep terms
+                base_title = candidate.title()
+    if not base_title:
+        base_title = "Sleep Chat"
+    existing_lower = {t.lower() for t in existing_titles if t}
+    final_title = base_title
+    suffix = 2
+    while final_title.lower() in existing_lower:
+        final_title = f"{base_title} #{suffix}"
+        suffix += 1
+    return final_title
 
 def send_welcome_email(email, first_name, username):
     """Send a welcome email to new users"""
@@ -432,8 +504,24 @@ Should we anchor wake-up to 7:00 a.m. or keep it flexible for a few days?
 @app.route('/api/conversations', methods=['GET'])
 def get_conversations():
     """Get all conversations"""
-    conversations = Conversation.get_all()
-    return jsonify([dict(conv) for conv in conversations])
+    session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    user = get_user_from_session_token(session_token)
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user_id = user['id']
+    conversations = Conversation.get_all(user_id=user_id)
+    conversation_list = []
+    for conv in conversations:
+        conv_dict = dict(conv)
+        title = conv_dict.get('title') or "Sleep Chat"
+        conversation_list.append({
+            'id': conv_dict.get('id'),
+            'title': title,
+            'created_at': conv_dict.get('created_at'),
+            'last_message_at': conv_dict.get('last_message_at')
+        })
+    return jsonify(conversation_list)
 
 @app.route('/api/conversations', methods=['POST'])
 def create_conversation():
@@ -447,60 +535,100 @@ def create_conversation():
 @app.route('/api/conversations/<int:conversation_id>/messages', methods=['GET'])
 def get_messages(conversation_id):
     """Get messages for a specific conversation"""
+    session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    user = get_user_from_session_token(session_token)
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user_id = user['id']
+    conversation = Conversation.get_by_id(conversation_id)
+    if not conversation:
+        return jsonify({'error': 'Conversation not found'}), 404
+    
+    conversation_dict = dict(conversation)
+    record_user_id = conversation_dict.get('user_id')
+    if record_user_id and record_user_id != user_id:
+        return jsonify({'error': 'Conversation unavailable'}), 403
+    
+    if not record_user_id:
+        Conversation.update_user(conversation_id, user_id)
+    
     messages = Message.get_by_conversation(conversation_id)
     return jsonify([dict(msg) for msg in messages])
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
     """Send a message and get response (streaming)"""
-    from database import get_db_connection
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         message = data.get('message')
         conversation_id = data.get('conversation_id')
         stream = data.get('stream', True)  # Default to streaming
         session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
         
-        if not message:
+        if message is None or not str(message).strip():
             return jsonify({'error': 'Message is required'}), 400
+        message = str(message)
+        
+        if conversation_id is not None and conversation_id != '':
+            try:
+                conversation_id = int(conversation_id)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid conversation ID'}), 400
+        else:
+            conversation_id = None
+        
+        user = get_user_from_session_token(session_token)
+        user_id = user['id'] if user else None
         
         # Get user context (baby profile and sleep goals) if authenticated
         user_context = None
-        if session_token:
+        if user_id:
             try:
                 conn = get_db_connection()
                 cursor = conn.cursor()
                 
-                # Find user from session
-                cursor.execute('''
-                    SELECT u.id
-                    FROM sessions s
-                    JOIN auth_users u ON s.user_id = u.id
-                    WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
-                ''', (session_token,))
-                session = cursor.fetchone()
+                # Get all baby profiles
+                cursor.execute('SELECT * FROM baby_profiles WHERE user_id = ? ORDER BY created_at ASC', (user_id,))
+                baby_profiles = cursor.fetchall()
                 
-                if session:
-                    user_id = session['id']
-                    
-                    # Get all baby profiles
-                    cursor.execute('SELECT * FROM baby_profiles WHERE user_id = ? ORDER BY created_at ASC', (user_id,))
-                    baby_profiles = cursor.fetchall()
-                    
-                    # Get sleep goals
-                    cursor.execute('SELECT * FROM sleep_goals WHERE user_id = ?', (user_id,))
-                    sleep_goals = cursor.fetchone()
-                    
-                    if baby_profiles or sleep_goals:
-                        user_context = {
-                            'baby_profiles': [dict(bp) for bp in baby_profiles] if baby_profiles else [],
-                            'sleep_goals': dict(sleep_goals) if sleep_goals else None
-                        }
+                # Get sleep goals
+                cursor.execute('SELECT * FROM sleep_goals WHERE user_id = ?', (user_id,))
+                sleep_goals = cursor.fetchone()
                 
+                if baby_profiles or sleep_goals:
+                    user_context = {
+                        'baby_profiles': [dict(bp) for bp in baby_profiles] if baby_profiles else [],
+                        'sleep_goals': dict(sleep_goals) if sleep_goals else None
+                    }
                 conn.close()
             except Exception as e:
                 print(f"Error fetching user context: {str(e)}")
                 # Continue without user context if there's an error
+        
+        conversation_was_new = False
+        conversation_title = None
+        
+        if not conversation_id:
+            conversation = Conversation.create(user_id=user_id)
+            conversation_id = conversation.id
+            conversation_was_new = True
+        
+        conversation_record = Conversation.get_by_id(conversation_id) if conversation_id else None
+        if conversation_record is None:
+            return jsonify({'error': 'Conversation not found'}), 404
+
+        conversation_record_dict = dict(conversation_record)
+        record_user_id = conversation_record_dict.get('user_id')
+        
+        if user_id and record_user_id and record_user_id != user_id:
+            return jsonify({'error': 'Conversation unavailable'}), 403
+        
+        if user_id and (not record_user_id):
+            Conversation.update_user(conversation_id, user_id)
+            conversation_record = Conversation.get_by_id(conversation_id)
+            conversation_record_dict = dict(conversation_record) if conversation_record else {}
+            record_user_id = conversation_record_dict.get('user_id')
         
         # Save user message
         user_message = Message(
@@ -515,6 +643,23 @@ def chat():
         if conversation_id:
             messages = Message.get_by_conversation(conversation_id)
             conversation_history = [dict(msg) for msg in messages[:-1]]  # Exclude the message we just added
+        
+        current_title = conversation_record_dict.get('title')
+        DEFAULT_AUTO_TITLES = {'Sleep Chat'}
+        if not current_title or (current_title.strip() in DEFAULT_AUTO_TITLES) or conversation_was_new:
+            existing_titles = Conversation.get_titles_for_user(user_id) if user_id else []
+            conversation_title = generate_conversation_title(message, existing_titles)
+            Conversation.update_title(conversation_id, conversation_title)
+        else:
+            conversation_title = current_title
+
+        if not conversation_title:
+            refreshed_record = Conversation.get_by_id(conversation_id)
+            if refreshed_record:
+                refreshed_dict = dict(refreshed_record)
+                conversation_title = refreshed_dict.get('title') or "Sleep Chat"
+            else:
+                conversation_title = "Sleep Chat"
         
         if stream:
             # Streaming response
@@ -548,7 +693,7 @@ def chat():
                     assistant_message.save()
                     
                     # Send completion signal
-                    yield f"data: {json.dumps({'chunk': '', 'done': True, 'conversation_id': conversation_id})}\n\n"
+                    yield f"data: {json.dumps({'chunk': '', 'done': True, 'conversation_id': conversation_id, 'conversation_title': conversation_title})}\n\n"
                 except Exception as e:
                     import traceback
                     error_trace = traceback.format_exc()
@@ -578,7 +723,8 @@ def chat():
         
         return jsonify({
             'response': response_text,
-            'conversation_id': conversation_id
+            'conversation_id': conversation_id,
+            'conversation_title': conversation_title
         })
         
     except ValueError as e:

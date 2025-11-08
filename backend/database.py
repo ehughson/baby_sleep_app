@@ -21,9 +21,33 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS conversations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            user_id INTEGER,
+            title TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES auth_users (id)
         )
     ''')
+    
+    # Ensure new columns exist on older databases
+    cursor.execute("PRAGMA table_info(conversations)")
+    conversation_columns = {row[1] for row in cursor.fetchall()}
+    if 'user_id' not in conversation_columns:
+        try:
+            cursor.execute('ALTER TABLE conversations ADD COLUMN user_id INTEGER')
+        except sqlite3.OperationalError:
+            pass
+    if 'title' not in conversation_columns:
+        try:
+            cursor.execute('ALTER TABLE conversations ADD COLUMN title TEXT')
+        except sqlite3.OperationalError:
+            pass
+    if 'last_message_at' not in conversation_columns:
+        try:
+            cursor.execute('ALTER TABLE conversations ADD COLUMN last_message_at TIMESTAMP')
+            cursor.execute('UPDATE conversations SET last_message_at = created_at WHERE last_message_at IS NULL')
+        except sqlite3.OperationalError:
+            pass
     
     # Create messages table
     cursor.execute('''

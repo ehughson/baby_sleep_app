@@ -373,7 +373,7 @@ body {
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  min-width: 200px;
+  min-width: 260px;
   z-index: 1000;
   overflow: hidden;
   animation: dropdownFadeIn 0.2s ease;
@@ -414,6 +414,67 @@ body {
   font-size: 1.2rem;
   width: 24px;
   text-align: center;
+}
+
+.user-menu-section {
+  padding: 0.75rem 0.75rem 0.5rem;
+}
+
+.user-menu-section-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #787878;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+
+.user-menu-conversations {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.user-menu-conversation-empty {
+  font-size: 0.85rem;
+  color: #9a9a9a;
+  padding: 0.5rem 0.25rem;
+}
+
+.user-menu-item--conversation {
+  border-radius: 8px;
+  font-size: 0.85rem;
+  align-items: center;
+}
+
+.user-menu-item--conversation .menu-icon {
+  width: 20px;
+  font-size: 1rem;
+}
+
+.user-menu-item--conversation .conversation-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-menu-item--conversation.active {
+  background: rgba(166, 140, 171, 0.15);
+  color: #483657;
+  font-weight: 600;
+}
+
+.user-menu-item--conversation:hover {
+  background: rgba(166, 140, 171, 0.12);
+}
+
+.user-menu-item--conversation:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .user-menu-divider {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import Forum from './components/Forum';
@@ -34,8 +34,12 @@ function App() {
   const [activeTab, setActiveTab] = useState('chat'); // 'chat', 'forum', or 'friends'
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSwitchingConversation, setIsSwitchingConversation] = useState(false);
   const [error, setError] = useState('');
   const [conversationId, setConversationId] = useState(null);
+  const [conversationTitle, setConversationTitle] = useState('');
+  const [conversations, setConversations] = useState([]);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const isInitialMount = useRef(true);
   
   // Authentication state
@@ -47,6 +51,27 @@ function App() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showUpdateBanner, setShowUpdateBanner] = useState(false);
   const currentVersionRef = useRef(null);
+  const loadConversations = useCallback(async () => {
+    if (!user) {
+      setConversations([]);
+      setIsLoadingConversations(false);
+      return;
+    }
+
+    setIsLoadingConversations(true);
+    try {
+      const conversationList = await chatService.getConversations();
+      if (Array.isArray(conversationList)) {
+        setConversations(conversationList);
+      } else {
+        setConversations([]);
+      }
+    } catch (err) {
+      console.error('Failed to load conversations', err);
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  }, [user]);
 
   // Removed autoscroll - user can manually scroll if needed
 
@@ -112,6 +137,21 @@ function App() {
       clearInterval(interval);
     };
   }, [user?.username]);
+
+  useEffect(() => {
+    if (user) {
+      loadConversations();
+    } else {
+      setConversations([]);
+      setConversationTitle('');
+    }
+  }, [user, loadConversations]);
+
+  useEffect(() => {
+    if (showUserMenu) {
+      loadConversations();
+    }
+  }, [showUserMenu, loadConversations]);
 
   // Check authentication on mount
   useEffect(() => {
@@ -308,6 +348,7 @@ function App() {
         setConversationId(null);
         setError('');
         setIsLoading(false); // Reset loading state when going back
+        setConversationTitle('');
         // Ensure hash is set correctly
         if (window.location.hash !== '#welcome' && window.location.hash !== '') {
           window.history.replaceState({ view: 'welcome', hasMessages: false }, '', window.location.pathname + '#welcome');
@@ -323,6 +364,7 @@ function App() {
         setConversationId(null);
         setError('');
         setIsLoading(false); // Reset loading state on initial load
+        setConversationTitle('');
       }
     };
     
@@ -336,8 +378,55 @@ function App() {
     };
   }, []);
 
+  const handleSelectConversation = async (targetConversationId) => {
+    if (targetConversationId === null || targetConversationId === undefined || isLoading) {
+      return;
+    }
+
+    const normalizedId = Number(targetConversationId);
+    const resolvedConversationId = Number.isNaN(normalizedId) ? targetConversationId : normalizedId;
+
+    setError('');
+    setIsSwitchingConversation(true);
+
+    try {
+      const conversationMessages = await chatService.getMessages(resolvedConversationId);
+      const normalizedMessages = Array.isArray(conversationMessages)
+        ? conversationMessages.map((msg) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp
+          }))
+        : [];
+
+      setMessages(normalizedMessages);
+      setConversationId(resolvedConversationId);
+
+      const selectedConversation = conversations.find(
+        (conv) => String(conv.id) === String(resolvedConversationId)
+      );
+      const resolvedTitle = selectedConversation?.title || conversationTitle || 'Sleep Chat';
+      setConversationTitle(resolvedTitle);
+
+      setActiveTab('chat');
+      setShowUserMenu(false);
+      window.history.replaceState(
+        { view: 'conversation', hasMessages: normalizedMessages.length > 0 },
+        '',
+        window.location.pathname + '#chat'
+      );
+    } catch (err) {
+      console.error('Failed to load conversation', err);
+      setError(err?.message || 'Failed to load conversation');
+    } finally {
+      setIsSwitchingConversation(false);
+    }
+  };
+
   const handleSendMessage = async (message) => {
     if (!message.trim()) return;
+    if (isSwitchingConversation) return;
 
     setIsLoading(true);
     setError('');
@@ -414,6 +503,15 @@ function App() {
           // If animation is running, it will naturally continue to the new content
         }
       );
+
+      const responseConversationId = response.conversation_id ?? conversationId;
+      if (responseConversationId !== undefined && responseConversationId !== null) {
+        setConversationId(responseConversationId);
+      }
+
+      const updatedConversationTitle = response.conversation_title || conversationTitle || 'Sleep Chat';
+      setConversationTitle(updatedConversationTitle);
+      loadConversations();
       
       // Ensure final content is displayed (complete any remaining animation)
       const completeAnimation = () => {
@@ -444,11 +542,6 @@ function App() {
           clearTimeout(animationTimeout);
         }
       }, (response.response.length - displayedLength) * 20 + 100);
-
-      // Set conversation ID if this is the first message
-      if (!conversationId) {
-        setConversationId(response.conversation_id);
-      }
     } catch (err) {
       setError(err.message);
       // Remove both user and assistant messages if sending failed
@@ -460,6 +553,9 @@ function App() {
         }
         return newMessages;
       });
+      if (isFirstMessage) {
+        setConversationTitle('');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -478,8 +574,10 @@ function App() {
       // If we're not in a conversation state, just clear directly
       setMessages([]);
       setConversationId(null);
+      setConversationTitle('');
       setError('');
       setIsLoading(false); // Reset loading state
+      setIsSwitchingConversation(false);
       window.history.replaceState({ view: 'welcome', hasMessages: false }, '', window.location.pathname + '#welcome');
     }
   };
@@ -555,6 +653,29 @@ function App() {
                   </button>
                   {showUserMenu && (
                     <div className="user-menu-dropdown-content">
+                      <div className="user-menu-section">
+                        <div className="user-menu-section-title">Previous Chats</div>
+                        {isLoadingConversations ? (
+                          <div className="user-menu-conversation-empty">Loading history…</div>
+                        ) : conversations.length > 0 ? (
+                          <div className="user-menu-conversations">
+                            {conversations.map((conv) => (
+                              <button
+                                key={conv.id}
+                                className={`user-menu-item user-menu-item--conversation ${String(conversationId) === String(conv.id) ? 'active' : ''}`}
+                                onClick={() => handleSelectConversation(conv.id)}
+                                disabled={isSwitchingConversation || isLoading}
+                              >
+                                <span className="menu-icon">💤</span>
+                                <span className="conversation-title">{conv.title}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="user-menu-conversation-empty">No saved chats yet</div>
+                        )}
+                      </div>
+                      <div className="user-menu-divider"></div>
                       <button
                         className="user-menu-item"
                         onClick={() => {
@@ -706,7 +827,7 @@ function App() {
 
         <ChatInput
           onSendMessage={handleSendMessage}
-          isLoading={isLoading}
+          isLoading={isLoading || isSwitchingConversation}
         />
       </div>
       ) : activeTab === 'forum' ? (
