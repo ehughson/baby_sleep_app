@@ -1193,7 +1193,7 @@ const Forum = ({ user, navigationOptions }) => {
                 <MinimalIcon name="close" size={16} />
               </button>
             </div>
-            <form onSubmit={handleInvite} className="add-friend-form">
+            <form onSubmit={handleInvite} className="add-friend-form" autoComplete="off">
               <div className="form-group">
                 <label htmlFor="invite-username">Username</label>
                 <input
@@ -1204,6 +1204,7 @@ const Forum = ({ user, navigationOptions }) => {
                   placeholder="Enter username to invite..."
                   autoFocus
                   required
+                  autoComplete="off"
                 />
               </div>
               {channelMembers.length > 0 && (
