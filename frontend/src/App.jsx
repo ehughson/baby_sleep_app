@@ -670,7 +670,7 @@ function App() {
                                 key={conv.id}
                                 className={`conversation-menu-item ${String(conversationId) === String(conv.id) ? 'active' : ''}`}
                                 onClick={() => handleSelectConversation(conv.id)}
-                                disabled={isSwitchingConversation || isLoading}
+                                disabled={isSwitchingConversation}
                               >
                                 <span className="conversation-menu-icon" aria-hidden="true">
                                   <MinimalIcon name="sleep" size={16} />
