@@ -194,11 +194,17 @@ def send_welcome_email(email, first_name, username):
         return False
 
 app = Flask(__name__)
-# CORS configuration - allows all origins in production
-# For production, you might want to restrict this to your frontend domain
+
+# CORS configuration - allow configurable origins
+allowed_origins_env = os.getenv('ALLOWED_ORIGINS')
+if allowed_origins_env:
+    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(',') if origin.strip()]
+else:
+    allowed_origins = ['*']
+
 CORS(app, resources={r"/api/*": {
-    "origins": "*", 
-    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], 
+    "origins": allowed_origins,
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     "allow_headers": ["Content-Type", "Authorization"],
     "expose_headers": ["Cache-Control", "X-Accel-Buffering"]
 }})
