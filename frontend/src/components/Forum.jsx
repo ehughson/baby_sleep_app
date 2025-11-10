@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { forumService } from '../api/forumService';
 import UserProfile from './UserProfile';
@@ -33,6 +33,9 @@ const Forum = ({ user, navigationOptions }) => {
   const [channelSearch, setChannelSearch] = useState('');
 
   const currentUsername = user?.username || authorName || '';
+
+  const postsPollingRef = useRef(null);
+  const isFetchingPostsRef = useRef(false);
 
 
   useEffect(() => {
@@ -79,8 +82,7 @@ const Forum = ({ user, navigationOptions }) => {
       loadPosts(selectedChannel.id, currentUsername);
       loadChannelMembers();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedChannel, isLoadingChannels]);
+  }, [selectedChannel, isLoadingChannels, currentUsername, loadPosts]);
 
   useEffect(() => {
     if (!currentUsername) {
@@ -108,8 +110,47 @@ const Forum = ({ user, navigationOptions }) => {
     };
   }, [activeReactionPicker]);
 
-  const loadPosts = async (channelId, username = '') => {
-    setIsLoading(true);
+  useEffect(() => {
+    if (!selectedChannel || !authorName) {
+      if (postsPollingRef.current) {
+        clearInterval(postsPollingRef.current);
+        postsPollingRef.current = null;
+      }
+      return;
+    }
+
+    // Quick background refresh for the active channel
+    loadPosts(selectedChannel.id, authorName, { showLoading: false });
+
+    if (postsPollingRef.current) {
+      clearInterval(postsPollingRef.current);
+    }
+
+    postsPollingRef.current = setInterval(() => {
+      loadPosts(selectedChannel.id, authorName, { showLoading: false });
+    }, 5000);
+
+    return () => {
+      if (postsPollingRef.current) {
+        clearInterval(postsPollingRef.current);
+        postsPollingRef.current = null;
+      }
+    };
+  }, [selectedChannel, authorName, loadPosts]);
+
+  const loadPosts = useCallback(async (channelId, username = '', options = {}) => {
+    const { showLoading = true } = options;
+    if (!channelId) return;
+
+    if (!showLoading && isFetchingPostsRef.current) {
+      return;
+    }
+
+    isFetchingPostsRef.current = true;
+    if (showLoading) {
+      setIsLoading(true);
+    }
+
     try {
       const url = username 
         ? `${API_BASE_URL}/forum/channels/${channelId}/posts?username=${encodeURIComponent(username)}`
@@ -124,9 +165,12 @@ const Forum = ({ user, navigationOptions }) => {
       }
       setPosts([]);
     } finally {
-      setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
+      isFetchingPostsRef.current = false;
     }
-  };
+  }, [setSelectedChannel]);
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
@@ -162,12 +206,12 @@ const Forum = ({ user, navigationOptions }) => {
       });
       
       if (replyingTo) {
-        // Reload posts to show the new reply
-        loadPosts(selectedChannel.id, authorName);
+        // Reload posts to show the new reply without flashing the loader
+        loadPosts(selectedChannel.id, authorName, { showLoading: false });
         setReplyingTo(null);
         setReplyContent('');
       } else {
-        setPosts([...posts, post]);
+        setPosts(prev => [...prev, post]);
         setNewPostContent('');
       }
       setSelectedFile(null);
