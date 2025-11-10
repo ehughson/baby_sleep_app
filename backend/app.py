@@ -226,6 +226,7 @@ DEFAULT_CHANNEL_NAMES = {
 
 ONLINE_THRESHOLD_SECONDS = 120
 ONLINE_THRESHOLD_SQL = f'-{ONLINE_THRESHOLD_SECONDS} seconds'
+FRIENDS_DEBUG_ENABLED = os.getenv('FRIENDS_DEBUG', 'false').lower() == 'true'
 
 
 BAD_NAME_WORDS = {
@@ -2155,36 +2156,37 @@ def get_friends(username):
         friends = cursor.fetchall()
         friend_list = [dict(friend) for friend in friends]
         
-        # Debug logging - check all friendships for this user
-        cursor.execute('''
-            SELECT * FROM friendships 
-            WHERE user1_name = ? OR user2_name = ?
-        ''', (username, username))
-        all_friendships = cursor.fetchall()
-        print(f"DEBUG: All friendships for '{username}': {len(all_friendships)}")
-        for f in all_friendships:
-            print(f"  - {dict(f)}")
-        
-        # Also check ALL friendships in database (for debugging)
-        cursor.execute('SELECT COUNT(*) as count FROM friendships')
-        total_friendships = cursor.fetchone()['count']
-        print(f"DEBUG: Total friendships in database: {total_friendships}")
-        if total_friendships > 0:
-            cursor.execute('SELECT * FROM friendships LIMIT 10')
-            sample_friendships = cursor.fetchall()
-            print(f"DEBUG: Sample friendships (first 10):")
-            for f in sample_friendships:
+        if FRIENDS_DEBUG_ENABLED:
+            # Debug logging - check all friendships for this user
+            cursor.execute('''
+                SELECT * FROM friendships 
+                WHERE user1_name = ? OR user2_name = ?
+            ''', (username, username))
+            all_friendships = cursor.fetchall()
+            print(f"DEBUG: All friendships for '{username}': {len(all_friendships)}")
+            for f in all_friendships:
                 print(f"  - {dict(f)}")
-        
-        print(f"Found {len(friend_list)} accepted friends for user: {username}")
-        if friend_list:
-            print(f"Friend names: {[f.get('friend_name') for f in friend_list]}")
-        else:
-            print(f"WARNING: No friends found for user '{username}'")
-            # Check if user exists
-            cursor.execute('SELECT username FROM auth_users WHERE username = ?', (username,))
-            user_check = cursor.fetchone()
-            print(f"User exists in auth_users: {user_check is not None}")
+            
+            # Also check ALL friendships in database (for debugging)
+            cursor.execute('SELECT COUNT(*) as count FROM friendships')
+            total_friendships = cursor.fetchone()['count']
+            print(f"DEBUG: Total friendships in database: {total_friendships}")
+            if total_friendships > 0:
+                cursor.execute('SELECT * FROM friendships LIMIT 10')
+                sample_friendships = cursor.fetchall()
+                print(f"DEBUG: Sample friendships (first 10):")
+                for f in sample_friendships:
+                    print(f"  - {dict(f)}")
+            
+            print(f"Found {len(friend_list)} accepted friends for user: {username}")
+            if friend_list:
+                print(f"Friend names: {[f.get('friend_name') for f in friend_list]}")
+            else:
+                print(f"WARNING: No friends found for user '{username}'")
+                # Check if user exists
+                cursor.execute('SELECT username FROM auth_users WHERE username = ?', (username,))
+                user_check = cursor.fetchone()
+                print(f"User exists in auth_users: {user_check is not None}")
         
         conn.close()
         return jsonify(friend_list)
