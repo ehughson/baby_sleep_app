@@ -381,7 +381,7 @@ function App() {
   }, []);
 
   const handleSelectConversation = async (targetConversationId) => {
-    if (targetConversationId === null || targetConversationId === undefined || isLoading) {
+    if (targetConversationId === null || targetConversationId === undefined || isLoading || isSwitchingConversation) {
       return;
     }
 
@@ -392,6 +392,9 @@ function App() {
     setIsSwitchingConversation(true);
 
     try {
+      setShowConversationMenu(false);
+      setShowUserMenu(false);
+
       const conversationMessages = await chatService.getMessages(resolvedConversationId);
       const normalizedMessages = Array.isArray(conversationMessages)
         ? conversationMessages.map((msg) => ({
@@ -412,8 +415,6 @@ function App() {
       setConversationTitle(resolvedTitle);
 
       setActiveTab('chat');
-      setShowUserMenu(false);
-      setShowConversationMenu(false);
       window.history.replaceState(
         { view: 'conversation', hasMessages: normalizedMessages.length > 0 },
         '',
