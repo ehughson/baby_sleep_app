@@ -643,13 +643,12 @@ const Forum = ({ user, navigationOptions }) => {
                     id="channel-name"
                     type="text"
                     value={newChannelName}
-                    onChange={(e) => setNewChannelName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                    placeholder="e.g. sleep-regression"
+                    onChange={(e) => setNewChannelName(e.target.value)}
+                    placeholder="e.g. Gentle Nights Club"
                     required
-                    pattern="[a-z0-9-]+"
-                    title="Only lowercase letters, numbers, and hyphens allowed"
+                    maxLength={80}
                   />
-                  <small>Use lowercase letters, numbers, and hyphens only</small>
+                  <small>Names can include spaces, capital letters, and symbols.</small>
                 </div>
                 
                 <div className="form-group">

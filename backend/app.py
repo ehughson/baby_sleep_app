@@ -1034,15 +1034,18 @@ def create_channel():
         if not name:
             return jsonify({'error': 'Channel name is required'}), 400
         
-        # Validate name (no spaces, lowercase, alphanumeric and hyphens)
-        if not re.match(r'^[a-z0-9-]+$', name.lower()):
-            return jsonify({'error': 'Channel name can only contain lowercase letters, numbers, and hyphens'}), 400
+        name = name.strip()
+        if not name:
+            return jsonify({'error': 'Channel name cannot be empty'}), 400
+        
+        if len(name) > 80:
+            return jsonify({'error': 'Channel name must be 80 characters or fewer'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
         # Check if channel already exists
-        cursor.execute('SELECT * FROM forum_channels WHERE LOWER(name) = LOWER(?)', (name,))
+        cursor.execute('SELECT * FROM forum_channels WHERE name = ?', (name,))
         existing = cursor.fetchone()
         if existing:
             conn.close()
@@ -1051,7 +1054,7 @@ def create_channel():
         cursor.execute('''
             INSERT INTO forum_channels (name, icon, description, is_private, owner_name)
             VALUES (?, ?, ?, ?, ?)
-        ''', (name.lower(), icon, description, 1 if is_private else 0, owner_name))
+        ''', (name, icon, description, 1 if is_private else 0, owner_name))
         channel_id = cursor.lastrowid
         
         # Add owner as member if private
