@@ -461,6 +461,7 @@ body {
   flex-direction: column;
   overflow: hidden;
   animation: dropdownFadeIn 0.2s ease;
+  z-index: 1001;
 }
 
 .conversation-menu-header {
