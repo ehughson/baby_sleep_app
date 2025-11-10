@@ -2503,6 +2503,69 @@ body {
   font-size: 0.85rem;
 }
 
+.invite-friends-results {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.invite-friend-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  border: 1px solid #e0e0e0;
+  background: #f8f8f8;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.invite-friend-option:hover {
+  border-color: #a68cab;
+  background: #f1ebf4;
+}
+
+.invite-friend-option.selected {
+  border-color: #a68cab;
+  background: rgba(166, 140, 171, 0.15);
+}
+
+.invite-friend-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.invite-friend-username {
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.invite-friend-selected {
+  font-size: 0.75rem;
+  color: #a68cab;
+  font-weight: 600;
+}
+
+.invite-friends-empty {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #777;
+}
+
+.invite-selected-summary {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #483657;
+}
+
 .form-group label[style*="flex"],
 .form-group .checkbox-label {
   display: flex !important;
@@ -2594,6 +2657,12 @@ body {
 
 .modal-btn-create:hover {
   background: #8d6f91;
+}
+
+.modal-btn-create:disabled {
+  background: #d5c8db;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .search-results {

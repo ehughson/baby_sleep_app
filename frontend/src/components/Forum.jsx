@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { forumService } from '../api/forumService';
 import UserProfile from './UserProfile';
@@ -22,6 +22,8 @@ const Forum = ({ user, navigationOptions }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteUsername, setInviteUsername] = useState('');
   const [channelMembers, setChannelMembers] = useState([]);
+  const [friendsList, setFriendsList] = useState([]);
+  const [friendSearchTerm, setFriendSearchTerm] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
@@ -265,15 +267,38 @@ const Forum = ({ user, navigationOptions }) => {
 
   const handleInvite = async (e) => {
     e.preventDefault();
-    if (!inviteUsername.trim()) return;
+    const selectedUsername = (inviteUsername || '').trim();
+    if (!selectedUsername) {
+      alert('Please select a friend to invite.');
+      return;
+    }
+
+    const friendUsernames = new Set(
+      friendsList
+        .map((friend) => extractFriendUsername(friend)?.toLowerCase())
+        .filter(Boolean)
+    );
+    if (!friendUsernames.has(selectedUsername.toLowerCase())) {
+      alert('You can only invite people you are friends with. Choose someone from your friends list.');
+      return;
+    }
+
+    const memberUsernames = new Set(
+      (channelMembers || []).map((member) => (member.username || '').toLowerCase())
+    );
+    if (memberUsernames.has(selectedUsername.toLowerCase())) {
+      alert(`${selectedUsername} is already part of this topic.`);
+      return;
+    }
 
     try {
       const username = currentUsername || authorName;
-      await forumService.inviteToChannel(selectedChannel.id, username, inviteUsername);
+      await forumService.inviteToChannel(selectedChannel.id, username, selectedUsername);
       setInviteUsername('');
+      setFriendSearchTerm('');
       setShowInviteModal(false);
       loadChannelMembers();
-      alert(`Invited ${inviteUsername} to the channel!`);
+      alert(`Invited ${selectedUsername} to the channel!`);
     } catch (error) {
       alert(error.message || 'Failed to invite user');
     }
@@ -323,6 +348,21 @@ const Forum = ({ user, navigationOptions }) => {
       console.error('Error loading members:', error);
     }
   };
+
+  const loadFriendsList = useCallback(async () => {
+    const username = currentUsername || authorName;
+    if (!username) {
+      setFriendsList([]);
+      return;
+    }
+    try {
+      const data = await forumService.getFriends(username);
+      setFriendsList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error loading friends list:', error);
+      setFriendsList([]);
+    }
+  }, [currentUsername, authorName]);
 
   const handleCreateChannel = async (e) => {
     e.preventDefault();
@@ -378,6 +418,16 @@ const Forum = ({ user, navigationOptions }) => {
 
   const getInitials = (name) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const extractFriendUsername = (friend) => {
+    if (!friend) return '';
+    return friend.friend_name || friend.username || friend.display_name || '';
+  };
+
+  const extractFriendDisplayName = (friend) => {
+    if (!friend) return '';
+    return friend.display_name || extractFriendUsername(friend);
   };
 
   const handleAuthorNameChange = (e) => {
@@ -510,6 +560,52 @@ const Forum = ({ user, navigationOptions }) => {
     );
   };
 
+  useEffect(() => {
+    if (showInviteModal) {
+      setFriendSearchTerm('');
+      setInviteUsername('');
+      loadFriendsList();
+    }
+  }, [showInviteModal, loadFriendsList]);
+
+  const selectedFriend = useMemo(() => {
+    if (!inviteUsername) return null;
+    return friendsList.find(
+      (friend) => extractFriendUsername(friend) === inviteUsername
+    ) || null;
+  }, [friendsList, inviteUsername]);
+
+  const availableFriends = useMemo(() => {
+    if (!Array.isArray(friendsList) || friendsList.length === 0) {
+      return [];
+    }
+    const memberUsernames = new Set(
+      (channelMembers || []).map((member) => (member.username || '').toLowerCase())
+    );
+    const currentUser = (currentUsername || authorName || '').toLowerCase();
+    const searchTerm = friendSearchTerm.trim().toLowerCase();
+
+    const filtered = friendsList.filter((friend) => {
+      const username = extractFriendUsername(friend);
+      if (!username) return false;
+      const usernameLower = username.toLowerCase();
+      if (usernameLower === currentUser) return false;
+      if (memberUsernames.has(usernameLower)) return false;
+      if (!searchTerm) return true;
+      const displayName = extractFriendDisplayName(friend) || '';
+      return (
+        usernameLower.includes(searchTerm) ||
+        displayName.toLowerCase().includes(searchTerm)
+      );
+    });
+
+    return filtered.sort((a, b) =>
+      extractFriendDisplayName(a).toLowerCase().localeCompare(
+        extractFriendDisplayName(b).toLowerCase()
+      )
+    );
+  }, [friendsList, channelMembers, friendSearchTerm, currentUsername, authorName]);
+
   const filteredChannels = channels.filter((channel) => {
     if (!channelSearch.trim()) {
       return true;
@@ -607,6 +703,7 @@ const Forum = ({ user, navigationOptions }) => {
                     onClick={(e) => {
                       e.stopPropagation();
                       setInviteUsername('');
+                      setFriendSearchTerm('');
                       setShowInviteModal(true);
                       setSelectedChannel(channel);
                     }}
@@ -772,7 +869,11 @@ const Forum = ({ user, navigationOptions }) => {
               </button>
               <button
                 className="topic-action-btn"
-                onClick={() => setShowInviteModal(true)}
+                onClick={() => {
+                  setInviteUsername('');
+                  setFriendSearchTerm('');
+                  setShowInviteModal(true);
+                }}
                 title="Invite Members"
                 aria-label="Invite Members"
               >
@@ -791,7 +892,11 @@ const Forum = ({ user, navigationOptions }) => {
           {selectedChannel.is_private === 1 && selectedChannel.owner_name !== currentUsername && (
             <button
               className="topic-action-btn"
-              onClick={() => setShowInviteModal(true)}
+              onClick={() => {
+                setInviteUsername('');
+                setFriendSearchTerm('');
+                setShowInviteModal(true);
+              }}
               title="Invite Members"
               aria-label="Invite Members"
             >
@@ -1177,6 +1282,7 @@ const Forum = ({ user, navigationOptions }) => {
         <div className="modal-overlay" onClick={() => {
           setShowInviteModal(false);
           setInviteUsername('');
+          setFriendSearchTerm('');
         }}>
           <div className="modal-content-forum" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -1186,6 +1292,7 @@ const Forum = ({ user, navigationOptions }) => {
                 onClick={() => {
                   setShowInviteModal(false);
                   setInviteUsername('');
+                  setFriendSearchTerm('');
                 }}
                 aria-label="Close"
               >
@@ -1194,19 +1301,59 @@ const Forum = ({ user, navigationOptions }) => {
             </div>
             <form onSubmit={handleInvite} className="add-friend-form" autoComplete="off">
               <div className="form-group">
-                <label htmlFor="invite-username">Username</label>
+                <label htmlFor="friend-search">Search your friends</label>
                 <input
-                  id="invite-username"
+                  id="friend-search"
                   type="text"
-                  value={inviteUsername}
-                  onChange={(e) => setInviteUsername(e.target.value)}
-                  placeholder="Enter username to invite..."
+                  value={friendSearchTerm}
+                  onChange={(e) => setFriendSearchTerm(e.target.value)}
+                  placeholder="Type a friend's name..."
                   autoFocus
-                  required
-                  autoComplete="new-password"
-                  name="invite-username"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
                 />
               </div>
+
+              <div className="invite-friends-results">
+                {friendsList.length === 0 ? (
+                  <div className="invite-friends-empty">
+                    You need to add friends before inviting them to topics.
+                  </div>
+                ) : availableFriends.length === 0 ? (
+                  <div className="invite-friends-empty">
+                    {friendSearchTerm.trim()
+                      ? 'No matching friends found.'
+                      : 'All of your friends are already part of this topic.'}
+                  </div>
+                ) : (
+                  availableFriends.map((friend) => {
+                    const friendUsername = extractFriendUsername(friend);
+                    const displayName = extractFriendDisplayName(friend);
+                    const isSelected = inviteUsername === friendUsername;
+                    return (
+                      <button
+                        key={friendUsername}
+                        type="button"
+                        className={`invite-friend-option ${isSelected ? 'selected' : ''}`}
+                        onClick={() => setInviteUsername(friendUsername)}
+                      >
+                        <span className="invite-friend-name">{displayName}</span>
+                        <span className="invite-friend-username">@{friendUsername}</span>
+                        {isSelected && (
+                          <span className="invite-friend-selected">Selected</span>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              {inviteUsername && selectedFriend && (
+                <div className="invite-selected-summary">
+                  Inviting {extractFriendDisplayName(selectedFriend)} (@{extractFriendUsername(selectedFriend)})
+                </div>
+              )}
               {channelMembers.length > 0 && (
                 <div style={{ marginTop: '1rem' }}>
                   <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.5rem' }}>Current Members:</div>
@@ -1235,11 +1382,12 @@ const Forum = ({ user, navigationOptions }) => {
                   onClick={() => {
                     setShowInviteModal(false);
                     setInviteUsername('');
+                    setFriendSearchTerm('');
                   }}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="modal-btn-create">
+                <button type="submit" className="modal-btn-create" disabled={!inviteUsername}>
                   Invite
                 </button>
               </div>
