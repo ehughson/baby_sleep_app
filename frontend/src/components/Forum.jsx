@@ -77,12 +77,16 @@ const Forum = ({ user, navigationOptions }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUsername]);
 
-  useEffect(() => {
+  const handleLoadSelectedChannel = useCallback(() => {
     if (selectedChannel && !isLoadingChannels) {
       loadPosts(selectedChannel.id, currentUsername);
       loadChannelMembers();
     }
   }, [selectedChannel, isLoadingChannels, currentUsername, loadPosts]);
+
+  useEffect(() => {
+    handleLoadSelectedChannel();
+  }, [handleLoadSelectedChannel]);
 
   useEffect(() => {
     if (!currentUsername) {
