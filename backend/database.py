@@ -14,7 +14,10 @@ else:
 
 def init_db():
     """Initialize the database with required tables"""
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(DATABASE_PATH, timeout=30, check_same_thread=False)
+    conn.execute('PRAGMA journal_mode=WAL;')
+    conn.execute('PRAGMA busy_timeout = 30000;')
+    conn.execute('PRAGMA foreign_keys = ON;')
     cursor = conn.cursor()
     
     # Create conversations table
@@ -316,6 +319,9 @@ def init_db():
 
 def get_db_connection():
     """Get a database connection"""
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(DATABASE_PATH, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA foreign_keys = ON;')
+    conn.execute('PRAGMA busy_timeout = 30000;')
+    conn.execute('PRAGMA journal_mode=WAL;')
     return conn
