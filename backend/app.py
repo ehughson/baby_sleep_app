@@ -3192,12 +3192,12 @@ def create_baby_profile():
         user_id = session['id']
         data = request.get_json()
         
-        name = data.get('name', '').strip()
-        birth_date = data.get('birth_date', '').strip() or None
+        name = (data.get('name') or '').strip()
+        birth_date = (data.get('birth_date') or '').strip() or None
         age_months = data.get('age_months')
-        sleep_issues = data.get('sleep_issues', '').strip() or None
-        current_schedule = data.get('current_schedule', '').strip() or None
-        notes = data.get('notes', '').strip() or None
+        sleep_issues = (data.get('sleep_issues') or '').strip() or None
+        current_schedule = (data.get('current_schedule') or '').strip() or None
+        notes = (data.get('notes') or '').strip() or None
         
         if not name:
             conn.close()
@@ -3277,12 +3277,12 @@ def update_baby_profile(baby_id):
             conn.close()
             return jsonify({'error': 'Baby profile not found'}), 404
         
-        name = data.get('name', '').strip()
-        birth_date = data.get('birth_date', '').strip() or None
+        name = (data.get('name') or '').strip()
+        birth_date = (data.get('birth_date') or '').strip() or None
         age_months = data.get('age_months')
-        sleep_issues = data.get('sleep_issues', '').strip() or None
-        current_schedule = data.get('current_schedule', '').strip() or None
-        notes = data.get('notes', '').strip() or None
+        sleep_issues = (data.get('sleep_issues') or '').strip() or None
+        current_schedule = (data.get('current_schedule') or '').strip() or None
+        notes = (data.get('notes') or '').strip() or None
         
         if not name:
             conn.close()
