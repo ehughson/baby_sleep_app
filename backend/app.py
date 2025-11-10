@@ -6,6 +6,7 @@ import secrets
 import uuid
 import json
 import re
+import sqlite3
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -1972,15 +1973,21 @@ def send_friend_request():
                 return jsonify({'error': 'Friend request already sent'}), 400
         
         # Create friend request
-        cursor.execute('''
-            INSERT INTO friendships (user1_name, user2_name, status)
-            VALUES (?, ?, 'pending')
-        ''', (from_user, to_user))
-        conn.commit()
-        print(f"Friend request created: {from_user} -> {to_user}")
-        conn.close()
+        try:
+            cursor.execute('''
+                INSERT INTO friendships (user1_name, user2_name, status)
+                VALUES (?, ?, 'pending')
+            ''', (from_user, to_user))
+            conn.commit()
+            print(f"Friend request created: {from_user} -> {to_user}")
+            return jsonify({'message': 'Friend request sent'})
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            print(f"Duplicate friend request detected: {from_user} -> {to_user}")
+            return jsonify({'error': 'Friend request already exists'}), 400
+        finally:
+            conn.close()
         
-        return jsonify({'message': 'Friend request sent'})
     except Exception as e:
         print(f"Error in send_friend_request: {str(e)}")
         import traceback
