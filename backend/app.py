@@ -1223,7 +1223,7 @@ def update_channel_privacy(channel_id):
 
 @app.route('/api/forum/channels/<int:channel_id>/invite', methods=['POST'])
 def invite_to_channel(channel_id):
-    """Invite a user to a private channel"""
+    """Invite a user to a channel"""
     from database import get_db_connection
     try:
         data = request.get_json()
@@ -1244,15 +1244,22 @@ def invite_to_channel(channel_id):
             conn.close()
             return jsonify({'error': 'Channel not found'}), 404
         
-        # Check if user has permission (owner or member)
-        if channel['owner_name'] != invited_by:
-            cursor.execute('SELECT * FROM channel_members WHERE channel_id = ? AND username = ?', (channel_id, invited_by))
-            member = cursor.fetchone()
-            if not member:
-                conn.close()
-                return jsonify({'error': 'You do not have permission to invite to this channel'}), 403
+        is_private = bool(channel['is_private'])
+        owner_name = channel['owner_name'] or ''
         
-        # Add user as member
+        if is_private and owner_name != invited_by:
+            conn.close()
+            return jsonify({'error': 'Only the topic owner can invite to this private channel. Ask them to send the invite.'}), 403
+        
+        cursor.execute('''
+            SELECT 1 FROM channel_members
+            WHERE channel_id = ? AND LOWER(username) = LOWER(?)
+        ''', (channel_id, invitee_username))
+        already_member = cursor.fetchone()
+        if already_member:
+            conn.close()
+            return jsonify({'message': f'{invitee_username} is already part of this channel.'})
+        
         cursor.execute('''
             INSERT OR IGNORE INTO channel_members (channel_id, username, role, invited_by)
             VALUES (?, ?, 'member', ?)
