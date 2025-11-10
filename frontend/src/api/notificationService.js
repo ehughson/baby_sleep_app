@@ -18,7 +18,9 @@ export const notificationService = {
         new_posts: [],
         new_messages: 0,
         new_message_senders: [],
-        new_friend_requests: []
+        new_friend_requests: [],
+        channel_invites: [],
+        invite_approvals: []
       };
     }
   },

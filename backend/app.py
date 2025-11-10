@@ -1233,47 +1233,284 @@ def invite_to_channel(channel_id):
         if not invited_by or not invitee_username:
             return jsonify({'error': 'Both inviter and invitee usernames are required'}), 400
         
+        invited_by = invited_by.strip()
+        invitee_username = invitee_username.strip()
+        if invited_by.lower() == invitee_username.lower():
+            return jsonify({'error': 'You cannot invite yourself to a topic.'}), 400
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Check if channel exists and is private
-        cursor.execute('SELECT is_private, owner_name FROM forum_channels WHERE id = ?', (channel_id,))
+        cursor.execute('SELECT id, name, is_private, owner_name FROM forum_channels WHERE id = ?', (channel_id,))
         channel = cursor.fetchone()
-        
         if not channel:
             conn.close()
             return jsonify({'error': 'Channel not found'}), 404
         
         is_private = bool(channel['is_private'])
-        owner_name = channel['owner_name'] or ''
+        owner_name = (channel['owner_name'] or '').strip()
+        is_owner = owner_name.lower() == invited_by.lower() if owner_name else False
         
-        if is_private and owner_name != invited_by:
-            conn.close()
-            return jsonify({'error': 'Only the topic owner can invite to this private channel. Ask them to send the invite.'}), 403
+        # Verify inviter has access (owner or member)
+        if not is_owner:
+            cursor.execute('''
+                SELECT role FROM channel_members
+                WHERE channel_id = ? AND LOWER(username) = LOWER(?)
+            ''', (channel_id, invited_by))
+            membership = cursor.fetchone()
+            if not membership:
+                conn.close()
+                return jsonify({'error': 'You need to be a member of this topic before sending invites.'}), 403
         
+        # Prevent duplicate memberships or invites
         cursor.execute('''
             SELECT 1 FROM channel_members
             WHERE channel_id = ? AND LOWER(username) = LOWER(?)
         ''', (channel_id, invitee_username))
-        already_member = cursor.fetchone()
-        if already_member:
+        if cursor.fetchone():
             conn.close()
             return jsonify({'message': f'{invitee_username} is already part of this channel.'})
         
         cursor.execute('''
-            INSERT OR IGNORE INTO channel_members (channel_id, username, role, invited_by)
-            VALUES (?, ?, 'member', ?)
-        ''', (channel_id, invitee_username, invited_by))
-
-        # Remove opt-out record if user previously left
-        cursor.execute('DELETE FROM channel_opt_out WHERE channel_id = ? AND username = ?', (channel_id, invitee_username))
+            SELECT id, status FROM channel_invites
+            WHERE channel_id = ? AND LOWER(invitee_username) = LOWER(?) AND status IN ('pending_owner', 'pending_recipient')
+        ''', (channel_id, invitee_username))
+        existing_invite = cursor.fetchone()
+        if existing_invite:
+            status = existing_invite['status']
+            conn.close()
+            if status == 'pending_owner':
+                return jsonify({'message': f'An invite for {invitee_username} is waiting for the owner to approve.'})
+            return jsonify({'message': f'{invitee_username} already has a pending invite.'})
+        
+        requires_owner_approval = 1 if is_private and not is_owner else 0
+        status = 'pending_owner' if requires_owner_approval else 'pending_recipient'
+        invite_token = uuid.uuid4().hex
+        now = datetime.utcnow()
+        owner_approved_at = None
+        owner_approved_by = None
+        if is_owner and status == 'pending_recipient':
+            owner_approved_at = now
+            owner_approved_by = owner_name
+        
+        cursor.execute('''
+            INSERT INTO channel_invites (
+                channel_id,
+                invited_by,
+                invitee_username,
+                invite_token,
+                expires_at,
+                status,
+                requires_owner_approval,
+                owner_approved_at,
+                owner_approved_by
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            channel_id,
+            invited_by,
+            invitee_username,
+            invite_token,
+            None,
+            status,
+            requires_owner_approval,
+            owner_approved_at,
+            owner_approved_by
+        ))
         
         conn.commit()
         conn.close()
         
-        return jsonify({'message': f'User {invitee_username} added to channel'})
+        if status == 'pending_owner':
+            message = f'Invite sent! The topic owner will need to approve before {invitee_username} can join.'
+        else:
+            message = f'Invite sent to {invitee_username}. They can accept it from their notifications.'
+        return jsonify({'message': message, 'status': status})
     except Exception as e:
         return jsonify({'error': f'Failed to invite user: {str(e)}'}), 500
+
+@app.route('/api/forum/invites', methods=['GET'])
+def get_channel_invites():
+    """Get pending channel invites for a user"""
+    from database import get_db_connection
+    username = request.args.get('username', '')
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT 
+                ci.id,
+                ci.channel_id,
+                ci.invited_by,
+                ci.invitee_username,
+                ci.status,
+                ci.requires_owner_approval,
+                ci.owner_approved_at,
+                ci.owner_approved_by,
+                ci.created_at,
+                c.name as channel_name,
+                c.is_private
+            FROM channel_invites ci
+            JOIN forum_channels c ON c.id = ci.channel_id
+            WHERE LOWER(ci.invitee_username) = LOWER(?)
+              AND ci.status = 'pending_recipient'
+            ORDER BY ci.created_at DESC
+        ''', (username,))
+        invites = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(invites)
+    except Exception as e:
+        return jsonify({'error': f'Failed to get invites: {str(e)}'}), 500
+
+@app.route('/api/forum/invites/approvals', methods=['GET'])
+def get_channel_invite_approvals():
+    """Get invites awaiting owner approval"""
+    from database import get_db_connection
+    username = request.args.get('username', '')
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT 
+                ci.id,
+                ci.channel_id,
+                ci.invited_by,
+                ci.invitee_username,
+                ci.status,
+                ci.requires_owner_approval,
+                ci.created_at,
+                c.name as channel_name,
+                c.is_private
+            FROM channel_invites ci
+            JOIN forum_channels c ON c.id = ci.channel_id
+            WHERE c.owner_name = ?
+              AND ci.status = 'pending_owner'
+            ORDER BY ci.created_at DESC
+        ''', (username,))
+        invites = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(invites)
+    except Exception as e:
+        return jsonify({'error': f'Failed to get invite approvals: {str(e)}'}), 500
+
+@app.route('/api/forum/invites/<int:invite_id>/approve', methods=['POST'])
+def approve_channel_invite(invite_id):
+    """Owner approves or declines an invite"""
+    from database import get_db_connection
+    try:
+        data = request.get_json() or {}
+        username = data.get('username', '')
+        action = (data.get('action') or '').lower()
+        if not username or action not in ('approve', 'decline'):
+            return jsonify({'error': 'Username and valid action are required'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT ci.*, c.owner_name
+            FROM channel_invites ci
+            JOIN forum_channels c ON c.id = ci.channel_id
+            WHERE ci.id = ?
+        ''', (invite_id,))
+        invite = cursor.fetchone()
+        if not invite:
+            conn.close()
+            return jsonify({'error': 'Invite not found'}), 404
+        if invite['owner_name'] != username:
+            conn.close()
+            return jsonify({'error': 'Only the topic owner can act on this invite.'}), 403
+        if invite['status'] != 'pending_owner':
+            conn.close()
+            return jsonify({'error': 'This invite has already been processed.'}), 400
+        
+        if action == 'approve':
+            cursor.execute('''
+                UPDATE channel_invites
+                SET status = 'pending_recipient',
+                    owner_approved_at = ?,
+                    owner_approved_by = ?
+                WHERE id = ?
+            ''', (datetime.utcnow(), username, invite_id))
+            conn.commit()
+            conn.close()
+            return jsonify({'message': 'Invite approved.'})
+        else:
+            cursor.execute('''
+                UPDATE channel_invites
+                SET status = 'declined',
+                    responded_at = ?
+                WHERE id = ?
+            ''', (datetime.utcnow(), invite_id))
+            conn.commit()
+            conn.close()
+            return jsonify({'message': 'Invite declined.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to update invite: {str(e)}'}), 500
+
+@app.route('/api/forum/invites/<int:invite_id>/respond', methods=['POST'])
+def respond_to_channel_invite(invite_id):
+    """Invitee accepts or declines an invitation"""
+    from database import get_db_connection
+    try:
+        data = request.get_json() or {}
+        username = data.get('username', '')
+        action = (data.get('action') or '').lower()
+        if not username or action not in ('accept', 'decline'):
+            return jsonify({'error': 'Username and valid action are required'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT ci.*, c.name as channel_name, c.is_private
+            FROM channel_invites ci
+            JOIN forum_channels c ON c.id = ci.channel_id
+            WHERE ci.id = ?
+        ''', (invite_id,))
+        invite = cursor.fetchone()
+        if not invite:
+            conn.close()
+            return jsonify({'error': 'Invite not found'}), 404
+        if invite['status'] != 'pending_recipient':
+            conn.close()
+            return jsonify({'error': 'This invite is no longer active.'}), 400
+        if invite['invitee_username'].lower() != username.lower():
+            conn.close()
+            return jsonify({'error': 'This invite does not belong to you.'}), 403
+        if invite['requires_owner_approval'] and not invite['owner_approved_at']:
+            conn.close()
+            return jsonify({'error': 'This invite is awaiting owner approval.'}), 400
+        
+        if action == 'accept':
+            cursor.execute('''
+                INSERT OR IGNORE INTO channel_members (channel_id, username, role, invited_by)
+                VALUES (?, ?, 'member', ?)
+            ''', (invite['channel_id'], username, invite['invited_by']))
+            cursor.execute('DELETE FROM channel_opt_out WHERE channel_id = ? AND username = ?', (invite['channel_id'], username))
+            cursor.execute('''
+                UPDATE channel_invites
+                SET status = 'accepted',
+                    responded_at = ?
+                WHERE id = ?
+            ''', (datetime.utcnow(), invite_id))
+            conn.commit()
+            conn.close()
+            return jsonify({'message': f"You've joined {invite['channel_name']}!"})
+        else:
+            cursor.execute('''
+                UPDATE channel_invites
+                SET status = 'declined',
+                    responded_at = ?
+                WHERE id = ?
+            ''', (datetime.utcnow(), invite_id))
+            conn.commit()
+            conn.close()
+            return jsonify({'message': 'Invite declined.'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to respond to invite: {str(e)}'}), 500
 
 @app.route('/api/forum/channels/<int:channel_id>/members', methods=['GET'])
 def get_channel_members(channel_id):
@@ -1634,7 +1871,9 @@ def get_notifications():
             'new_posts': [],
             'new_messages': 0,
             'new_message_senders': [],
-            'new_friend_requests': []
+            'new_friend_requests': [],
+            'channel_invites': [],
+            'invite_approvals': []
         }
 
         # Fetch unread channel post notifications
@@ -1735,6 +1974,42 @@ def get_notifications():
         ''', (username,))
         friend_requests = cursor.fetchall()
         notifications['new_friend_requests'] = [dict(req) for req in friend_requests]
+
+        # Pending channel invites for the user
+        cursor.execute('''
+            SELECT 
+                ci.id,
+                ci.channel_id,
+                ci.invited_by,
+                ci.created_at,
+                ci.requires_owner_approval,
+                c.name as channel_name,
+                c.is_private
+            FROM channel_invites ci
+            JOIN forum_channels c ON c.id = ci.channel_id
+            WHERE LOWER(ci.invitee_username) = LOWER(?)
+              AND ci.status = 'pending_recipient'
+            ORDER BY ci.created_at DESC
+        ''', (username,))
+        notifications['channel_invites'] = [dict(invite) for invite in cursor.fetchall()]
+
+        # Invites needing owner approval
+        cursor.execute('''
+            SELECT 
+                ci.id,
+                ci.channel_id,
+                ci.invited_by,
+                ci.invitee_username,
+                ci.created_at,
+                c.name as channel_name,
+                c.is_private
+            FROM channel_invites ci
+            JOIN forum_channels c ON c.id = ci.channel_id
+            WHERE c.owner_name = ?
+              AND ci.status = 'pending_owner'
+            ORDER BY ci.created_at DESC
+        ''', (username,))
+        notifications['invite_approvals'] = [dict(invite) for invite in cursor.fetchall()]
         
         conn.close()
         

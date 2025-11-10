@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { notificationService } from '../api/notificationService';
+import { forumService } from '../api/forumService';
 import MinimalIcon from './icons/MinimalIcon.jsx';
 
 const Notifications = ({ user, onNavigate }) => {
@@ -7,7 +8,9 @@ const Notifications = ({ user, onNavigate }) => {
     new_posts: [],
     new_messages: 0,
     new_message_senders: [],
-    new_friend_requests: []
+    new_friend_requests: [],
+    channel_invites: [],
+    invite_approvals: []
   });
   const [showDropdown, setShowDropdown] = useState(false);
   const lastCheckRef = useRef(new Date().toISOString());
@@ -25,7 +28,9 @@ const Notifications = ({ user, onNavigate }) => {
           new_posts: data.new_posts || [],
           new_messages: data.new_messages || 0,
           new_message_senders: data.new_message_senders || [],
-          new_friend_requests: data.new_friend_requests || []
+          new_friend_requests: data.new_friend_requests || [],
+          channel_invites: data.channel_invites || [],
+          invite_approvals: data.invite_approvals || []
         });
         lastCheckRef.current = new Date().toISOString();
       }
@@ -79,7 +84,47 @@ const Notifications = ({ user, onNavigate }) => {
   const totalCount = 
     (notifications.new_posts?.length || 0) + 
     (notifications.new_messages || 0) + 
-    (notifications.new_friend_requests?.length || 0);
+    (notifications.new_friend_requests?.length || 0) +
+    (notifications.channel_invites?.length || 0) +
+    (notifications.invite_approvals?.length || 0);
+
+  const handleRecipientInviteAction = async (invite, action) => {
+    if (!user?.username) return;
+    try {
+      const result = await forumService.respondToInvite(invite.id, user.username, action);
+      setNotifications(prev => ({
+        ...prev,
+        channel_invites: prev.channel_invites.filter((item) => item.id !== invite.id)
+      }));
+      await checkNotifications();
+      if (action === 'accept' && onNavigate) {
+        onNavigate('forum', { channelId: invite.channel_id });
+        setShowDropdown(false);
+      }
+      if (result?.message) {
+        alert(result.message);
+      }
+    } catch (error) {
+      alert(error.message || 'Failed to update invite');
+    }
+  };
+
+  const handleOwnerInviteAction = async (invite, action) => {
+    if (!user?.username) return;
+    try {
+      const result = await forumService.approveInvite(invite.id, user.username, action);
+      setNotifications(prev => ({
+        ...prev,
+        invite_approvals: prev.invite_approvals.filter((item) => item.id !== invite.id)
+      }));
+      await checkNotifications();
+      if (result?.message) {
+        alert(result.message);
+      }
+    } catch (error) {
+      alert(error.message || 'Failed to update invite');
+    }
+  };
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
@@ -121,7 +166,9 @@ const Notifications = ({ user, onNavigate }) => {
                   setNotifications({
                     new_posts: [],
                     new_messages: 0,
-                    new_friend_requests: []
+                    new_friend_requests: [],
+                    channel_invites: [],
+                    invite_approvals: []
                   });
                   lastCheckRef.current = new Date().toISOString();
                   if (user?.username) {
@@ -166,6 +213,76 @@ const Notifications = ({ user, onNavigate }) => {
                         <div className="notification-content">
                           <p><strong>{req.from_user}</strong> sent you a friend request</p>
                           <span className="notification-time">{formatTime(req.created_at)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {notifications.channel_invites && notifications.channel_invites.length > 0 && (
+                  <div className="notification-section">
+                    <h4 className="notification-section-title">Channel Invites</h4>
+                    {notifications.channel_invites.map((invite) => (
+                      <div key={invite.id} className="notification-item">
+                        <span className="notification-icon" aria-hidden="true">
+                          <MinimalIcon name="forum" size={16} />
+                        </span>
+                        <div className="notification-content">
+                          <p>
+                            <strong>{invite.invited_by}</strong> invited you to join <strong>{invite.channel_name}</strong>
+                          </p>
+                          <span className="notification-time">{formatTime(invite.created_at)}</span>
+                          <div className="notification-actions">
+                            <button
+                              type="button"
+                              className="notification-action-btn"
+                              onClick={() => handleRecipientInviteAction(invite, 'accept')}
+                            >
+                              Accept
+                            </button>
+                            <button
+                              type="button"
+                              className="notification-action-btn secondary"
+                              onClick={() => handleRecipientInviteAction(invite, 'decline')}
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {notifications.invite_approvals && notifications.invite_approvals.length > 0 && (
+                  <div className="notification-section">
+                    <h4 className="notification-section-title">Invite Approvals</h4>
+                    {notifications.invite_approvals.map((invite) => (
+                      <div key={invite.id} className="notification-item">
+                        <span className="notification-icon" aria-hidden="true">
+                          <MinimalIcon name="lock" size={16} />
+                        </span>
+                        <div className="notification-content">
+                          <p>
+                            <strong>{invite.invited_by}</strong> requested to add <strong>{invite.invitee_username}</strong> to <strong>{invite.channel_name}</strong>
+                          </p>
+                          <span className="notification-time">{formatTime(invite.created_at)}</span>
+                          <div className="notification-actions">
+                            <button
+                              type="button"
+                              className="notification-action-btn"
+                              onClick={() => handleOwnerInviteAction(invite, 'approve')}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              className="notification-action-btn secondary"
+                              onClick={() => handleOwnerInviteAction(invite, 'decline')}
+                            >
+                              Decline
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}

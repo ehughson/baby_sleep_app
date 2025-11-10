@@ -308,6 +308,40 @@ body {
   display: block;
 }
 
+.notification-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.notification-action-btn {
+  padding: 0.4rem 0.9rem;
+  border-radius: 8px;
+  border: none;
+  background: #a68cab;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Nunito', sans-serif;
+}
+
+.notification-action-btn:hover {
+  background: #8d6f91;
+}
+
+.notification-action-btn.secondary {
+  background: #f0f0f0;
+  color: #555;
+}
+
+.notification-action-btn.secondary:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
 .user-menu {
   display: flex;
   align-items: center;

@@ -109,11 +109,70 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             channel_id INTEGER NOT NULL,
             invited_by TEXT NOT NULL,
+            invitee_username TEXT,
             invite_token TEXT NOT NULL UNIQUE,
             expires_at TIMESTAMP,
+            status TEXT DEFAULT 'pending_recipient',
+            requires_owner_approval INTEGER DEFAULT 0,
+            owner_approved_at TIMESTAMP,
+            owner_approved_by TEXT,
+            responded_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (channel_id) REFERENCES forum_channels (id)
         )
+    ''')
+    # Ensure new columns exist for older databases
+    cursor.execute('PRAGMA table_info(channel_invites)')
+    invite_columns = {row[1] for row in cursor.fetchall()}
+    if 'invitee_username' not in invite_columns:
+        try:
+            cursor.execute('ALTER TABLE channel_invites ADD COLUMN invitee_username TEXT')
+        except sqlite3.OperationalError:
+            pass
+    if 'status' not in invite_columns:
+        try:
+            cursor.execute("ALTER TABLE channel_invites ADD COLUMN status TEXT DEFAULT 'pending_recipient'")
+        except sqlite3.OperationalError:
+            pass
+    if 'requires_owner_approval' not in invite_columns:
+        try:
+            cursor.execute('ALTER TABLE channel_invites ADD COLUMN requires_owner_approval INTEGER DEFAULT 0')
+        except sqlite3.OperationalError:
+            pass
+    if 'owner_approved_at' not in invite_columns:
+        try:
+            cursor.execute('ALTER TABLE channel_invites ADD COLUMN owner_approved_at TIMESTAMP')
+        except sqlite3.OperationalError:
+            pass
+    if 'owner_approved_by' not in invite_columns:
+        try:
+            cursor.execute('ALTER TABLE channel_invites ADD COLUMN owner_approved_by TEXT')
+        except sqlite3.OperationalError:
+            pass
+    if 'responded_at' not in invite_columns:
+        try:
+            cursor.execute('ALTER TABLE channel_invites ADD COLUMN responded_at TIMESTAMP')
+        except sqlite3.OperationalError:
+            pass
+
+    # Backfill missing values
+    cursor.execute("""
+        UPDATE channel_invites
+        SET invitee_username = invited_by
+        WHERE invitee_username IS NULL
+    """)
+    cursor.execute("""
+        UPDATE channel_invites
+        SET status = COALESCE(status, 'accepted')
+    """)
+
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_channel_invites_invitee
+        ON channel_invites(invitee_username, status)
+    ''')
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_channel_invites_owner
+        ON channel_invites(channel_id, status)
     ''')
     
     # Create forum posts table

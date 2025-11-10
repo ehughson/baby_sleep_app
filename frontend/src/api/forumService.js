@@ -181,6 +181,48 @@ export const forumService = {
     }
   },
 
+  getChannelInvites: async (username) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/forum/invites?username=${encodeURIComponent(username)}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to load invites');
+    }
+  },
+
+  getInviteApprovals: async (username) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/forum/invites/approvals?username=${encodeURIComponent(username)}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to load invite approvals');
+    }
+  },
+
+  respondToInvite: async (inviteId, username, action) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/forum/invites/${inviteId}/respond`, {
+        username,
+        action
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to update invite');
+    }
+  },
+
+  approveInvite: async (inviteId, username, action) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/forum/invites/${inviteId}/approve`, {
+        username,
+        action
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to update invite');
+    }
+  },
+
   getChannelMembers: async (channelId) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/forum/channels/${channelId}/members`);
