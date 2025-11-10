@@ -37,6 +37,40 @@ const Forum = ({ user, navigationOptions }) => {
   const postsPollingRef = useRef(null);
   const isFetchingPostsRef = useRef(false);
 
+  const loadPosts = useCallback(async (channelId, username = '', options = {}) => {
+    const { showLoading = true } = options;
+    if (!channelId) return;
+
+    if (!showLoading && isFetchingPostsRef.current) {
+      return;
+    }
+
+    isFetchingPostsRef.current = true;
+    if (showLoading) {
+      setIsLoading(true);
+    }
+
+    try {
+      const url = username 
+        ? `${API_BASE_URL}/forum/channels/${channelId}/posts?username=${encodeURIComponent(username)}`
+        : `${API_BASE_URL}/forum/channels/${channelId}/posts`;
+      const response = await axios.get(url);
+      setPosts(response.data);
+    } catch (error) {
+      console.error('Error loading posts:', error);
+      if (error.response?.status === 403) {
+        alert(error.response?.data?.error || 'You do not have access to this channel');
+        setSelectedChannel(null);
+      }
+      setPosts([]);
+    } finally {
+      if (showLoading) {
+        setIsLoading(false);
+      }
+      isFetchingPostsRef.current = false;
+    }
+  }, [setSelectedChannel]);
+
 
   useEffect(() => {
     // Load channels from backend
@@ -141,40 +175,6 @@ const Forum = ({ user, navigationOptions }) => {
       }
     };
   }, [selectedChannel, authorName, loadPosts]);
-
-  const loadPosts = useCallback(async (channelId, username = '', options = {}) => {
-    const { showLoading = true } = options;
-    if (!channelId) return;
-
-    if (!showLoading && isFetchingPostsRef.current) {
-      return;
-    }
-
-    isFetchingPostsRef.current = true;
-    if (showLoading) {
-      setIsLoading(true);
-    }
-
-    try {
-      const url = username 
-        ? `${API_BASE_URL}/forum/channels/${channelId}/posts?username=${encodeURIComponent(username)}`
-        : `${API_BASE_URL}/forum/channels/${channelId}/posts`;
-      const response = await axios.get(url);
-      setPosts(response.data);
-    } catch (error) {
-      console.error('Error loading posts:', error);
-      if (error.response?.status === 403) {
-        alert(error.response?.data?.error || 'You do not have access to this channel');
-        setSelectedChannel(null);
-      }
-      setPosts([]);
-    } finally {
-      if (showLoading) {
-        setIsLoading(false);
-      }
-      isFetchingPostsRef.current = false;
-    }
-  }, [setSelectedChannel]);
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
