@@ -1227,13 +1227,15 @@ def sleep_factors():
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
-            # Upsert-like: insert each; ignore conflicts
+            # Delete all existing factors for this date first (to handle deselections)
+            cursor.execute('DELETE FROM sleep_factors WHERE user_id = ? AND date = ?', (user_id, date_str))
+            # Then insert only the currently selected factors
             for f in factor_list:
                 if not f or not isinstance(f, str):
                     continue
                 try:
                     cursor.execute('''
-                        INSERT OR IGNORE INTO sleep_factors (user_id, date, factor, note)
+                        INSERT INTO sleep_factors (user_id, date, factor, note)
                         VALUES (?, ?, ?, ?)
                     ''', (user_id, date_str, f.strip().lower(), note))
                 except Exception:
