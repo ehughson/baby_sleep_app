@@ -7,6 +7,7 @@ import LoginPage from './components/LoginPage';
 import Notifications from './components/Notifications';
 import MinimalIcon from './components/icons/MinimalIcon.jsx';
 import Profile from './components/Profile';
+import SleepProgress from './components/SleepProgress';
 import BabyProfile from './components/BabyProfile';
 import SleepGoals from './components/SleepGoals';
 import { chatService } from './api/chatService';
@@ -798,6 +799,15 @@ function App() {
           Sleep Assistant
         </button>
         <button
+          className={`tab-btn ${activeTab === 'progress' ? 'active' : ''}`}
+          onClick={() => setActiveTab('progress')}
+        >
+          <span className="tab-icon" aria-hidden="true">
+            <MinimalIcon name="target" size={16} />
+          </span>
+          Sleep Progress
+        </button>
+        <button
           className={`tab-btn ${activeTab === 'forum' ? 'active' : ''}`}
           onClick={() => setActiveTab('forum')}
         >
@@ -875,6 +885,8 @@ function App() {
           isLoading={isLoading || isSwitchingConversation}
         />
       </div>
+      ) : activeTab === 'progress' ? (
+        <SleepProgress user={user} />
       ) : activeTab === 'forum' ? (
         <Forum user={user} navigationOptions={activeTab === 'forum' ? JSON.parse(sessionStorage.getItem('notification_nav') || 'null') : null} />
       ) : (

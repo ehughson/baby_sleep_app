@@ -762,6 +762,614 @@ def health_check():
         'specialization': 'Gentle sleep training and no-cry sleep solutions'
     })
 
+# -------- Sleep Progress (from chat history) --------
+def _parse_time_from_text(text, reference_dt):
+    """
+    Very lightweight time parser for phrases like:
+    '7pm', '7:30 pm', '19:45', '2 am', 'at 6', 'around 8:15'
+    Returns a datetime localized to the day closest to reference_dt (prefers past if ambiguous).
+    """
+    if not text:
+        return None
+    t = text.lower().strip()
+    # HH:MM(am|pm) | H(am|pm)
+    m = re.search(r'(?:(?:at|around|~)\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b', t)
+    if m:
+        hh = int(m.group(1))
+        mm = int(m.group(2) or 0)
+        ampm = m.group(3)
+        if hh == 12:
+            hh = 0
+        if ampm == 'pm':
+            hh += 12
+        candidate = reference_dt.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        # If the parsed time is in the future relative to the message, assume previous day
+        if candidate > reference_dt:
+            candidate = candidate - timedelta(days=1)
+        return candidate
+    # 24h clock like 19:30 or 7:05
+    m2 = re.search(r'\b(\d{1,2}):(\d{2})\b', t)
+    if m2:
+        hh = int(m2.group(1))
+        mm = int(m2.group(2))
+        if 0 <= hh <= 23 and 0 <= mm <= 59:
+            candidate = reference_dt.replace(hour=hh, minute=mm, second=0, microsecond=0)
+            if candidate > reference_dt:
+                candidate = candidate - timedelta(days=1)
+            return candidate
+    # Bare hour like 'at 7' (assume pm if 5-11, otherwise closest past hour)
+    m3 = re.search(r'(?:at|around)\s+(\d{1,2})\b', t)
+    if m3:
+        hh = int(m3.group(1))
+        if 1 <= hh <= 23:
+            # Heuristic: if evening keyword, prefer evening; else use closest past hour
+            is_evening = any(k in t for k in ['pm', 'evening', 'night', 'bed', 'down'])
+            hour = hh if (is_evening or hh >= 12) else (hh + 12 if 5 <= hh <= 11 else hh)
+            if hour >= 24:
+                hour -= 24
+            candidate = reference_dt.replace(hour=hour, minute=0, second=0, microsecond=0)
+            if candidate > reference_dt:
+                candidate = candidate - timedelta(days=1)
+            return candidate
+    return None
+
+
+def _extract_sleep_events(messages):
+    """
+    Extract naive sleep/wake/nap events from user messages based on keywords.
+    Event: { type: 'sleep'|'wake'|'nap', timestamp: dt }
+    """
+    events = []
+    for msg in messages:
+        if not msg:
+            continue
+        role = (msg.get('role') or '').lower()
+        if role != 'user':
+            continue
+        content = msg.get('content') or ''
+        ts_str = msg.get('timestamp')
+        try:
+            ref_dt = datetime.fromisoformat(ts_str.replace('Z', '+00:00')) if ts_str else datetime.utcnow()
+        except Exception:
+            ref_dt = datetime.utcnow()
+        text = content.lower()
+
+        # Sleep-down keywords
+        if any(k in text for k in ['went down', 'down for the night', 'down for nap', 'put down', 'slept at', 'sleep at', 'bed at', 'bedtime at', 'asleep at']) or re.search(r'\b(sleep|slept|asleep)\b', text):
+            parsed = _parse_time_from_text(text, ref_dt) or ref_dt
+            events.append({'type': 'sleep', 'timestamp': parsed})
+
+        # Wake-up keywords
+        if any(k in text for k in ['woke at', 'wake at', 'woke up at', 'up at']) or re.search(r'\bwoke\b', text):
+            parsed = _parse_time_from_text(text, ref_dt) or ref_dt
+            events.append({'type': 'wake', 'timestamp': parsed})
+
+        # Nap mention without explicit time: use ref time as approx
+        if 'nap' in text and not any(k in text for k in ['down for the night']):
+            # If time present, parse; else approximate with message time
+            parsed = _parse_time_from_text(text, ref_dt) or ref_dt
+            events.append({'type': 'nap', 'timestamp': parsed})
+    # Sort by timestamp
+    events.sort(key=lambda e: e['timestamp'])
+    return events
+
+
+def _extract_signals_and_factors(messages):
+    """
+    Extract quality-related signals and day-level factors from user messages.
+    Returns:
+      - quality_signals: counts of terms like grumpy/fussy/irritable/restless (overall)
+      - quality_signals_by_date: { 'YYYY-MM-DD': { 'grumpy': count, 'fussy': count, ... } }
+      - inferred_factors_by_date: { 'YYYY-MM-DD': set([...]) }
+    """
+    quality_keywords = ['grumpy', 'fussy', 'irritable', 'restless', 'overtired', 'cranky', 'not alert', 'not very alert', 'lack of engagement', 'not engaging', 'not engaged']
+    # Map to standard signal names
+    signal_map = {
+        'grumpy': ['grumpy', 'grumpiness'],
+        'fussy': ['fussy', 'fussiness'],
+        'irritable': ['irritable', 'irritability'],
+        'restless': ['restless', 'restlessness'],
+        'overtired': ['overtired', 'over-tired'],
+        'cranky': ['cranky', 'crankiness'],
+        'not_alert': ['not alert', 'not very alert', 'drowsy', 'sleepy during day'],
+        'lack_engagement': ['lack of engagement', 'not engaging', 'not engaged', 'disengaged']
+    }
+    factor_map = {
+        'sick': ['sick', 'fever', 'cold', 'flu', 'ill', 'virus', 'cough', 'congested'],
+        'teething': ['teeth', 'teething', 'tooth'],
+        'travel': ['travel', 'jet lag', 'flight', 'plane', 'time zone'],
+        'regression': ['regression', 'leap', 'growth spurt'],
+        'vaccines': ['vaccine', 'shots', 'immunization'],
+    }
+    signals = {k: 0 for k in ['grumpy', 'fussy', 'irritable', 'restless', 'overtired', 'cranky', 'not_alert', 'lack_engagement']}
+    signals_by_date = {}
+    inferred_by_date = {}
+    for msg in messages:
+        if (msg.get('role') or '').lower() != 'user':
+            continue
+        content = (msg.get('content') or '').lower()
+        ts_str = msg.get('timestamp')
+        try:
+            dt = datetime.fromisoformat(ts_str.replace('Z', '+00:00')) if ts_str else datetime.utcnow()
+        except Exception:
+            dt = datetime.utcnow()
+        day_key = dt.date().isoformat()
+        if day_key not in signals_by_date:
+            signals_by_date[day_key] = {k: 0 for k in signals.keys()}
+        # Check for signal keywords
+        for signal_name, keywords in signal_map.items():
+            if any(k in content for k in keywords):
+                signals[signal_name] += 1
+                signals_by_date[day_key][signal_name] += 1
+        for factor, keywords in factor_map.items():
+            if any(k in content for k in keywords):
+                inferred_by_date.setdefault(day_key, set()).add(factor)
+    return signals, signals_by_date, inferred_by_date
+
+
+def _aggregate_sleep_progress(events):
+    """
+    Build simple aggregates:
+      - totals.last24h: hours slept in last 24h (approx via sleep/wake pairs)
+      - night.wakings: count between 20:00-06:00 last night
+      - night.longestStretch: longest continuous sleep in last 3 nights
+      - naps.count: number of naps today (06:00-20:00)
+      - trend: per-day total sleep for last 14 days
+      - nightWakingsTrend: per-night wakings for last 14 nights
+    """
+    now = datetime.utcnow()
+    last24_start = now - timedelta(hours=24)
+
+    # Build intervals: pair sleep -> next wake
+    asleep_at = None
+    intervals = []
+    for ev in events:
+        if ev['type'] in ('sleep', 'nap'):
+            asleep_at = ev['timestamp']
+        elif ev['type'] == 'wake' and asleep_at:
+            if ev['timestamp'] > asleep_at:
+                intervals.append((asleep_at, ev['timestamp']))
+            asleep_at = None
+
+    # Total sleep in last 24h
+    total_seconds_24h = 0
+    for start, end in intervals:
+        seg_start = max(start, last24_start)
+        seg_end = min(end, now)
+        if seg_end > seg_start:
+            total_seconds_24h += (seg_end - seg_start).total_seconds()
+    def _fmt_dur(seconds):
+        h = int(seconds // 3600)
+        m = int((seconds % 3600) // 60)
+        return f"{h}h {m}m"
+    totals_last24h = _fmt_dur(total_seconds_24h) if total_seconds_24h > 0 else '—'
+
+    # Night window helpers
+    def night_window(ref_date):
+        # 20:00 of ref_date to 06:00 of next day
+        start = datetime(ref_date.year, ref_date.month, ref_date.day, 20, 0)
+        end = start + timedelta(hours=10)
+        return start, end
+    # Determine "last night" window relative to now
+    today = now.date()
+    last_night_start, last_night_end = night_window(today - timedelta(days=1))
+
+    # Night wakings: count wake events within last night window
+    night_wakings = sum(1 for ev in events if ev['type'] == 'wake' and last_night_start <= ev['timestamp'] <= last_night_end)
+
+    # Longest stretch in last 3 nights
+    longest_seconds = 0
+    for d in range(1, 4):
+        start, end = night_window(today - timedelta(days=d))
+        for s, e in intervals:
+            seg_start = max(s, start)
+            seg_end = min(e, end)
+            if seg_end > seg_start:
+                longest_seconds = max(longest_seconds, (seg_end - seg_start).total_seconds())
+    longest_stretch = _fmt_dur(longest_seconds) if longest_seconds > 0 else '—'
+
+    # Naps today (06:00-20:00)
+    day_start = datetime(today.year, today.month, today.day, 6, 0)
+    day_end = datetime(today.year, today.month, today.day, 20, 0)
+    naps_today = sum(1 for ev in events if ev['type'] == 'nap' and day_start <= ev['timestamp'] <= day_end)
+
+    # Per-day totals for the last 14 days
+    def day_bounds(d):
+        start = datetime(d.year, d.month, d.day, 0, 0)
+        end = start + timedelta(days=1)
+        return start, end
+    trend = []
+    for i in range(13, -1, -1):
+        d = today - timedelta(days=i)
+        start, end = day_bounds(d)
+        total_sec = 0
+        for s, e in intervals:
+            seg_start = max(s, start)
+            seg_end = min(e, end)
+            if seg_end > seg_start:
+                total_sec += (seg_end - seg_start).total_seconds()
+        trend.append({
+            'date': d.isoformat(),
+            'totalSeconds': int(total_sec)
+        })
+
+    # Timeline intervals for last 9 days (sleep segments clipped to day)
+    timeline7 = []
+    for i in range(8, -1, -1):  # Show 9 days (8, 7, 6, 5, 4, 3, 2, 1, 0)
+        d = today - timedelta(days=i)
+        start, end = day_bounds(d)
+        segments = []
+        for s, e in intervals:
+            seg_start = max(s, start)
+            seg_end = min(e, end)
+            if seg_end > seg_start:
+                segments.append({
+                    'start': seg_start.isoformat(),
+                    'end': seg_end.isoformat()
+                })
+        timeline7.append({'date': d.isoformat(), 'segments': segments})
+
+    # Night wakings trend for last 14 nights
+    night_wakings_trend = []
+    for i in range(14, 0, -1):
+        night_date = today - timedelta(days=i)
+        start, end = night_window(night_date)
+        wakings = sum(1 for ev in events if ev['type'] == 'wake' and start <= ev['timestamp'] <= end)
+        night_wakings_trend.append({
+            'night': night_date.isoformat(),
+            'wakings': int(wakings)
+        })
+
+    return {
+        'totals': {'last24h': totals_last24h},
+        'night': {'wakings': night_wakings, 'longestStretch': longest_stretch},
+        'naps': {'count': naps_today},
+        'trend': trend,
+        'timeline7': timeline7,
+        'nightWakingsTrend': night_wakings_trend,
+    }
+
+
+@app.route('/api/sleep/progress', methods=['GET'])
+def get_sleep_progress():
+    """Aggregate sleep progression metrics from the authenticated user's chat history."""
+    session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    user = get_user_from_session_token(session_token)
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    user_id = user['id']
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Fetch messages across all conversations owned by the user
+        cursor.execute('''
+            SELECT m.id, m.role, m.content, m.timestamp
+            FROM messages m
+            JOIN conversations c ON m.conversation_id = c.id
+            WHERE c.user_id = ?
+            ORDER BY m.timestamp ASC
+        ''', (user_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        messages = [dict(r) for r in rows] if rows else []
+
+        # Extract events and signals
+        events = _extract_sleep_events(messages)
+        quality_signals, quality_signals_by_date, inferred_factors_by_date = _extract_signals_and_factors(messages)
+        summary = _aggregate_sleep_progress(events)
+
+        # Load user-declared factors (last 30 days)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT date, factor, note FROM sleep_factors
+            WHERE user_id = ? AND date >= DATE('now', '-30 day')
+            ORDER BY date ASC
+        ''', (user_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        declared_by_date = {}
+        for r in rows or []:
+            day = r['date']
+            declared_by_date.setdefault(day, set()).add(r['factor'])
+
+        # Merge factors (declared overrides additively)
+        factors_timeline = []
+        # Build for last 14 days to align with trend length
+        today = datetime.utcnow().date()
+        for i in range(13, -1, -1):
+            d = (today - timedelta(days=i)).isoformat()
+            merged = set()
+            if d in inferred_factors_by_date:
+                merged |= inferred_factors_by_date[d]
+            if d in declared_by_date:
+                merged |= declared_by_date[d]
+            factors_timeline.append({'date': d, 'factors': sorted(list(merged))})
+
+        # Compute simple quality score (0-100)
+        # Base from last night: fewer wakings and longer stretch -> higher score
+        wakings = summary['night']['wakings']
+        longest = summary['night']['longestStretch']
+        # Parse longest "Xh Ym"
+        longest_sec = 0
+        if isinstance(longest, str) and 'h' in longest:
+            try:
+                parts = longest.replace('m', '').split('h')
+                h = int(parts[0].strip())
+                m = int(parts[1].strip()) if len(parts) > 1 and parts[1].strip() else 0
+                longest_sec = h * 3600 + m * 60
+            except Exception:
+                longest_sec = 0
+        # Normalize: aim for longest >= 6h and wakings <= 1
+        longest_score = min(1.0, max(0.0, longest_sec / (6 * 3600)))
+        waking_penalty = min(1.0, wakings / 3.0)  # 0 for 0 wakings, ~0.33 for 1, 1 for 3+
+        base_quality = max(0.0, (0.7 * longest_score + 0.3 * (1.0 - waking_penalty)))
+
+        # Apply negative signal penalties if parents report grumpiness/etc
+        negative_reports = sum(quality_signals.values())
+        report_penalty = min(0.3, negative_reports * 0.05)  # up to -30%
+        quality_score = int(round((base_quality * (1.0 - report_penalty)) * 100))
+        quality_label = 'good' if quality_score >= 70 else 'fair' if quality_score >= 40 else 'poor'
+
+        summary['quality'] = {
+            'score': quality_score,
+            'label': quality_label,
+            'signals': quality_signals
+        }
+        summary['factors'] = factors_timeline
+        
+        # Calculate quality trend for each day (last 14 days)
+        quality_trend = []
+        for i in range(13, -1, -1):
+            d = (today - timedelta(days=i)).isoformat()
+            # Get sleep data for this day
+            day_trend = next((t for t in summary['trend'] if t['date'] == d), None)
+            sleep_hours = (day_trend['totalSeconds'] / 3600) if day_trend else 0
+            
+            # Get night wakings for this night (night before this day)
+            night_date = (today - timedelta(days=i+1)).isoformat()
+            night_wakings = next((n for n in summary['nightWakingsTrend'] if n['night'] == night_date), None)
+            wakings_count = night_wakings['wakings'] if night_wakings else 0
+            
+            # Get behavior signals for this day
+            day_signals = quality_signals_by_date.get(d, {})
+            negative_behavior = (
+                day_signals.get('grumpy', 0) +
+                day_signals.get('fussy', 0) +
+                day_signals.get('irritable', 0) +
+                day_signals.get('cranky', 0) +
+                day_signals.get('not_alert', 0) +
+                day_signals.get('lack_engagement', 0)
+            )
+            
+            # Calculate quality score (0-100)
+            # Sleep amount: use same goal as ring graph (14 hours) for consistency
+            sleep_goal = 14.0
+            sleep_percentage = min(1.0, max(0.0, sleep_hours / sleep_goal))
+            # Apply penalty only for very low sleep (< 8 hours)
+            if sleep_hours < 8:
+                sleep_percentage *= 0.6  # Penalty for very low sleep
+            
+            # Night wakings: fewer is better (ability to settle and stay asleep)
+            # 0 wakings = 100%, 1 = 80%, 2 = 50%, 3+ = 20%
+            if wakings_count == 0:
+                settling_percentage = 1.0
+            elif wakings_count == 1:
+                settling_percentage = 0.8
+            elif wakings_count == 2:
+                settling_percentage = 0.5
+            else:
+                settling_percentage = 0.2
+            
+            # Behavior penalty: negative mood/alertness/engagement reduces quality
+            # Each negative signal reduces quality by ~8%, capped at 30%
+            behavior_penalty = min(0.3, negative_behavior * 0.08)
+            
+            # Weighted quality: 50% sleep amount, 40% settling ability, 10% behavior impact
+            # This better reflects what users see in the ring graphs
+            base_quality = (0.5 * sleep_percentage + 0.4 * settling_percentage) * (1.0 - behavior_penalty)
+            quality_score = int(round(max(0, min(100, base_quality * 100))))
+            
+            # Get factors for this day
+            day_factors = []
+            if d in inferred_factors_by_date:
+                day_factors.extend(inferred_factors_by_date[d])
+            if d in declared_by_date:
+                day_factors.extend(declared_by_date[d])
+            day_factors = sorted(list(set(day_factors)))  # Remove duplicates and sort
+            
+            quality_trend.append({
+                'date': d,
+                'quality': quality_score,
+                'factors': day_factors
+            })
+        
+        summary['qualityTrend'] = quality_trend
+        return jsonify(summary)
+    except Exception as e:
+        return jsonify({'error': f'Failed to compute sleep progress: {str(e)}'}), 500
+
+
+@app.route('/api/sleep/factors', methods=['GET', 'POST'])
+def sleep_factors():
+    """GET: list recent user-declared factors; POST: set factors for a date."""
+    session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    user = get_user_from_session_token(session_token)
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    user_id = user['id']
+    if request.method == 'GET':
+        days = int(request.args.get('days', 30))
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT date, factor, note FROM sleep_factors
+                WHERE user_id = ? AND date >= DATE('now', ?)
+                ORDER BY date ASC
+            ''', (user_id, f'-{max(1, min(days, 90))} day'))
+            rows = cursor.fetchall()
+            conn.close()
+            out = {}
+            for r in rows or []:
+                out.setdefault(r['date'], []).append({'factor': r['factor'], 'note': r['note']})
+            return jsonify(out)
+        except Exception as e:
+            return jsonify({'error': f'Failed to load factors: {str(e)}'}), 500
+    else:
+        data = request.get_json() or {}
+        factor_list = data.get('factors') or []
+        date_str = data.get('date') or datetime.utcnow().date().isoformat()
+        note = data.get('note')
+        if not isinstance(factor_list, list):
+            return jsonify({'error': 'factors must be a list'}), 400
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            # Upsert-like: insert each; ignore conflicts
+            for f in factor_list:
+                if not f or not isinstance(f, str):
+                    continue
+                try:
+                    cursor.execute('''
+                        INSERT OR IGNORE INTO sleep_factors (user_id, date, factor, note)
+                        VALUES (?, ?, ?, ?)
+                    ''', (user_id, date_str, f.strip().lower(), note))
+                except Exception:
+                    pass
+            conn.commit()
+            conn.close()
+            return jsonify({'ok': True})
+        except Exception as e:
+            return jsonify({'error': f'Failed to save factors: {str(e)}'}), 500
+
+
+@app.route('/api/dev/seed_sleep', methods=['POST'])
+def dev_seed_sleep():
+    """
+    Development-only: Seed synthetic sleep-related user messages over N days (default 49 = 7 weeks).
+    This endpoint is intended for local testing to visualize graphs.
+    Requires an authenticated session. Controlled via ENV ENABLE_DEV_SEED (defaults to enabled in debug).
+    """
+    enable = os.environ.get('ENABLE_DEV_SEED', 'true' if app.debug else 'false').lower() == 'true'
+    if not enable:
+        return jsonify({'error': 'Seeding disabled'}), 403
+
+    session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    user = get_user_from_session_token(session_token)
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    user_id = user['id']
+
+    try:
+        payload = request.get_json() or {}
+        days = int(payload.get('days', 49))
+        days = max(1, min(days, 120))
+
+        # Create/get a dedicated conversation for seeded data
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id FROM conversations WHERE user_id = ? AND title = ?
+            ORDER BY id DESC LIMIT 1
+        """, (user_id, 'Seeded Sleep Data'))
+        row = cursor.fetchone()
+        if row:
+            conversation_id = row['id']
+        else:
+            cursor.execute("""
+                INSERT INTO conversations (user_id, title, created_at, last_message_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, (user_id, 'Seeded Sleep Data'))
+            conversation_id = cursor.lastrowid
+            conn.commit()
+
+        # Helper to insert a message with custom timestamp
+        def insert_message(ts_iso, role, content):
+            cursor.execute("""
+                INSERT INTO messages (conversation_id, role, content, timestamp)
+                VALUES (?, ?, ?, ?)
+            """, (conversation_id, role, content, ts_iso))
+
+        # Seed pattern over N days ending yesterday (keep today clean)
+        from datetime import timezone
+        now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        start_date = (now.date())
+        # Distribute factors occasionally
+        factor_days = set()
+        for i in range(days):
+            d = (start_date - timedelta(days=i+1))  # yesterday backwards
+            # Basic pattern with gentle variation
+            # Bedtime around 19:15–20:15, wake windows in night 1-2 events, morning wake ~06:00–07:30
+            bedtime_hour = 19 + ((i % 3) * 0.5)  # 19, 19.5, 20
+            bedtime_min = 15 if (i % 2 == 0) else 45
+            night_wakes = 0 if i % 5 == 0 else (1 if i % 2 == 0 else 2)
+            morning_hour = 6 + (i % 3) * 0.5  # 6, 6.5, 7
+            morning_min = 0 if (i % 2 == 0) else 20
+
+            # Compose timestamps
+            def dt_at(hh, mm):
+                return datetime(d.year, d.month, d.day, int(hh), int(mm), tzinfo=timezone.utc)
+
+            def iso(dt):
+                return dt.isoformat().replace('+00:00', 'Z')
+
+            # Bedtime message (user)
+            bt = dt_at(bedtime_hour, bedtime_min)
+            insert_message(iso(bt), 'user', f"Slept at {bt.strftime('%-I:%M %p').lower()}")
+
+            # Night wakes
+            if night_wakes >= 1:
+                w1 = bt + timedelta(hours=4 + (i % 2))
+                insert_message(iso(w1), 'user', f"Woke at {w1.strftime('%-I:%M %p').lower()}")
+                # back to sleep ~30–45m later
+                s1 = w1 + timedelta(minutes=30 + (i % 2) * 15)
+                insert_message(iso(s1), 'user', f"Asleep at {s1.strftime('%-I:%M %p').lower()}")
+            if night_wakes >= 2:
+                w2 = bt + timedelta(hours=6 + (i % 3))
+                insert_message(iso(w2), 'user', f"Woke at {w2.strftime('%-I:%M %p').lower()}")
+                s2 = w2 + timedelta(minutes=20 + (i % 2) * 10)
+                insert_message(iso(s2), 'user', f"Asleep at {s2.strftime('%-I:%M %p').lower()}")
+
+            # Morning wake
+            mw = dt_at(morning_hour, morning_min)
+            insert_message(iso(mw), 'user', f"Woke at {mw.strftime('%-I:%M %p').lower()}")
+
+            # Naps (2–3 per day)
+            nap_count = 2 if i % 3 == 0 else 3
+            first_nap = dt_at(9, 30 + (i % 2) * 15)
+            insert_message(iso(first_nap), 'user', f"Nap at {first_nap.strftime('%-I:%M %p').lower()}")
+            if nap_count >= 2:
+                second_nap = dt_at(13, 0 + (i % 2) * 30)
+                insert_message(iso(second_nap), 'user', f"Nap at {second_nap.strftime('%-I:%M %p').lower()}")
+            if nap_count >= 3:
+                third_nap = dt_at(16, 0)
+                insert_message(iso(third_nap), 'user', f"Nap at {third_nap.strftime('%-I:%M %p').lower()}")
+
+            # Occasionally add factors
+            if i % 10 == 0:
+                factor_days.add(d.isoformat())
+                cursor.execute("""
+                    INSERT OR IGNORE INTO sleep_factors (user_id, date, factor, note)
+                    VALUES (?, ?, ?, ?)
+                """, (user_id, d.isoformat(), 'sick', 'Runny nose'))
+            elif i % 14 == 0:
+                factor_days.add(d.isoformat())
+                cursor.execute("""
+                    INSERT OR IGNORE INTO sleep_factors (user_id, date, factor, note)
+                    VALUES (?, ?, ?, ?)
+                """, (user_id, d.isoformat(), 'teething', 'Teething discomfort'))
+
+        # Touch conversation last_message_at
+        cursor.execute("UPDATE conversations SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?", (conversation_id,))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'ok': True, 'conversation_id': conversation_id, 'days_seeded': days})
+    except Exception as e:
+        return jsonify({'error': f'Failed to seed: {str(e)}'}), 500
+
 # Forum endpoints
 @app.route('/api/forum/channels', methods=['GET'])
 def get_channels():

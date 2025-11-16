@@ -351,6 +351,20 @@ def init_db():
         )
     ''')
     
+    # Create sleep factors table (user-declared factors influencing sleep)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sleep_factors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            date DATE NOT NULL,
+            factor TEXT NOT NULL,
+            note TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, date, factor),
+            FOREIGN KEY (user_id) REFERENCES auth_users (id) ON DELETE CASCADE
+        )
+    ''')
+    
     # Create index for faster message queries
     cursor.execute('''
         CREATE INDEX IF NOT EXISTS idx_dm_conversation 
