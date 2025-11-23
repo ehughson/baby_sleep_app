@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "REM-i",
+    "slug": "rem-i",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.babysleep.remi"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.babysleep.remi"
+    },
+    "scheme": "remi",
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "df37069a-8337-47d6-90a7-88dc541f959a"
+      }
+    },
+    "owner": "ehugh349"
+  }
+}

@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import google.generativeai as genai
 import os
 import secrets
@@ -13,18 +15,21 @@ from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from database import init_db, get_db_connection
 from models import Conversation, Message
+from security_utils import (
+    validate_password_strength, validate_email, validate_username, validate_name,
+    validate_input_length, handle_error, safe_log, MAX_MESSAGE_LENGTH, MAX_POST_LENGTH, MAX_BIO_LENGTH
+)
 
 # Load environment variables
 load_dotenv()
 
 # Email configuration
 try:
-    from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail
-    SENDGRID_AVAILABLE = True
+    import resend
+    RESEND_AVAILABLE = True
 except ImportError:
-    SENDGRID_AVAILABLE = False
-    print("Warning: SendGrid not installed. Email functionality will be disabled.")
+    RESEND_AVAILABLE = False
+    print("Warning: Resend not installed. Email functionality will be disabled.")
 
 
 def get_user_from_session_token(session_token):
@@ -44,7 +49,7 @@ def get_user_from_session_token(session_token):
         conn.close()
         return user
     except Exception as e:
-        print(f"Error retrieving user from session: {str(e)}")
+        safe_log('error', 'Error retrieving user from session')
         return None
 
 
@@ -100,107 +105,331 @@ def generate_conversation_title(message, existing_titles=None):
 
 def send_welcome_email(email, first_name, username):
     """Send a welcome email to new users"""
-    if not SENDGRID_AVAILABLE:
-        print(f"Email sending disabled. Would send welcome email to {email}")
+    if not RESEND_AVAILABLE:
+        safe_log('info', 'Email sending disabled. Would send welcome email')
         return False
     
-    sendgrid_api_key = os.getenv('SENDGRID_API_KEY')
-    sendgrid_from_email = os.getenv('SENDGRID_FROM_EMAIL', 'noreply@remi.app')
+    resend_api_key = os.getenv('RESEND_API_KEY')
+    resend_from_email = os.getenv('RESEND_FROM_EMAIL', 'noreply@remi.app')
     
-    if not sendgrid_api_key:
-        print("Warning: SENDGRID_API_KEY not set. Email sending disabled.")
+    if not resend_api_key:
+        print("Warning: RESEND_API_KEY not set. Email sending disabled.")
         return False
     
     try:
-        message = Mail(
-            from_email=sendgrid_from_email,
-            to_emails=email,
-            subject='Welcome to REMi! 🌙',
-            html_content=f'''
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body {{
-                        font-family: 'Nunito', Arial, sans-serif;
-                        line-height: 1.6;
-                        color: #333;
-                        max-width: 600px;
-                        margin: 0 auto;
-                        padding: 20px;
-                    }}
-                    .header {{
-                        background: #a68cab;
-                        color: white;
-                        padding: 30px;
-                        text-align: center;
-                        border-radius: 10px 10px 0 0;
-                    }}
-                    .header h1 {{
-                        margin: 0;
-                        font-size: 2.5rem;
-                    }}
-                    .content {{
-                        background: #f9f9f9;
-                        padding: 30px;
-                        border-radius: 0 0 10px 10px;
-                    }}
-                    .button {{
-                        display: inline-block;
-                        background: #a68cab;
-                        color: white;
-                        padding: 12px 30px;
-                        text-decoration: none;
-                        border-radius: 5px;
-                        margin-top: 20px;
-                    }}
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <h1><span style="color: #fff3d1;">REM</span>i</h1>
-                    <p style="margin: 10px 0 0 0;">Shaping sleep, one night at a time</p>
-                </div>
-                <div class="content">
-                    <h2>Welcome, {first_name}! 👋</h2>
-                    <p>Thank you for joining REMi! We're so excited to help you on your sleep training journey.</p>
-                    <p>Your account has been successfully created with the username: <strong>{username}</strong></p>
-                    <p>You can now:</p>
-                    <ul>
-                        <li>💬 Chat with our AI sleep specialist for personalized advice</li>
-                        <li>🏘️ Join the Village community to connect with other parents</li>
-                        <li>👥 Add friends and share experiences</li>
-                        <li>📝 Get expert guidance on sleep training methods</li>
-                    </ul>
-                    <p>We're here to support you every step of the way. If you have any questions, don't hesitate to reach out!</p>
-                    <p>Sweet dreams! 🌙</p>
-                    <p style="margin-top: 30px; color: #666; font-size: 0.9rem;">
-                        Best regards,<br>
-                        The REMi Team
-                    </p>
-                </div>
-            </body>
-            </html>
-            '''
-        )
+        html_content = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{
+                    font-family: 'Nunito', Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }}
+                .header {{
+                    background: #3a1f35;
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                    border-radius: 10px 10px 0 0;
+                }}
+                .header h1 {{
+                    margin: 0;
+                    font-size: 2.5rem;
+                }}
+                .content {{
+                    background: #f9f9f9;
+                    padding: 30px;
+                    border-radius: 0 0 10px 10px;
+                }}
+                .button {{
+                    display: inline-block;
+                    background: #3a1f35;
+                    color: white;
+                    padding: 12px 30px;
+                    text-decoration: none;
+                    border-radius: 5px;
+                    margin-top: 20px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1><span style="color: #fff3d1;">REM</span>i</h1>
+                <p style="margin: 10px 0 0 0;">Shaping sleep, one night at a time</p>
+            </div>
+            <div class="content">
+                <h2>Welcome, {first_name}! 👋</h2>
+                <p>Thank you for joining REMi! We're so excited to help you on your sleep training journey.</p>
+                <p>Your account has been successfully created with the username: <strong>{username}</strong></p>
+                <p>You can now:</p>
+                <ul>
+                    <li>💬 Chat with our AI sleep specialist for personalized advice</li>
+                    <li>🏘️ Join the Village community to connect with other parents</li>
+                    <li>👥 Add friends and share experiences</li>
+                    <li>📝 Get expert guidance on sleep training methods</li>
+                </ul>
+                <p>We're here to support you every step of the way. If you have any questions, don't hesitate to reach out!</p>
+                <p>Sweet dreams! 🌙</p>
+                <p style="margin-top: 30px; color: #666; font-size: 0.9rem;">
+                    Best regards,<br>
+                    The REMi Team
+                </p>
+            </div>
+        </body>
+        </html>
+        '''
         
-        sg = SendGridAPIClient(sendgrid_api_key)
-        response = sg.send(message)
-        print(f"Welcome email sent to {email}: Status {response.status_code}")
+        resend_client = resend.Resend(api_key=resend_api_key)
+        
+        params = {
+            "from": resend_from_email,
+            "to": [email],
+            "subject": "Welcome to REMi! 🌙",
+            "html": html_content
+        }
+        
+        email_response = resend_client.emails.send(params)
+        safe_log('info', 'Welcome email sent successfully')
         return True
     except Exception as e:
-        print(f"Error sending welcome email to {email}: {str(e)}")
+        safe_log('error', 'Error sending welcome email')
         # Don't fail signup if email fails
+        return False
+
+def send_verification_email(email, first_name, verification_token):
+    """Send email verification email to new users"""
+    if not RESEND_AVAILABLE:
+        safe_log('info', 'Email sending disabled. Would send verification email')
+        return False
+    
+    resend_api_key = os.getenv('RESEND_API_KEY')
+    resend_from_email = os.getenv('RESEND_FROM_EMAIL', 'noreply@remi.app')
+    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+    
+    if not resend_api_key:
+        print("Warning: RESEND_API_KEY not set. Email sending disabled.")
+        return False
+    
+    try:
+        verification_url = f"{frontend_url}/verify-email?token={verification_token}"
+        resend_client = resend.Resend(api_key=resend_api_key)
+        
+        html_content = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{
+                    font-family: 'Nunito', Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }}
+                .header {{
+                    background: #3a1f35;
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                    border-radius: 10px 10px 0 0;
+                }}
+                .header h1 {{
+                    margin: 0;
+                    font-size: 2.5rem;
+                }}
+                .content {{
+                    background: #f9f9f9;
+                    padding: 30px;
+                    border-radius: 0 0 10px 10px;
+                }}
+                .button {{
+                    display: inline-block;
+                    background: #3a1f35;
+                    color: white;
+                    padding: 12px 30px;
+                    text-decoration: none;
+                    border-radius: 5px;
+                    margin-top: 20px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1><span style="color: #fff3d1;">REM</span>i</h1>
+                <p style="margin: 10px 0 0 0;">Shaping sleep, one night at a time</p>
+            </div>
+            <div class="content">
+                <h2>Welcome, {first_name}! 👋</h2>
+                <p>Thank you for joining REMi! We're excited to help you on your sleep training journey.</p>
+                <p>To complete your registration, please verify your email address by clicking the button below:</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{verification_url}" class="button">Verify Email Address</a>
+                </div>
+                <p>Or copy and paste this link into your browser:</p>
+                <p style="word-break: break-all; color: #666; font-size: 0.9rem;">{verification_url}</p>
+                <p style="margin-top: 30px; color: #666; font-size: 0.9rem;">
+                    This link will expire in 24 hours. If you didn't create an account with REMi, you can safely ignore this email.
+                </p>
+                <p style="margin-top: 30px; color: #666; font-size: 0.9rem;">
+                    Best regards,<br>
+                    The REMi Team
+                </p>
+            </div>
+        </body>
+        </html>
+        '''
+        
+        params = {
+            "from": resend_from_email,
+            "to": [email],
+            "subject": "Verify your REMi account 🌙",
+            "html": html_content
+        }
+        
+        email_response = resend_client.emails.send(params)
+        safe_log('info', 'Verification email sent successfully')
+        return True
+    except Exception as e:
+        safe_log('error', 'Error sending verification email')
+        return False
+
+def send_password_reset_email(email, first_name, reset_token):
+    """Send password reset email"""
+    if not RESEND_AVAILABLE:
+        safe_log('info', 'Email sending disabled. Would send password reset email')
+        return False
+    
+    resend_api_key = os.getenv('RESEND_API_KEY')
+    resend_from_email = os.getenv('RESEND_FROM_EMAIL', 'noreply@remi.app')
+    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+    
+    if not resend_api_key:
+        print("Warning: RESEND_API_KEY not set. Email sending disabled.")
+        return False
+    
+    try:
+        reset_url = f"{frontend_url}/reset-password?token={reset_token}"
+        resend_client = resend.Resend(api_key=resend_api_key)
+        
+        html_content = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{
+                    font-family: 'Nunito', Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }}
+                .header {{
+                    background: #3a1f35;
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                    border-radius: 10px 10px 0 0;
+                }}
+                .header h1 {{
+                    margin: 0;
+                    font-size: 2.5rem;
+                }}
+                .content {{
+                    background: #f9f9f9;
+                    padding: 30px;
+                    border-radius: 0 0 10px 10px;
+                }}
+                .button {{
+                    display: inline-block;
+                    background: #3a1f35;
+                    color: white;
+                    padding: 12px 30px;
+                    text-decoration: none;
+                    border-radius: 5px;
+                    margin-top: 20px;
+                }}
+                .warning {{
+                    background: #fff3cd;
+                    border-left: 4px solid #ffc107;
+                    padding: 15px;
+                    margin: 20px 0;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1><span style="color: #fff3d1;">REM</span>i</h1>
+                <p style="margin: 10px 0 0 0;">Shaping sleep, one night at a time</p>
+            </div>
+            <div class="content">
+                <h2>Hello, {first_name}!</h2>
+                <p>We received a request to reset your password for your REMi account.</p>
+                <p>Click the button below to reset your password:</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{reset_url}" class="button">Reset Password</a>
+                </div>
+                <p>Or copy and paste this link into your browser:</p>
+                <p style="word-break: break-all; color: #666; font-size: 0.9rem;">{reset_url}</p>
+                <div class="warning">
+                    <strong>⚠️ Security Notice:</strong> This link will expire in 1 hour. If you didn't request a password reset, please ignore this email and your password will remain unchanged.
+                </div>
+                <p style="margin-top: 30px; color: #666; font-size: 0.9rem;">
+                    Best regards,<br>
+                    The REMi Team
+                </p>
+            </div>
+        </body>
+        </html>
+        '''
+        
+        params = {
+            "from": resend_from_email,
+            "to": [email],
+            "subject": "Reset your REMi password 🔒",
+            "html": html_content
+        }
+        
+        email_response = resend_client.emails.send(params)
+        safe_log('info', 'Password reset email sent successfully')
+        return True
+    except Exception as e:
+        safe_log('error', 'Error sending password reset email')
         return False
 
 app = Flask(__name__)
 
-# CORS configuration - allow configurable origins
+# Rate limiting configuration
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"  # Use in-memory storage (consider Redis for production)
+)
+
+# CORS configuration - secure by default
 allowed_origins_env = os.getenv('ALLOWED_ORIGINS')
 if allowed_origins_env:
     allowed_origins = [origin.strip() for origin in allowed_origins_env.split(',') if origin.strip()]
 else:
-    allowed_origins = ['*']
+    # In production, fail if not configured
+    if os.getenv('FLASK_ENV') == 'production' or os.getenv('ENVIRONMENT') == 'production':
+        raise ValueError("ALLOWED_ORIGINS must be set in production. Cannot use wildcard (*)")
+    # Development fallback - allow common development origins
+    allowed_origins = [
+        'http://localhost:3000',
+        'http://localhost:8081',
+        'http://localhost:19006',  # Expo default
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:8081',
+        'http://127.0.0.1:19006'
+    ]
 
 CORS(app, resources={r"/api/*": {
     "origins": allowed_origins,
@@ -208,6 +437,17 @@ CORS(app, resources={r"/api/*": {
     "allow_headers": ["Content-Type", "Authorization"],
     "expose_headers": ["Cache-Control", "X-Accel-Buffering"]
 }})
+
+# Security headers
+@app.after_request
+def set_security_headers(response):
+    """Set security headers"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    if os.getenv('FLASK_ENV') == 'production' or os.getenv('ENVIRONMENT') == 'production':
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
 
 # Initialize database
 init_db()
@@ -623,7 +863,7 @@ def chat():
                     }
                 conn.close()
             except Exception as e:
-                print(f"Error fetching user context: {str(e)}")
+                safe_log('error', 'Error fetching user context')
                 # Continue without user context if there's an error
         
         conversation_was_new = False
@@ -717,7 +957,7 @@ def chat():
                 except Exception as e:
                     import traceback
                     error_trace = traceback.format_exc()
-                    print(f"Streaming error: {error_trace}")
+                    safe_log('error', 'Streaming error occurred')
                     yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
             
             return Response(
@@ -750,7 +990,7 @@ def chat():
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': f'Failed to get response from AI: {str(e)}'}), 500
+        return handle_error(e, 'Failed to get response from AI. Please try again.', 500)
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -1188,7 +1428,7 @@ def get_sleep_progress():
         summary['qualityTrend'] = quality_trend
         return jsonify(summary)
     except Exception as e:
-        return jsonify({'error': f'Failed to compute sleep progress: {str(e)}'}), 500
+        return handle_error(e, 'Failed to compute sleep progress. Please try again.', 500)
 
 
 @app.route('/api/sleep/factors', methods=['GET', 'POST'])
@@ -1216,7 +1456,7 @@ def sleep_factors():
                 out.setdefault(r['date'], []).append({'factor': r['factor'], 'note': r['note']})
             return jsonify(out)
         except Exception as e:
-            return jsonify({'error': f'Failed to load factors: {str(e)}'}), 500
+            return handle_error(e, 'Failed to load factors. Please try again.', 500)
     else:
         data = request.get_json() or {}
         factor_list = data.get('factors') or []
@@ -1244,7 +1484,7 @@ def sleep_factors():
             conn.close()
             return jsonify({'ok': True})
         except Exception as e:
-            return jsonify({'error': f'Failed to save factors: {str(e)}'}), 500
+            return handle_error(e, 'Failed to save factors. Please try again.', 500)
 
 
 @app.route('/api/dev/seed_sleep', methods=['POST'])
@@ -1370,7 +1610,7 @@ def dev_seed_sleep():
 
         return jsonify({'ok': True, 'conversation_id': conversation_id, 'days_seeded': days})
     except Exception as e:
-        return jsonify({'error': f'Failed to seed: {str(e)}'}), 500
+        return handle_error(e, 'Failed to seed data. Please try again.', 500)
 
 # Forum endpoints
 @app.route('/api/forum/channels', methods=['GET'])
@@ -1555,6 +1795,11 @@ def create_post():
         if not channel_id or not author_name or not content:
             return jsonify({'error': 'Missing required fields'}), 400
         
+        # Validate input lengths
+        content_length_valid, content_length_error = validate_input_length(content, MAX_POST_LENGTH, 'Post content')
+        if not content_length_valid:
+            return jsonify({'error': content_length_error}), 400
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -1640,7 +1885,7 @@ def create_post():
         
         return jsonify(post_dict)
     except Exception as e:
-        return jsonify({'error': f'Failed to create post: {str(e)}'}), 500
+        return handle_error(e, 'Failed to create post. Please try again.', 500)
 
 @app.route('/api/forum/channels', methods=['POST'])
 def create_channel():
@@ -1696,7 +1941,7 @@ def create_channel():
         
         return jsonify(dict(channel))
     except Exception as e:
-        return jsonify({'error': f'Failed to create channel: {str(e)}'}), 500
+        return handle_error(e, 'Failed to create channel. Please try again.', 500)
 
 @app.route('/api/forum/channels/<int:channel_id>', methods=['DELETE'])
 def delete_channel(channel_id):
@@ -1759,7 +2004,7 @@ def delete_channel(channel_id):
         
         return jsonify({'message': 'Channel deleted successfully'})
     except Exception as e:
-        return jsonify({'error': f'Failed to delete channel: {str(e)}'}), 500
+        return handle_error(e, 'Failed to delete channel. Please try again.', 500)
 
 @app.route('/api/forum/channels/<int:channel_id>/leave', methods=['POST'])
 def leave_channel(channel_id):
@@ -1802,7 +2047,7 @@ def leave_channel(channel_id):
 
         return jsonify({'message': f'You have left the "{channel_name}" channel'})
     except Exception as e:
-        return jsonify({'error': f'Failed to leave channel: {str(e)}'}), 500
+        return handle_error(e, 'Failed to leave channel. Please try again.', 500)
 
 @app.route('/api/forum/channels/<int:channel_id>/privacy', methods=['PUT'])
 def update_channel_privacy(channel_id):
@@ -1842,7 +2087,7 @@ def update_channel_privacy(channel_id):
         
         return jsonify({'message': 'Channel privacy updated'})
     except Exception as e:
-        return jsonify({'error': f'Failed to update privacy: {str(e)}'}), 500
+        return handle_error(e, 'Failed to update privacy. Please try again.', 500)
 
 @app.route('/api/forum/channels/<int:channel_id>/invite', methods=['POST'])
 def invite_to_channel(channel_id):
@@ -1950,7 +2195,7 @@ def invite_to_channel(channel_id):
             message = f'Invite sent to {invitee_username}. They can accept it from their notifications.'
         return jsonify({'message': message, 'status': status})
     except Exception as e:
-        return jsonify({'error': f'Failed to invite user: {str(e)}'}), 500
+        return handle_error(e, 'Failed to invite user. Please try again.', 500)
 
 @app.route('/api/forum/invites', methods=['GET'])
 def get_channel_invites():
@@ -1985,7 +2230,7 @@ def get_channel_invites():
         conn.close()
         return jsonify(invites)
     except Exception as e:
-        return jsonify({'error': f'Failed to get invites: {str(e)}'}), 500
+        return handle_error(e, 'Failed to get invites. Please try again.', 500)
 
 @app.route('/api/forum/invites/approvals', methods=['GET'])
 def get_channel_invite_approvals():
@@ -2018,7 +2263,7 @@ def get_channel_invite_approvals():
         conn.close()
         return jsonify(invites)
     except Exception as e:
-        return jsonify({'error': f'Failed to get invite approvals: {str(e)}'}), 500
+        return handle_error(e, 'Failed to get invite approvals. Please try again.', 500)
 
 @app.route('/api/forum/invites/<int:invite_id>/approve', methods=['POST'])
 def approve_channel_invite(invite_id):
@@ -2072,7 +2317,7 @@ def approve_channel_invite(invite_id):
             conn.close()
             return jsonify({'message': 'Invite declined.'})
     except Exception as e:
-        return jsonify({'error': f'Failed to update invite: {str(e)}'}), 500
+        return handle_error(e, 'Failed to update invite. Please try again.', 500)
 
 @app.route('/api/forum/invites/<int:invite_id>/respond', methods=['POST'])
 def respond_to_channel_invite(invite_id):
@@ -2133,7 +2378,7 @@ def respond_to_channel_invite(invite_id):
             conn.close()
             return jsonify({'message': 'Invite declined.'})
     except Exception as e:
-        return jsonify({'error': f'Failed to respond to invite: {str(e)}'}), 500
+        return handle_error(e, 'Failed to respond to invite. Please try again.', 500)
 
 @app.route('/api/forum/channels/<int:channel_id>/members', methods=['GET'])
 def get_channel_members(channel_id):
@@ -2154,7 +2399,7 @@ def get_channel_members(channel_id):
         conn.close()
         return jsonify([dict(member) for member in members])
     except Exception as e:
-        return jsonify({'error': f'Failed to get members: {str(e)}'}), 500
+        return handle_error(e, 'Failed to get members. Please try again.', 500)
 
 # File upload configuration
 # Use persistent storage for uploads if available (Railway volumes), otherwise use local directory
@@ -2182,27 +2427,47 @@ def upload_file():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            # Add unique prefix to avoid conflicts
-            unique_filename = f"{uuid.uuid4().hex}_{filename}"
-            filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
-            file.save(filepath)
-            
-            # Determine file type
-            file_ext = filename.rsplit('.', 1)[1].lower()
-            file_type = 'image' if file_ext in ['png', 'jpg', 'jpeg', 'gif'] else 'document'
-            
-            return jsonify({
-                'file_path': unique_filename,
-                'file_name': filename,
-                'file_type': file_type,
-                'url': f'/api/forum/files/{unique_filename}'
-            })
-        else:
-            return jsonify({'error': 'File type not allowed'}), 400
+        # Check file size BEFORE processing
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE / 1024 / 1024}MB limit'}), 400
+        
+        if file_size == 0:
+            return jsonify({'error': 'File is empty'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'File type not allowed. Allowed types: png, jpg, jpeg, gif, pdf, doc, docx, txt'}), 400
+        
+        filename = secure_filename(file.filename)
+        if not filename:
+            return jsonify({'error': 'Invalid filename'}), 400
+        
+        # Add unique prefix to avoid conflicts
+        unique_filename = f"{uuid.uuid4().hex}_{filename}"
+        filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+        
+        # Save file
+        file.save(filepath)
+        
+        # Verify file was saved and has content
+        if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+            return jsonify({'error': 'Failed to save file'}), 500
+        
+        # Determine file type
+        file_ext = filename.rsplit('.', 1)[1].lower()
+        file_type = 'image' if file_ext in ['png', 'jpg', 'jpeg', 'gif'] else 'document'
+        
+        return jsonify({
+            'file_path': unique_filename,
+            'file_name': filename,
+            'file_type': file_type,
+            'url': f'/api/forum/files/{unique_filename}'
+        })
     except Exception as e:
-        return jsonify({'error': f'Failed to upload file: {str(e)}'}), 500
+        return handle_error(e, 'Failed to upload file. Please try again.', 500)
 
 @app.route('/api/forum/files/<filename>', methods=['GET'])
 def get_file(filename):
@@ -2250,7 +2515,7 @@ def get_dm_conversations():
         
         return jsonify([dict(conv) for conv in conversations])
     except Exception as e:
-        return jsonify({'error': f'Failed to get conversations: {str(e)}'}), 500
+        return handle_error(e, 'Failed to get conversations. Please try again.', 500)
 
 @app.route('/api/dm/messages', methods=['GET'])
 def get_dm_messages():
@@ -2746,12 +3011,17 @@ def get_friends(username):
         conn.commit()
         
         # Get accepted friendships with profile info and online status
+        # Only return username for privacy - no first_name or last_name
         cursor.execute('''
             SELECT 
                 CASE 
                     WHEN f.user1_name = ? THEN f.user2_name
                     ELSE f.user1_name
                 END as friend_name,
+                CASE 
+                    WHEN f.user1_name = ? THEN f.user2_name
+                    ELSE f.user1_name
+                END as username,
                 f.created_at,
                 fu.display_name,
                 au.profile_picture,
@@ -2773,10 +3043,24 @@ def get_friends(username):
             WHERE (f.user1_name = ? OR f.user2_name = ?)
               AND f.status = 'accepted'
             ORDER BY f.created_at DESC
-        ''', (username, ONLINE_THRESHOLD_SQL, username, username, username, username))
+        ''', (username, username, ONLINE_THRESHOLD_SQL, username, username, username, username))
         
         friends = cursor.fetchall()
-        friend_list = [dict(friend) for friend in friends]
+        # Only return username and public profile fields - remove first_name/last_name for privacy
+        friend_list = []
+        for friend in friends:
+            friend_dict = dict(friend)
+            # Only keep username and public profile fields - remove first_name/last_name
+            friend_list.append({
+                'friend_name': friend_dict.get('friend_name'),
+                'username': friend_dict.get('username'),
+                'created_at': friend_dict.get('created_at'),
+                'display_name': friend_dict.get('display_name'),
+                'profile_picture': friend_dict.get('profile_picture'),
+                'bio': friend_dict.get('bio'),
+                'last_seen': friend_dict.get('last_seen'),
+                'is_online': friend_dict.get('is_online')
+            })
         
         if FRIENDS_DEBUG_ENABLED:
             # Debug logging - check all friendships for this user
@@ -2844,8 +3128,19 @@ def get_friend_requests():
         ''', (username,))
         
         requests = cursor.fetchall()
+        # Only return username and public profile fields - remove first_name/last_name for privacy
+        request_list = []
+        for req in requests:
+            req_dict = dict(req)
+            # Only keep username and public profile fields - remove first_name/last_name
+            request_list.append({
+                'from_user': req_dict.get('from_user'),
+                'created_at': req_dict.get('created_at'),
+                'profile_picture': req_dict.get('profile_picture'),
+                'bio': req_dict.get('bio')
+            })
         conn.close()
-        return jsonify([dict(req) for req in requests])
+        return jsonify(request_list)
     except Exception as e:
         return jsonify({'error': f'Failed to get friend requests: {str(e)}'}), 500
 
@@ -2986,7 +3281,18 @@ def search_users():
         ''', (search_pattern, current_user))
         
         users = cursor.fetchall()
-        user_list = [dict(user) for user in users]
+        # Only return username and public profile fields - remove first_name/last_name for privacy
+        user_list = []
+        for user in users:
+            user_dict = dict(user)
+            # Only keep username and public profile fields - remove first_name/last_name
+            user_list.append({
+                'username': user_dict.get('username'),
+                'display_name': user_dict.get('display_name'),
+                'last_seen': user_dict.get('last_seen'),
+                'profile_picture': user_dict.get('profile_picture'),
+                'bio': user_dict.get('bio')
+            })
         print(f"Found {len(user_list)} users matching '{query}' (excluding current user '{current_user}')")
         if user_list:
             print(f"Matched usernames: {[u.get('username') for u in user_list]}")
@@ -3068,6 +3374,7 @@ def generate_random_username():
     return f"{random.choice(adjectives)}_{random.choice(nouns)}_{number}"
 
 @app.route('/api/auth/signup', methods=['POST'])
+@limiter.limit("3 per hour")
 def signup():
     """Create a new user account"""
     from database import get_db_connection
@@ -3082,8 +3389,13 @@ def signup():
         remember_me = data.get('remember_me', False)
         
         # Validate required fields
-        if not first_name or not last_name:
-            return jsonify({'error': 'First name and last name are required'}), 400
+        first_name_valid, first_name_error = validate_name(first_name, 'First name')
+        if not first_name_valid:
+            return jsonify({'error': first_name_error}), 400
+        
+        last_name_valid, last_name_error = validate_name(last_name, 'Last name')
+        if not last_name_valid:
+            return jsonify({'error': last_name_error}), 400
         
         if not email:
             return jsonify({'error': 'Email is required'}), 400
@@ -3091,8 +3403,10 @@ def signup():
         if not password:
             return jsonify({'error': 'Password is required'}), 400
         
-        if len(password) < 6:
-            return jsonify({'error': 'Password must be at least 6 characters'}), 400
+        # Validate password strength
+        password_valid, password_error = validate_password_strength(password)
+        if not password_valid:
+            return jsonify({'error': password_error}), 400
 
         if contains_banned_language(first_name) or contains_banned_language(last_name):
             return jsonify({'error': 'Please use respectful language in your name.'}), 400
@@ -3132,8 +3446,10 @@ def signup():
             if not username:
                 return jsonify({'error': 'Username is required'}), 400
             
-            if len(username) < 3:
-                return jsonify({'error': 'Username must be at least 3 characters'}), 400
+            # Validate username format
+            username_valid, username_error = validate_username(username)
+            if not username_valid:
+                return jsonify({'error': username_error}), 400
             
             # Check if username already exists
             cursor.execute('SELECT * FROM auth_users WHERE username = ?', (username,))
@@ -3194,11 +3510,15 @@ def signup():
         # Hash password
         password_hash = generate_password_hash(password)
         
+        # Generate verification token
+        verification_token = secrets.token_urlsafe(32)
+        verification_token_expires = datetime.now() + timedelta(days=1)  # Token expires in 24 hours
+        
         # Create user
         cursor.execute('''
-            INSERT INTO auth_users (username, first_name, last_name, email, password_hash)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (username, first_name, last_name, email, password_hash))
+            INSERT INTO auth_users (username, first_name, last_name, email, password_hash, verification_token, verification_token_expires, email_verified)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+        ''', (username, first_name, last_name, email, password_hash, verification_token, verification_token_expires))
         user_id = cursor.lastrowid
         
         # Create forum user entry
@@ -3267,19 +3587,20 @@ def signup():
         
         conn.close()
         
-        # Send welcome email (non-blocking - don't fail signup if email fails)
+        # Send verification email (non-blocking - don't fail signup if email fails)
         try:
-            send_welcome_email(email, first_name, username)
+            send_verification_email(email, first_name, verification_token)
         except Exception as email_error:
-            print(f"Failed to send welcome email: {str(email_error)}")
+            print(f"Failed to send verification email: {str(email_error)}")
             # Continue with signup even if email fails
         
         return jsonify({
-            'message': 'Account created successfully',
+            'message': 'Account created successfully. Please check your email to verify your account.',
             'session_token': session_token,
             'username': username,
             'user_id': user_id,
             'first_name': user_first_name,
+            'email_verified': False,
             'profile_picture': user_data['profile_picture'] if user_data else None,
             'bio': user_data['bio'] if user_data else None
         })
@@ -3295,6 +3616,7 @@ def signup():
         return jsonify({'error': f'Failed to create account: {str(e)}'}), 500
 
 @app.route('/api/auth/login', methods=['POST'])
+@limiter.limit("5 per minute")
 def login():
     """Login and create session"""
     from database import get_db_connection
@@ -3314,24 +3636,22 @@ def login():
         cursor.execute('SELECT * FROM auth_users WHERE username = ?', (username,))
         user = cursor.fetchone()
         
-        print(f"Login attempt for username: '{username}'")
+        safe_log('info', 'Login attempt')
         
         if not user:
-            print(f"User not found: '{username}'")
+            # Use generic error message to prevent account enumeration
             conn.close()
             return jsonify({'error': 'Invalid username or password'}), 401
         
         # Check if account is active
         user_keys = user.keys() if hasattr(user, 'keys') else []
         is_active = user['is_active'] if 'is_active' in user_keys else 1
-        print(f"User found, is_active: {is_active}")
         if is_active == 0:
             conn.close()
-            return jsonify({'error': 'This account has been deactivated'}), 403
+            return jsonify({'error': 'Invalid username or password'}), 401  # Generic message
         
         # Check password
         password_valid = check_password_hash(user['password_hash'], password)
-        print(f"Password valid: {password_valid}")
         if not password_valid:
             conn.close()
             return jsonify({'error': 'Invalid username or password'}), 401
@@ -3353,6 +3673,7 @@ def login():
         conn.commit()
         conn.close()
         
+        safe_log('info', 'Login successful')
         return jsonify({
             'message': 'Login successful',
             'session_token': session_token,
@@ -3363,7 +3684,7 @@ def login():
             'bio': user['bio']
         })
     except Exception as e:
-        return jsonify({'error': f'Failed to login: {str(e)}'}), 500
+        return handle_error(e, 'Failed to login. Please try again.', 500)
 
 @app.route('/api/auth/session', methods=['GET'])
 def check_session():
@@ -4104,7 +4425,52 @@ def update_sleep_goals():
     except Exception as e:
         return jsonify({'error': f'Failed to update sleep goals: {str(e)}'}), 500
 
+@app.route('/api/auth/verify-email', methods=['POST'])
+def verify_email():
+    """Verify email address using verification token"""
+    from database import get_db_connection
+    try:
+        data = request.get_json()
+        token = data.get('token', '').strip()
+        
+        if not token:
+            return jsonify({'error': 'Verification token is required'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Find user with valid verification token
+        cursor.execute('''
+            SELECT * FROM auth_users 
+            WHERE verification_token = ? AND verification_token_expires > ?
+        ''', (token, datetime.now()))
+        user = cursor.fetchone()
+        
+        if not user:
+            conn.close()
+            return jsonify({'error': 'Invalid or expired verification token'}), 400
+        
+        # Check if already verified
+        if user['email_verified']:
+            conn.close()
+            return jsonify({'message': 'Email already verified'}), 200
+        
+        # Mark email as verified and clear token
+        cursor.execute('''
+            UPDATE auth_users 
+            SET email_verified = 1, verification_token = NULL, verification_token_expires = NULL
+            WHERE id = ?
+        ''', (user['id'],))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': 'Email verified successfully'})
+    except Exception as e:
+        return jsonify({'error': f'Failed to verify email: {str(e)}'}), 500
+
 @app.route('/api/auth/forgot-password', methods=['POST'])
+@limiter.limit("3 per hour")
 def forgot_password():
     """Request password reset"""
     from database import get_db_connection
@@ -4141,19 +4507,22 @@ def forgot_password():
         conn.commit()
         conn.close()
         
-        # In a real app, you would send an email here with the reset link
-        # For now, we'll return the token (in production, remove this!)
-        # TODO: Send email with reset link: /reset-password?token={reset_token}
-        print(f"Password reset token for {email}: {reset_token}")
+        # Send password reset email
+        try:
+            user_first_name = user.get('first_name', 'User')
+            send_password_reset_email(email, user_first_name, reset_token)
+        except Exception as email_error:
+            print(f"Failed to send password reset email: {str(email_error)}")
+            # Continue even if email fails (don't reveal if email exists)
         
         return jsonify({
-            'message': 'If an account with that email exists, a password reset link has been sent.',
-            'reset_token': reset_token  # Remove this in production - only for testing
+            'message': 'If an account with that email exists, a password reset link has been sent.'
         })
     except Exception as e:
-        return jsonify({'error': f'Failed to process password reset request: {str(e)}'}), 500
+        return handle_error(e, 'Failed to process password reset request. Please try again.', 500)
 
 @app.route('/api/auth/reset-password', methods=['POST'])
+@limiter.limit("5 per hour")
 def reset_password():
     """Reset password using token"""
     from database import get_db_connection
@@ -4165,8 +4534,10 @@ def reset_password():
         if not token or not new_password:
             return jsonify({'error': 'Token and new password are required'}), 400
         
-        if len(new_password) < 6:
-            return jsonify({'error': 'Password must be at least 6 characters'}), 400
+        # Validate password strength
+        password_valid, password_error = validate_password_strength(new_password)
+        if not password_valid:
+            return jsonify({'error': password_error}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -4195,7 +4566,7 @@ def reset_password():
         
         return jsonify({'message': 'Password has been reset successfully'})
     except Exception as e:
-        return jsonify({'error': f'Failed to reset password: {str(e)}'}), 500
+        return handle_error(e, 'Failed to reset password. Please try again.', 500)
 
 @app.route('/api/auth/logout', methods=['POST'])
 def logout():

@@ -77,6 +77,20 @@ def init_db():
         )
     ''')
     
+    # Ensure is_private column exists on older databases
+    cursor.execute("PRAGMA table_info(forum_channels)")
+    channel_columns = {row[1] for row in cursor.fetchall()}
+    if 'is_private' not in channel_columns:
+        try:
+            cursor.execute('ALTER TABLE forum_channels ADD COLUMN is_private INTEGER DEFAULT 0')
+        except sqlite3.OperationalError:
+            pass
+    if 'owner_name' not in channel_columns:
+        try:
+            cursor.execute('ALTER TABLE forum_channels ADD COLUMN owner_name TEXT')
+        except sqlite3.OperationalError:
+            pass
+    
     # Create channel members table (for private channels and invites)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS channel_members (
@@ -192,6 +206,30 @@ def init_db():
         )
     ''')
     
+    # Ensure file columns exist on older databases
+    cursor.execute("PRAGMA table_info(forum_posts)")
+    post_columns = {row[1] for row in cursor.fetchall()}
+    if 'file_path' not in post_columns:
+        try:
+            cursor.execute('ALTER TABLE forum_posts ADD COLUMN file_path TEXT')
+        except sqlite3.OperationalError:
+            pass
+    if 'file_type' not in post_columns:
+        try:
+            cursor.execute('ALTER TABLE forum_posts ADD COLUMN file_type TEXT')
+        except sqlite3.OperationalError:
+            pass
+    if 'file_name' not in post_columns:
+        try:
+            cursor.execute('ALTER TABLE forum_posts ADD COLUMN file_name TEXT')
+        except sqlite3.OperationalError:
+            pass
+    if 'parent_post_id' not in post_columns:
+        try:
+            cursor.execute('ALTER TABLE forum_posts ADD COLUMN parent_post_id INTEGER')
+        except sqlite3.OperationalError:
+            pass
+    
     # Create post reactions table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS post_reactions (
@@ -290,6 +328,22 @@ def init_db():
     
     try:
         cursor.execute('ALTER TABLE auth_users ADD COLUMN deactivated_at TIMESTAMP')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    # Add email verification columns
+    try:
+        cursor.execute('ALTER TABLE auth_users ADD COLUMN email_verified INTEGER DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    try:
+        cursor.execute('ALTER TABLE auth_users ADD COLUMN verification_token TEXT')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    try:
+        cursor.execute('ALTER TABLE auth_users ADD COLUMN verification_token_expires TIMESTAMP')
     except sqlite3.OperationalError:
         pass  # Column already exists
     
