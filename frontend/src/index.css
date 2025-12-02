@@ -12,7 +12,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #a68cab;
+  background: #3a1f35;
   color: #333;
   line-height: 1.6;
   min-height: 100vh;
@@ -42,7 +42,7 @@ body {
 
 .header {
   padding: 2rem 2rem 1.5rem;
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   display: flex;
   justify-content: space-between;
@@ -103,11 +103,25 @@ body {
   border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
+/* Header logo - cream color when logged in */
 .header-title h1 {
   font-size: 2rem;
   font-weight: 700;
-  color: white;
+  color: #fff3d1 !important; /* Cream color when logged in - override all other rules */
   margin: 0;
+}
+
+/* Ensure header h1 is cream, not purple - more specific rule */
+.header .header-title h1,
+.app .header .header-title h1 {
+  color: #fff3d1 !important;
+}
+
+/* Prevent any purple color from affecting header h1 */
+.header h1,
+.header-title h1,
+.header .header-title h1 {
+  color: #fff3d1 !important;
 }
 
 .header-subtitle {
@@ -163,7 +177,7 @@ body {
   justify-content: center;
   font-size: 0.7rem;
   font-weight: 600;
-  border: 2px solid #a68cab;
+  border: 2px solid #3a1f35;
 }
 
 .notifications-dropdown {
@@ -201,7 +215,7 @@ body {
 .clear-notifications-btn {
   background: none;
   border: none;
-  color: #a68cab;
+  color: #3a1f35;
   font-size: 0.85rem;
   cursor: pointer;
   padding: 0.25rem 0.5rem;
@@ -291,7 +305,7 @@ body {
 
 .notification-content p strong {
   font-weight: 600;
-  color: #a68cab;
+  color: #3a1f35;
 }
 
 .notification-preview {
@@ -319,7 +333,7 @@ body {
   padding: 0.4rem 0.9rem;
   border-radius: 8px;
   border: none;
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   font-size: 0.85rem;
   font-weight: 600;
@@ -715,7 +729,7 @@ body {
   height: 120px;
   border-radius: 50%;
   overflow: hidden;
-  border: 3px solid #a68cab;
+  border: 3px solid #3a1f35;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -736,12 +750,12 @@ body {
   justify-content: center;
   font-size: 3rem;
   font-weight: 600;
-  color: #a68cab;
+  color: #3a1f35;
   background: #f0f0f0;
 }
 
 .profile-upload-btn {
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -811,7 +825,7 @@ body {
 
 .profile-info-item input:focus,
 .profile-info-item textarea:focus {
-  border-color: #a68cab;
+  border-color: #3a1f35;
   outline: none;
   box-shadow: 0 0 0 3px rgba(166, 140, 171, 0.1);
 }
@@ -852,7 +866,7 @@ body {
 }
 
 .profile-save-btn {
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -949,13 +963,13 @@ body {
 }
 
 .tab-btn:hover {
-  color: #a68cab;
+  color: #3a1f35;
   background: rgba(166, 140, 171, 0.05);
 }
 
 .tab-btn.active {
-  color: #a68cab;
-  border-bottom-color: #a68cab;
+  color: #3a1f35;
+  border-bottom-color: #3a1f35;
   font-weight: 600;
 }
 
@@ -1052,8 +1066,8 @@ body {
 }
 
 .chip:hover {
-  background: #a68cab;
-  border-color: #a68cab;
+  background: #3a1f35;
+  border-color: #3a1f35;
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(166, 140, 171, 0.3);
@@ -1127,7 +1141,7 @@ body {
 }
 
 .message.user .message-content {
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border-bottom-right-radius: 4px;
 }
@@ -1169,13 +1183,13 @@ body {
 }
 
 .message-input:focus {
-  border-color: #a68cab;
+  border-color: #3a1f35;
   box-shadow: 0 0 0 3px rgba(166, 140, 171, 0.1);
 }
 
 .send-btn {
   padding: 0.875rem 2rem;
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border: none;
   border-radius: 25px;
@@ -1235,7 +1249,7 @@ body {
 }
 
 .create-topic-btn {
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -1277,7 +1291,7 @@ body {
 }
 
 .topic-search-field:focus-within {
-  border-color: #a68cab;
+  border-color: #3a1f35;
   background: #fff;
   box-shadow: 0 0 0 3px rgba(166, 140, 171, 0.12);
 }
@@ -1297,13 +1311,13 @@ body {
 }
 
 .topic-search-field svg {
-  color: #a68cab;
+  color: #3a1f35;
 }
 
 .topic-search-clear {
   border: none;
   background: none;
-  color: #a68cab;
+  color: #3a1f35;
   cursor: pointer;
   display: inline-flex;
   padding: 0.2rem;
@@ -1343,7 +1357,7 @@ body {
 .topic-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 20px rgba(166, 140, 171, 0.15);
-  border-color: #a68cab;
+  border-color: #3a1f35;
 }
 
 .topic-card-header {
@@ -1496,7 +1510,7 @@ body {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   display: flex;
   align-items: center;
@@ -1568,7 +1582,7 @@ body {
 }
 
 .reaction-chip.is-active {
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border-color: #9a7ca0;
 }
@@ -1598,7 +1612,7 @@ body {
   gap: 0.35rem;
   border: none;
   background: none;
-  color: #a68cab;
+  color: #3a1f35;
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
@@ -1644,7 +1658,7 @@ body {
 .post-reply-btn {
   background: none;
   border: none;
-  color: #a68cab;
+  color: #3a1f35;
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
@@ -1681,14 +1695,14 @@ body {
 }
 
 .post-input:focus {
-  border-color: #a68cab;
+  border-color: #3a1f35;
   outline: none;
   box-shadow: 0 0 0 3px rgba(166, 140, 171, 0.1);
 }
 
 .post-send-btn {
   padding: 0.875rem 2rem;
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border: none;
   border-radius: 12px;
@@ -1753,7 +1767,7 @@ body {
 
 .file-link:hover {
   background: #f0f0f0;
-  border-color: #a68cab;
+  border-color: #3a1f35;
 }
 
 .post-attachment {
@@ -1798,7 +1812,7 @@ body {
 }
 
 .back-to-friends-btn:hover {
-  color: #a68cab;
+  color: #3a1f35;
 }
 
 .dm-friend-info {
@@ -1881,7 +1895,7 @@ body {
 }
 
 .dm-message.own .dm-message-content {
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
 }
 
@@ -1921,13 +1935,13 @@ body {
 }
 
 .dm-input:focus {
-  border-color: #a68cab;
+  border-color: #3a1f35;
   outline: none;
   box-shadow: 0 0 0 3px rgba(166, 140, 171, 0.1);
 }
 
 .dm-send-btn {
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border: none;
   padding: 0.875rem 2rem;
@@ -1952,7 +1966,7 @@ body {
 /* Login Page Styles */
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #a68cab 0%, #8d6f91 100%);
+  background: linear-gradient(135deg, #3a1f35, 0%, #8d6f91 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1972,23 +1986,21 @@ body {
 }
 
 .login-header {
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   padding: 3rem 2rem 2rem;
   text-align: center;
   flex-shrink: 0;
 }
 
-.login-app-name {
+/* Login/Signup page logo - cream color on purple header background */
+.login-container .login-app-name,
+.login-header .login-app-name {
   font-size: 3rem;
   font-weight: 800;
   margin-bottom: 0.5rem;
   font-family: 'Nunito', sans-serif;
-  color: white;
-}
-
-.login-app-name span {
-  color: #fff3d1 !important;
+  color: #fff3d1 !important; /* Cream color for visibility on purple background */
 }
 
 .login-tagline {
@@ -2028,12 +2040,12 @@ body {
 }
 
 .login-tab:hover {
-  color: #a68cab;
+  color: #3a1f35;
 }
 
 .login-tab.active {
-  color: #a68cab;
-  border-bottom-color: #a68cab;
+  color: #3a1f35;
+  border-bottom-color: #3a1f35;
 }
 
 .login-form {
@@ -2062,7 +2074,7 @@ body {
 
 .login-link-btn {
   background: none;
-  color: #a68cab;
+  color: #3a1f35;
   border: none;
   padding: 0.75rem 1rem;
   font-size: 0.9rem;
@@ -2083,7 +2095,7 @@ body {
 }
 
 .login-submit-btn {
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border: none;
   padding: 1rem 2rem;
@@ -2163,7 +2175,7 @@ body {
 }
 
 .name-input:focus {
-  border-color: #a68cab;
+  border-color: #3a1f35;
   outline: none;
   box-shadow: 0 0 0 3px rgba(166, 140, 171, 0.1);
 }
@@ -2185,7 +2197,7 @@ body {
 }
 
 .add-friend-header-btn {
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -2247,7 +2259,7 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   display: flex;
   align-items: center;
@@ -2263,7 +2275,7 @@ body {
 }
 
 .accept-friend-btn {
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border: none;
   padding: 0.5rem 1.25rem;
@@ -2336,10 +2348,10 @@ body {
 
 .view-profile-btn {
   padding: 0.45rem 0.9rem;
-  border: 1px solid #a68cab;
+  border: 1px solid #3a1f35;
   border-radius: 6px;
   background: transparent;
-  color: #a68cab;
+  color: #3a1f35;
   font-size: 0.8rem;
   font-family: 'Nunito', sans-serif;
   cursor: pointer;
@@ -2347,16 +2359,16 @@ body {
 }
 
 .view-profile-btn:hover {
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
-  border-color: #a68cab;
+  border-color: #3a1f35;
 }
 
 .unread-badge {
   position: absolute;
   top: 0.75rem;
   right: 0.75rem;
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border-radius: 50%;
   width: 24px;
@@ -2525,7 +2537,7 @@ body {
 .form-group input:focus,
 .form-group textarea:focus,
 .form-group select:focus {
-  border-color: #a68cab;
+  border-color: #3a1f35;
   outline: none;
   box-shadow: 0 0 0 3px rgba(166, 140, 171, 0.1);
 }
@@ -2562,12 +2574,12 @@ body {
 }
 
 .invite-friend-option:hover {
-  border-color: #a68cab;
+  border-color: #3a1f35;
   background: #f1ebf4;
 }
 
 .invite-friend-option.selected {
-  border-color: #a68cab;
+  border-color: #3a1f35;
   background: rgba(166, 140, 171, 0.15);
 }
 
@@ -2583,7 +2595,7 @@ body {
 
 .invite-friend-selected {
   font-size: 0.75rem;
-  color: #a68cab;
+  color: #3a1f35;
   font-weight: 600;
 }
 
@@ -2648,8 +2660,8 @@ body {
 }
 
 .icon-option.selected {
-  background: #a68cab;
-  border-color: #a68cab;
+  background: #3a1f35;
+  border-color: #3a1f35;
 }
 
 .modal-buttons {
@@ -2678,7 +2690,7 @@ body {
 
 .modal-btn-create {
   padding: 0.75rem 1.5rem;
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border: none;
   border-radius: 8px;
@@ -2725,7 +2737,7 @@ body {
 
 .add-friend-btn-small {
   padding: 0.5rem 1rem;
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border: none;
   border-radius: 6px;
@@ -2779,7 +2791,7 @@ body {
 .auth-link-btn {
   background: none;
   border: none;
-  color: #a68cab;
+  color: #3a1f35;
   cursor: pointer;
   font-weight: 600;
   text-decoration: underline;
@@ -2793,7 +2805,7 @@ body {
 .auth-submit-btn {
   width: 100%;
   padding: 0.75rem;
-  background: #a68cab;
+  background: #3a1f35;
   color: white;
   border: none;
   border-radius: 8px;

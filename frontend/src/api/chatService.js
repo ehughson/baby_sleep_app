@@ -70,6 +70,10 @@ export const chatService = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        // Handle rate limiting (429 Too Many Requests)
+        if (response.status === 429) {
+          throw new Error('Too many requests. Please try again later.');
+        }
         throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
@@ -199,6 +203,9 @@ export const chatService = {
     } catch (error) {
       if (error?.response?.status === 401) {
         return [];
+      }
+      if (error?.response?.status === 429) {
+        throw new Error('Too many requests. Please try again later.');
       }
       console.error('Failed to fetch conversations', error);
       throw new Error(error?.response?.data?.error || 'Failed to fetch conversations');

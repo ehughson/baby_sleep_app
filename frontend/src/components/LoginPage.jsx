@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authService } from '../api/authService';
 import MinimalIcon from './icons/MinimalIcon.jsx';
+import { validatePassword, validateEmail, validateUsername, validateName } from '../utils/validation';
 
 const PROFANITY_LIST = [
   'fuck',
@@ -152,6 +153,23 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Check for reset password token in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    const isResetPassword = window.location.pathname.includes('reset-password');
+    
+    if (tokenFromUrl && isResetPassword) {
+      setResetToken(tokenFromUrl);
+      setShowResetPassword(true);
+      setShowForgotPassword(false);
+      setIsSignup(false);
+      // Clear the token from URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
   // Generate random username function (matches backend logic)
   const generateRandomUsername = () => {
     const adjectives = ['sleepy', 'cozy', 'dreamy', 'calm', 'gentle', 'peaceful', 'serene', 'tranquil', 'restful', 'quiet'];
@@ -265,19 +283,49 @@ const LoginPage = ({ onLoginSuccess }) => {
     e.preventDefault();
     setError('');
     
-    // Validate step 1 fields
-    if (!firstName.trim() || !lastName.trim() || !email || !password) {
-      setError('Please fill in all required fields');
+    // Validate first name
+    const firstNameValidation = validateName(firstName, 'First name');
+    if (!firstNameValidation.isValid) {
+      setError(firstNameValidation.error);
+      return;
+    }
+
+    // Validate last name
+    const lastNameValidation = validateName(lastName, 'Last name');
+    if (!lastNameValidation.isValid) {
+      setError(lastNameValidation.error);
+      return;
+    }
+
+    // Validate email
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      setError(emailValidation.error);
+      return;
+    }
+
+    // Validate username if not using random
+    if (!useRandomUsername) {
+      if (!username.trim()) {
+        setError('Please enter a username or select "Generate random username"');
+        return;
+      }
+      const usernameValidation = validateUsername(username);
+      if (!usernameValidation.isValid) {
+        setError(usernameValidation.error);
+        return;
+      }
+    }
+
+    // Validate password strength
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.error);
       return;
     }
 
     if (containsBannedWord(firstName.trim()) || containsBannedWord(lastName.trim())) {
       setError('Please use respectful language in your name.');
-      return;
-    }
-
-    if (!username && !useRandomUsername) {
-      setError('Please enter a username or select "Generate random username"');
       return;
     }
 
@@ -514,8 +562,10 @@ const LoginPage = ({ onLoginSuccess }) => {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+    // Validate password strength
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.error);
       return;
     }
 
@@ -574,7 +624,7 @@ const LoginPage = ({ onLoginSuccess }) => {
       <div className="login-page">
         <div className="login-container">
           <div className="login-header">
-            <h1 className="login-app-name"><span style={{ color: '#fff3d1' }}>REM</span>-i</h1>
+            <h1 className="login-app-name" style={{ color: '#fff3d1' }}>REM-i</h1>
             <p className="login-tagline">Reset Your Password</p>
           </div>
 
@@ -606,9 +656,9 @@ const LoginPage = ({ onLoginSuccess }) => {
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="At least 6 characters"
+                  placeholder="Min 8 chars: uppercase, lowercase, number, special"
                   required
-                  minLength={6}
+                  minLength={8}
                   disabled={isLoading}
                 />
               </div>
@@ -622,7 +672,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm your new password"
                   required
-                  minLength={6}
+                  minLength={8}
                   disabled={isLoading}
                 />
               </div>
@@ -658,7 +708,7 @@ const LoginPage = ({ onLoginSuccess }) => {
       <div className="login-page">
         <div className="login-container">
           <div className="login-header">
-            <h1 className="login-app-name"><span style={{ color: '#fff3d1' }}>REM</span>-i</h1>
+            <h1 className="login-app-name" style={{ color: '#fff3d1' }}>REM-i</h1>
             <p className="login-tagline">Forgot Password</p>
           </div>
 
@@ -711,7 +761,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     <div className="login-page">
       <div className="login-container">
           <div className="login-header">
-            <h1 className="login-app-name"><span style={{ color: '#fff3d1' }}>REM</span>-i</h1>
+            <h1 className="login-app-name" style={{ color: '#fff3d1' }}>REM-i</h1>
             <p className="login-tagline">Shaping sleep, one night at a time</p>
           </div>
 
@@ -835,9 +885,9 @@ const LoginPage = ({ onLoginSuccess }) => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="At least 6 characters"
+                    placeholder="Min 8 chars: uppercase, lowercase, number, special"
                     required
-                    minLength={6}
+                    minLength={8}
                     disabled={isLoading}
                     autoComplete="new-password"
                   />

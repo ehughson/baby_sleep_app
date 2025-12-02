@@ -12,6 +12,9 @@ export const forumService = {
       const response = await axios.get(url);
       return response.data;
     } catch (error) {
+      if (error.response?.status === 429) {
+        throw new Error('Too many requests. Please try again later.');
+      }
       throw new Error('Failed to fetch channels');
     }
   },
@@ -29,6 +32,9 @@ export const forumService = {
       if (error.response?.status === 404) {
         return [];
       }
+      if (error.response?.status === 429) {
+        throw new Error('Too many requests. Please try again later.');
+      }
       throw new Error('Failed to fetch posts');
     }
   },
@@ -39,6 +45,9 @@ export const forumService = {
       const response = await axios.post(`${API_BASE_URL}/forum/posts`, postData);
       return response.data;
     } catch (error) {
+      if (error.response?.status === 429) {
+        throw new Error('Too many requests. Please try again later.');
+      }
       throw new Error(error.response?.data?.error || 'Failed to create post');
     }
   },

@@ -84,9 +84,9 @@ const AuthModal = ({ onClose, onSuccess, mode = 'login' }) => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={isSignup ? "At least 6 characters" : "Enter password"}
+              placeholder={isSignup ? "Min 8 chars: uppercase, lowercase, number, special" : "Enter password"}
               required
-              minLength={isSignup ? 6 : undefined}
+              minLength={isSignup ? 8 : undefined}
               disabled={isLoading}
             />
           </div>

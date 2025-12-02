@@ -53,6 +53,8 @@ function App() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showUpdateBanner, setShowUpdateBanner] = useState(false);
   const [showConversationMenu, setShowConversationMenu] = useState(false);
+  const [emailVerificationStatus, setEmailVerificationStatus] = useState(null); // 'verifying', 'success', 'error', null
+  const [emailVerificationMessage, setEmailVerificationMessage] = useState('');
   const currentVersionRef = useRef(null);
   const loadConversations = useCallback(async () => {
     if (!user) {
@@ -155,6 +157,40 @@ function App() {
       loadConversations();
     }
   }, [showUserMenu, showConversationMenu, loadConversations]);
+
+  // Check for email verification token in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const verificationToken = urlParams.get('token');
+    const isVerifyEmail = window.location.pathname.includes('verify-email') || urlParams.has('token');
+    
+    if (verificationToken && isVerifyEmail) {
+      const verifyEmail = async () => {
+        setEmailVerificationStatus('verifying');
+        setEmailVerificationMessage('Verifying your email...');
+        
+        try {
+          const response = await authService.verifyEmail(verificationToken);
+          setEmailVerificationStatus('success');
+          setEmailVerificationMessage(response.message || 'Email verified successfully! You can now log in.');
+          
+          // Clear the token from URL
+          window.history.replaceState({}, '', window.location.pathname);
+          
+          // Auto-hide after 5 seconds
+          setTimeout(() => {
+            setEmailVerificationStatus(null);
+            setEmailVerificationMessage('');
+          }, 5000);
+        } catch (error) {
+          setEmailVerificationStatus('error');
+          setEmailVerificationMessage(error.message || 'Failed to verify email. The link may have expired.');
+        }
+      };
+      
+      verifyEmail();
+    }
+  }, []);
 
   // Check authentication on mount
   useEffect(() => {
@@ -610,7 +646,74 @@ function App() {
 
   return (
     <div className="app">
-      <header className="header">
+      {emailVerificationStatus && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 10000,
+            padding: '1rem',
+            backgroundColor: emailVerificationStatus === 'success' ? '#d4edda' : '#f8d7da',
+            color: emailVerificationStatus === 'success' ? '#155724' : '#721c24',
+            borderBottom: `2px solid ${emailVerificationStatus === 'success' ? '#c3e6cb' : '#f5c6cb'}`,
+            textAlign: 'center',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}
+        >
+          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            {emailVerificationStatus === 'verifying' && (
+              <div>⏳ {emailVerificationMessage}</div>
+            )}
+            {emailVerificationStatus === 'success' && (
+              <div>
+                ✅ {emailVerificationMessage}
+                <button
+                  onClick={() => {
+                    setEmailVerificationStatus(null);
+                    setEmailVerificationMessage('');
+                  }}
+                  style={{
+                    marginLeft: '1rem',
+                    padding: '0.25rem 0.75rem',
+                    background: 'transparent',
+                    border: '1px solid currentColor',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    color: 'inherit'
+                  }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+            {emailVerificationStatus === 'error' && (
+              <div>
+                ❌ {emailVerificationMessage}
+                <button
+                  onClick={() => {
+                    setEmailVerificationStatus(null);
+                    setEmailVerificationMessage('');
+                  }}
+                  style={{
+                    marginLeft: '1rem',
+                    padding: '0.25rem 0.75rem',
+                    background: 'transparent',
+                    border: '1px solid currentColor',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    color: 'inherit'
+                  }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      <header className="header" style={{ marginTop: emailVerificationStatus ? '60px' : '0' }}>
         <div className="header-content">
           <div className="header-title">
             {user?.profile_picture ? (
@@ -624,7 +727,7 @@ function App() {
                 <MinimalIcon name="moon" size={20} />
               </span>
             )}
-            <h1><span style={{ color: '#fff3d1' }}>REM</span>-i</h1>
+            <h1 style={{ color: '#fff3d1' }}>REM-i</h1>
           </div>
           <p className="header-subtitle">Shaping the future of baby sleep, one night at a time</p>
         </div>

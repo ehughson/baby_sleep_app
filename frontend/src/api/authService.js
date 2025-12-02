@@ -52,6 +52,10 @@ export const authService = {
         throw new Error(`Request timed out. Backend may not be running. Please check: ${url}`);
       }
       if (error.response) {
+        // Handle rate limiting (429 Too Many Requests)
+        if (error.response.status === 429) {
+          throw new Error('Too many signup attempts. Please try again later.');
+        }
         throw new Error(error.response.data?.error || 'Failed to create account');
       }
       if (error.request) {
@@ -84,6 +88,14 @@ export const authService = {
         throw new Error('Request timed out. Please check your connection and try again.');
       }
       if (error.response) {
+        // Handle rate limiting (429 Too Many Requests)
+        if (error.response.status === 429) {
+          throw new Error('Too many login attempts. Please try again later.');
+        }
+        const status = error.response.status;
+        if (status === 401) {
+          throw new Error('Invalid username or password');
+        }
         const errorMessage = error.response.data?.error || 'Failed to login';
         console.error('Login error response:', error.response.data);
         throw new Error(errorMessage);
@@ -155,6 +167,10 @@ export const authService = {
       return response.data;
     } catch (error) {
       if (error.response) {
+        // Handle rate limiting (429 Too Many Requests)
+        if (error.response.status === 429) {
+          throw new Error('Too many password reset requests. Please try again later.');
+        }
         throw new Error(error.response.data?.error || 'Failed to process password reset request');
       }
       throw new Error('Unable to connect to server. Please check if the backend is running.');
@@ -173,7 +189,28 @@ export const authService = {
       return response.data;
     } catch (error) {
       if (error.response) {
+        // Handle rate limiting (429 Too Many Requests)
+        if (error.response.status === 429) {
+          throw new Error('Too many password reset attempts. Please try again later.');
+        }
         throw new Error(error.response.data?.error || 'Failed to reset password');
+      }
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
+  },
+
+  // Verify email
+  verifyEmail: async (token) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/verify-email`, {
+        token
+      }, {
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data?.error || 'Failed to verify email');
       }
       throw new Error('Unable to connect to server. Please check if the backend is running.');
     }
